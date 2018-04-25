@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"compress/zlib"
 	"container/list"
-	b64 "encoding/base64"
+	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
@@ -13,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 const (
@@ -387,7 +390,7 @@ func DecodeString(s string) string {
 			s += "="
 		}
 	}
-	if y, ex := b64.StdEncoding.DecodeString(s); ex == nil {
+	if y, ex := base64.StdEncoding.DecodeString(s); ex == nil {
 		x := String2Int8(string(y[0])+string(y[1]), 0)
 		z := y[2:]
 		for i := len(z) - 1; i >= 0; i-- {
@@ -440,4 +443,51 @@ func SwapCase(s string) string {
 // VersionInfo show something
 func VersionInfo(p, v, gv, bd, a string) string {
 	return fmt.Sprintf("\n%s \nVersion:\t%s\nGo version:\t%s\nBuild date:\t%s\nCode by:\t%s", p, v, gv, bd, a)
+}
+
+// GetSqlConn 获取数据库连接实例，utf8字符集，连接超时10s
+// username: 数据库连接用户名
+// password： 数据库连接密码
+// host：主机名/主机ip
+// port：服务端口号，默认3306
+// dbname：数据库名称，为空时表示不指定数据库
+// maxOpenConns：连接池中最大连接数，有效范围1-200，超范围时强制为20
+// multiStatements：允许执行多条语句，true or false
+// readTimeout：I/O操作超时时间，单位秒，0-无超时
+func GetSqlConn(username, password, host, dbname string, port, maxOpenConns int, multiStatements bool, readTimeout uint32) (*sql.DB, error) {
+	ms := "false"
+	if multiStatements {
+		ms = "true"
+	}
+	if port > 65535 || port < 1 {
+		port = 3306
+	}
+	connString := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s"+
+		"?multiStatements=%s"+
+		"&readTimeout=%ds"+
+		"&parseTime=true"+
+		"&timeout=10s"+
+		"&charset=utf8"+
+		"&columnsWithAlias=true",
+		username, password, host, port, dbname, ms, readTimeout)
+	db, ex := sql.Open("mysql", strings.Replace(connString, "\n", "", -1))
+
+	if ex != nil {
+		return nil, ex
+	}
+
+	if maxOpenConns <= 0 || maxOpenConns > 200 {
+		maxOpenConns = 20
+	}
+	if maxOpenConns < 2 {
+		db.SetMaxIdleConns(maxOpenConns)
+	} else {
+		db.SetMaxIdleConns(maxOpenConns / 2)
+	}
+	db.SetMaxOpenConns(maxOpenConns)
+
+	if ex := db.Ping(); ex != nil {
+		return nil, ex
+	}
+	return db, nil
 }

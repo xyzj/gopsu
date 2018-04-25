@@ -292,6 +292,10 @@ func (l *MxLog) CurrentFileSize() int64 {
 	return l.fileSize
 }
 
+func (l *MxLog) SetChannelSize(i int) {
+	l.chanWrite = make(chan logMessage, i)
+}
+
 // Close close logger
 func (l *MxLog) Close() error {
 	// defer l.logFile.Close()
