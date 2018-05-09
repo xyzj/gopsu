@@ -1,4 +1,8 @@
 # mxgo
 golang something userful
 
-useage: go get -u github.com/xyzj/mxgo
+depend:
+go get -u github.com/go-sql-driver/mysql
+
+useage:
+go get -u github.com/xyzj/mxgo

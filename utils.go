@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -64,6 +65,29 @@ func (mq *Queue) Clean() {
 	for e := mq.Q.Front(); e != nil; e = n {
 		n = e.Next()
 		mq.Q.Remove(e)
+	}
+}
+
+//CheckIP check if the ipstring is legal
+// Args:
+//	ip: ipstring something like 127.0.0.1:10001
+// return:
+//	true/false
+func CheckIP(ip string) bool {
+	regip := `^(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|[1-9])\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)$`
+	regipwithport := `^(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|[1-9])\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d):\d{1,5}$`
+	if strings.Contains(ip, ":") {
+		if a, ex := regexp.Match(regipwithport, []byte(ip)); ex != nil {
+			return false
+		} else {
+			return a
+		}
+	} else {
+		if a, ex := regexp.Match(regip, []byte(ip)); ex != nil {
+			return false
+		} else {
+			return a
+		}
 	}
 }
 
