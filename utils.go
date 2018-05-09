@@ -68,6 +68,39 @@ func (mq *Queue) Clean() {
 	}
 }
 
+// GetAddrFromString get addr from config string
+// Args:
+//	straddr: something like "1,2,3-6"
+// return:
+//	[]int64,something like []int64{1,2,3,4,5,6}
+func GetAddrFromString(straddr string) ([]int64, error) {
+	lst := strings.Split(straddr, ",")
+	lstAddr := make([]int64, len(lst))
+	for _, v := range lst {
+		if strings.Contains(v, "-") {
+			x := strings.Split(v, "-")
+			x1, ex := strconv.ParseInt(x[0], 10, 0)
+			if ex != nil {
+				return nil, ex
+			}
+			x2, ex := strconv.ParseInt(x[1], 10, 0)
+			if ex != nil {
+				return nil, ex
+			}
+			for i := x1; i <= x2; i++ {
+				lstAddr = append(lstAddr, i)
+			}
+		} else {
+			if y, ex := strconv.ParseInt(v, 10, 0); ex != nil {
+				return nil, ex
+			} else {
+				lstAddr = append(lstAddr, y)
+			}
+		}
+	}
+	return lstAddr, nil
+}
+
 //CheckIP check if the ipstring is legal
 // Args:
 //	ip: ipstring something like 127.0.0.1:10001
