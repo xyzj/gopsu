@@ -74,16 +74,16 @@ func (mq *Queue) Clean() {
 // return:
 //	[]int64,something like []int64{1,2,3,4,5,6}
 func GetAddrFromString(straddr string) ([]int64, error) {
-	lst := strings.Split(straddr, ",")
-	lstAddr := make([]int64, len(lst))
+	lst := strings.Split(strings.TrimSpace(straddr), ",")
+	lstAddr := make([]int64, 0)
 	for _, v := range lst {
 		if strings.Contains(v, "-") {
 			x := strings.Split(v, "-")
-			x1, ex := strconv.ParseInt(x[0], 10, 0)
+			x1, ex := strconv.ParseInt(strings.TrimSpace(x[0]), 10, 0)
 			if ex != nil {
 				return nil, ex
 			}
-			x2, ex := strconv.ParseInt(x[1], 10, 0)
+			x2, ex := strconv.ParseInt(strings.TrimSpace(x[1]), 10, 0)
 			if ex != nil {
 				return nil, ex
 			}
@@ -91,7 +91,7 @@ func GetAddrFromString(straddr string) ([]int64, error) {
 				lstAddr = append(lstAddr, i)
 			}
 		} else {
-			if y, ex := strconv.ParseInt(v, 10, 0); ex != nil {
+			if y, ex := strconv.ParseInt(strings.TrimSpace(v), 10, 0); ex != nil {
 				return nil, ex
 			} else {
 				lstAddr = append(lstAddr, y)
