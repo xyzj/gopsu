@@ -343,6 +343,9 @@ func SplitDateTime(sdt int64) (y, m, d, h, mm, s, wd byte) {
 	if sdt == 0 {
 		sdt = time.Now().Unix()
 	}
+	if sdt > 621356256000000000 {
+		sdt = SwitchStamp(sdt)
+	}
 	tm := time.Unix(sdt, 0)
 	stm := tm.Format("2006-01-02 15:04:05 Mon")
 	dt := strings.Split(stm, " ")
