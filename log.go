@@ -25,6 +25,8 @@ const (
 	maxFileSize      = 209715200 // 200M
 )
 
+var asyncCache *int
+
 // MxLog mx log
 type MxLog struct {
 	fileFullPath string
@@ -43,7 +45,7 @@ type MxLog struct {
 	mu           *sync.Mutex
 	chanWrite    chan logMessage
 	chanClose    chan bool
-	useChan      bool
+	writeAsync   bool
 }
 
 type logMessage struct {
@@ -188,13 +190,25 @@ func (l *MxLog) SetLogLevel(loglevel byte, conlevel byte) {
 	l.conLevel = conlevel
 }
 
+func (l *MxLog) SetAsync(async bool) {
+	if async {
+		l.writeLogAsync()
+	} else {
+		if l.writeAsync {
+			l.chanClose <- true
+		}
+	}
+}
+
 // StartWriteLog StartWriteLog
-func (l *MxLog) StartWriteLog() {
-	l.useChan = true
+func (l *MxLog) writeLogAsync() {
+	l.writeAsync = true
+	l.chanWrite = make(chan logMessage, *asyncCache)
 	go func() {
 		closeme := false
 		for {
-			if closeme {
+			if closeme && len(l.chanWrite) == 0 {
+				l.writeAsync = false
 				break
 			}
 			select {
@@ -208,6 +222,7 @@ func (l *MxLog) StartWriteLog() {
 					l.conLogger.Println(msg.msg)
 				}
 			case <-l.chanClose:
+				close(l.chanWrite)
 				closeme = true
 			}
 		}
@@ -227,7 +242,7 @@ func (l *MxLog) writeLog(msg string, level byte) {
 
 // Debug writelog with level 10
 func (l *MxLog) Debug(msg string) {
-	if l.useChan {
+	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
 			level: 10,
@@ -239,7 +254,7 @@ func (l *MxLog) Debug(msg string) {
 
 // Info writelog with level 20
 func (l *MxLog) Info(msg string) {
-	if l.useChan {
+	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
 			level: 20,
@@ -251,7 +266,7 @@ func (l *MxLog) Info(msg string) {
 
 // Warning writelog with level 30
 func (l *MxLog) Warning(msg string) {
-	if l.useChan {
+	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
 			level: 30,
@@ -263,7 +278,7 @@ func (l *MxLog) Warning(msg string) {
 
 // Error writelog with level 40
 func (l *MxLog) Error(msg string) {
-	if l.useChan {
+	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
 			level: 40,
@@ -277,7 +292,7 @@ func (l *MxLog) Error(msg string) {
 
 // System writelog with level 90
 func (l *MxLog) System(msg string) {
-	if l.useChan {
+	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
 			level: 90,
@@ -301,14 +316,21 @@ func (l *MxLog) Close() error {
 	// defer l.logFile.Close()
 	// l.fileLogger = nil
 	// l.conLogger = nil
-	if l.useChan {
+	if l.writeAsync {
 		l.chanClose <- true
 	}
 	return l.logFile.Close()
 }
 
 // InitNewLogger init logger
-func InitNewLogger(f string) *MxLog {
+func InitNewLogger(f string, cacheCount int) *MxLog {
+	asyncCache = &cacheCount
+	if *asyncCache < 1 {
+		*asyncCache = 500
+	}
+	if *asyncCache > 10000 {
+		*asyncCache = 10000
+	}
 	fno, ex := os.OpenFile(f, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if ex != nil {
 		fmt.Println(ex)
@@ -330,9 +352,9 @@ func InitNewLogger(f string) *MxLog {
 		conLogger:   log.New(os.Stdout, "", logFlagsTimeOnly),
 		indexNumber: 0,
 		mu:          new(sync.Mutex),
-		chanWrite:   make(chan logMessage, 500),
-		chanClose:   make(chan bool),
-		useChan:     false,
+		chanWrite:   make(chan logMessage, *asyncCache),
+		chanClose:   make(chan bool, 2),
+		writeAsync:  false,
 	}
 	mylog.getFileSize()
 	return mylog
