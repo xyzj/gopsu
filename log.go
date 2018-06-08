@@ -46,6 +46,7 @@ type MxLog struct {
 	chanWrite    chan logMessage
 	chanClose    chan bool
 	writeAsync   bool
+	asyncLock    sync.WaitGroup
 }
 
 type logMessage struct {
@@ -192,6 +193,9 @@ func (l *MxLog) SetLogLevel(loglevel byte, conlevel byte) {
 
 func (l *MxLog) SetAsync(async bool) {
 	if async {
+		if l.writeAsync {
+			l.asyncLock.Wait()
+		}
 		l.writeLogAsync()
 	} else {
 		if l.writeAsync {
@@ -205,6 +209,10 @@ func (l *MxLog) writeLogAsync() {
 	l.writeAsync = true
 	l.chanWrite = make(chan logMessage, *asyncCache)
 	go func() {
+		defer func() {
+			l.writeAsync = false
+			l.asyncLock.Done()
+		}()
 		closeme := false
 		for {
 			if closeme && len(l.chanWrite) == 0 {
@@ -222,8 +230,11 @@ func (l *MxLog) writeLogAsync() {
 					l.conLogger.Println(msg.msg)
 				}
 			case <-l.chanClose:
-				close(l.chanWrite)
-				closeme = true
+				if !closeme {
+					closeme = true
+					l.asyncLock.Add(1)
+					close(l.chanWrite)
+				}
 			}
 		}
 	}()
