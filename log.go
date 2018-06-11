@@ -25,7 +25,7 @@ const (
 	maxFileSize      = 209715200 // 200M
 )
 
-var asyncCache *int
+var asyncCache = 1000
 
 // MxLog mx log
 type MxLog struct {
@@ -191,6 +191,20 @@ func (l *MxLog) SetLogLevel(loglevel byte, conlevel byte) {
 	l.conLevel = conlevel
 }
 
+func (l *MxLog) SetAsyncCache(c int) bool {
+	if len(l.chanWrite) > 0 {
+		return false
+	}
+	if asyncCache < 1 {
+		asyncCache = 1000
+	}
+	if asyncCache > 10000 {
+		asyncCache = 10000
+	}
+	l.chanWrite = make(chan logMessage, asyncCache)
+	return true
+}
+
 func (l *MxLog) SetAsync(async bool) {
 	if async {
 		if l.writeAsync {
@@ -334,14 +348,14 @@ func (l *MxLog) Close() error {
 }
 
 // InitNewLogger init logger
-func InitNewLogger(f string, cacheCount int) *MxLog {
-	asyncCache = &cacheCount
-	if *asyncCache < 1 {
-		*asyncCache = 500
-	}
-	if *asyncCache > 10000 {
-		*asyncCache = 10000
-	}
+func InitNewLogger(f string) *MxLog {
+	// asyncCache = &cacheCount
+	// if *asyncCache < 1 {
+	// 	*asyncCache = 500
+	// }
+	// if *asyncCache > 10000 {
+	// 	*asyncCache = 10000
+	// }
 	fno, ex := os.OpenFile(f, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if ex != nil {
 		fmt.Println(ex)
@@ -363,7 +377,7 @@ func InitNewLogger(f string, cacheCount int) *MxLog {
 		conLogger:   log.New(os.Stdout, "", logFlagsTimeOnly),
 		indexNumber: 0,
 		mu:          new(sync.Mutex),
-		chanWrite:   make(chan logMessage, *asyncCache),
+		chanWrite:   make(chan logMessage, asyncCache),
 		chanClose:   make(chan bool, 2),
 		writeAsync:  false,
 	}
