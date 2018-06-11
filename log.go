@@ -370,9 +370,9 @@ func InitNewLogger(f string) *MxLog {
 		conLogger:   log.New(os.Stdout, "", logFlagsTimeOnly),
 		indexNumber: 0,
 		mu:          new(sync.Mutex),
-		chanWrite:   make(chan logMessage, asyncCache),
-		chanClose:   make(chan bool, 2),
-		writeAsync:  false,
+		// chanWrite:   make(chan logMessage, asyncCache),
+		chanClose:  make(chan bool, 2),
+		writeAsync: false,
 	}
 	mylog.getFileSize()
 	return mylog
