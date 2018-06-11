@@ -221,7 +221,7 @@ func (l *MxLog) SetAsync(async bool) {
 // StartWriteLog StartWriteLog
 func (l *MxLog) writeLogAsync() {
 	l.writeAsync = true
-	l.chanWrite = make(chan logMessage, *asyncCache)
+	l.chanWrite = make(chan logMessage, asyncCache)
 	go func() {
 		defer func() {
 			l.writeAsync = false
@@ -349,13 +349,6 @@ func (l *MxLog) Close() error {
 
 // InitNewLogger init logger
 func InitNewLogger(f string) *MxLog {
-	// asyncCache = &cacheCount
-	// if *asyncCache < 1 {
-	// 	*asyncCache = 500
-	// }
-	// if *asyncCache > 10000 {
-	// 	*asyncCache = 10000
-	// }
 	fno, ex := os.OpenFile(f, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if ex != nil {
 		fmt.Println(ex)
