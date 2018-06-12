@@ -260,8 +260,22 @@ func (l *MxLog) writeLog(msg string, level byte) {
 		l.fileLogger.Println(msg)
 		l.fileSize += int64(len(msg) + 17)
 	}
+
 	if level >= l.conLevel {
-		l.conLogger.Println(msg)
+		switch level {
+		case logDebug:
+			l.conLogger.Println(ColorText(FColorGreen, BColorDefault, msg))
+		case logInfo:
+			l.conLogger.Println(msg)
+		case logWarning:
+			l.conLogger.Println(ColorText(FColorYellow, BColorDefault, msg))
+		case logError:
+			l.conLogger.Println(ColorText(FColorRed, BColorDefault, msg))
+		case logSystem:
+			l.conLogger.Println(ColorText(FColorWhite, BColorRed, msg))
+		default:
+			l.conLogger.Println(msg)
+		}
 	}
 }
 
@@ -270,7 +284,7 @@ func (l *MxLog) Debug(msg string) {
 	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
-			level: 10,
+			level: logDebug,
 		}
 	} else {
 		l.writeLog(msg, logDebug)
@@ -282,7 +296,7 @@ func (l *MxLog) Info(msg string) {
 	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
-			level: 20,
+			level: logInfo,
 		}
 	} else {
 		l.writeLog(msg, logInfo)
@@ -294,7 +308,7 @@ func (l *MxLog) Warning(msg string) {
 	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
-			level: 30,
+			level: logWarning,
 		}
 	} else {
 		l.writeLog(msg, logWarning)
@@ -306,7 +320,7 @@ func (l *MxLog) Error(msg string) {
 	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
-			level: 40,
+			level: logError,
 		}
 	} else {
 		l.writeLog(msg, logError)
@@ -320,7 +334,7 @@ func (l *MxLog) System(msg string) {
 	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
-			level: 90,
+			level: logSystem,
 		}
 	} else {
 		l.writeLog(msg, logSystem)
