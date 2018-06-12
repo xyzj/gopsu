@@ -264,15 +264,15 @@ func (l *MxLog) writeLog(msg string, level byte) {
 	if level >= l.conLevel {
 		switch level {
 		case logDebug:
-			l.conLogger.Println(ColorText(FColorGreen, BColorDefault, msg))
+			l.conLogger.Println(GreenText(msg))
 		case logInfo:
 			l.conLogger.Println(msg)
 		case logWarning:
-			l.conLogger.Println(ColorText(FColorYellow, BColorDefault, msg))
+			l.conLogger.Println(YellowText(msg))
 		case logError:
-			l.conLogger.Println(ColorText(FColorRed, BColorDefault, msg))
+			l.conLogger.Println(RedText(msg))
 		case logSystem:
-			l.conLogger.Println(ColorText(FColorWhite, BColorRed, msg))
+			l.conLogger.Println(ColorText(FColorCyan, BColorBlack, TextHighlight, msg))
 		default:
 			l.conLogger.Println(msg)
 		}
@@ -281,6 +281,7 @@ func (l *MxLog) writeLog(msg string, level byte) {
 
 // Debug writelog with level 10
 func (l *MxLog) Debug(msg string) {
+	msg = fmt.Sprintf("[D] %s", msg)
 	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
@@ -293,6 +294,7 @@ func (l *MxLog) Debug(msg string) {
 
 // Info writelog with level 20
 func (l *MxLog) Info(msg string) {
+	msg = fmt.Sprintf("[I] %s", msg)
 	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
@@ -305,6 +307,7 @@ func (l *MxLog) Info(msg string) {
 
 // Warning writelog with level 30
 func (l *MxLog) Warning(msg string) {
+	msg = fmt.Sprintf("[W] %s", msg)
 	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
@@ -317,6 +320,7 @@ func (l *MxLog) Warning(msg string) {
 
 // Error writelog with level 40
 func (l *MxLog) Error(msg string) {
+	msg = fmt.Sprintf("[E] %s", msg)
 	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
@@ -331,6 +335,7 @@ func (l *MxLog) Error(msg string) {
 
 // System writelog with level 90
 func (l *MxLog) System(msg string) {
+	// msg = fmt.Sprintf("[S] %s", msg)
 	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
