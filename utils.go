@@ -332,7 +332,7 @@ func IsExist(p string) bool {
 func GetExecDir() string {
 	a, _ := os.Executable()
 	execdir := filepath.Dir(a)
-	if strings.Contains(execdir, "command-line-arguments") {
+	if strings.Contains(execdir, "go-build") {
 		execdir, _ = filepath.Abs(".")
 	}
 	return execdir
