@@ -13,18 +13,21 @@ import (
 	"github.com/tidwall/sjson"
 )
 
+// 配置项结构体
 type confItem struct {
 	key    string
 	value  string
 	remark string
 }
 
+// 配置文件结构体
 type confData struct {
 	items        []*confItem
 	fileFullPath string
 	fileName     string
 }
 
+// 设置配置项
 func (c *confData) SetItem(key, value, remark string) bool {
 	// defer return false
 	key = strings.TrimSpace(key)
@@ -52,6 +55,7 @@ func (c *confData) SetItem(key, value, remark string) bool {
 	return true
 }
 
+// 获取配置项的value
 func (c *confData) GetItem(key string) (string, error) {
 	found := false
 	var x string
@@ -69,6 +73,16 @@ func (c *confData) GetItem(key string) (string, error) {
 	}
 }
 
+// 获取所有配置项的key
+func (c *confData) GetKeys() []string {
+	keys := make([]string, len(c.items))
+	for k, v := range c.items {
+		keys[k] = strings.TrimSpace(v.key)
+	}
+	return keys
+}
+
+// 保存配置文件
 func (c *confData) Save() error {
 	file, ex := os.OpenFile(c.fileFullPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if ex != nil {
@@ -91,6 +105,7 @@ func (c *confData) Save() error {
 	return nil
 }
 
+// 获取所有配置项的key，value，以json字符串返回
 func (c *confData) GetAll() string {
 	var value string
 	for _, v := range c.items {
@@ -133,7 +148,6 @@ func LoadConfig(fullpath string) (*confData, error) {
 				remarkbuf.WriteString(line)
 				continue
 			} else {
-				print(remarkbuf.String())
 				s := strings.SplitN(line, "=", 2)
 				if len(s[1]) > 0 {
 					c.SetItem(s[0], s[1], remarkbuf.String())
