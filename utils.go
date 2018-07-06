@@ -502,7 +502,7 @@ func SwapCase(s string) string {
 
 // VersionInfo show something
 func VersionInfo(p, v, gv, bd, pl, a string) string {
-	return fmt.Sprintf("\n%s \nVersion:\t%s\nGo version:\t%s\nBuild date:\t%s\nBuild OS:\t%s\nCode by:\t%s", p, v, gv, pl, bd, a)
+	return fmt.Sprintf("\n%s\r\nVersion:\t%s\r\nGo version:\t%s\r\nBuild date:\t%s\r\nBuild OS:\t%s\r\nCode by:\t%s", p, v, gv, pl, bd, a)
 }
 
 // GetSqlConn 获取数据库连接实例，utf8字符集，连接超时10s
