@@ -22,10 +22,13 @@ const (
 	logFlagsLow      = log.Ldate | log.Ltime
 	logFlagsTimeOnly = log.Lmicroseconds
 	maxFileCount     = 30
-	maxFileSize      = 209715200 // 200M
+	maxFileSize      = 1048576000 // 1G
 )
 
-var asyncCache = 1000
+var (
+	asyncCache = 1000
+	logFlags   = logFlagsTimeOnly
+)
 
 // MxLog mx log
 type MxLog struct {
@@ -95,11 +98,13 @@ func (l *MxLog) clearLogFile() {
 }
 
 func (l *MxLog) setlogFlagsHigh() {
+	logFlags = logFlagsHigh
 	l.fileLogger.SetFlags(logFlagsHigh)
 	l.conLogger.SetFlags(logFlagsHigh)
 }
 
 func (l *MxLog) setlogFlagsLow() {
+	logFlags = logFlagsLow
 	l.fileLogger.SetFlags(logFlagsLow)
 	l.conLogger.SetFlags(logFlagsLow)
 }
@@ -131,7 +136,7 @@ func (l *MxLog) splitLogFile(t *time.Time) {
 		fmt.Println(ex)
 	}
 	l.logFile = fno
-	l.fileLogger = log.New(fno, "", logFlagsLow)
+	l.fileLogger = log.New(fno, "", logFlags)
 	l.getFileSize()
 	l.clearLogFile()
 }
@@ -182,7 +187,7 @@ func (l *MxLog) SetMaxFileCount(c uint16) {
 
 // SetMaxFileSize set max log file size in M
 func (l *MxLog) SetMaxFileSize(c int64) {
-	l.fileMaxSize = c
+	l.fileMaxSize = c * 1048576
 }
 
 // SetLogLevel set file & console log level
@@ -378,7 +383,7 @@ func InitNewLogger(f string) *MxLog {
 		fileFullPath: f,
 		fileMaxCount: maxFileCount,
 		fileMaxSize:  maxFileSize,
-		fileLogger:   log.New(fno, "", logFlagsTimeOnly),
+		fileLogger:   log.New(fno, "", logFlags),
 		fileSize:     0,
 		fileName:     filepath.Base(f),
 		fileDir:      filepath.Dir(f),
@@ -386,7 +391,7 @@ func InitNewLogger(f string) *MxLog {
 		logDate:      Time2Stamp(fmt.Sprintf("%d-%02d-%02d 00:00:00", t.Year(), t.Month(), t.Day())),
 		// logDate:     t.Unix(),
 		conLevel:    logWarning,
-		conLogger:   log.New(os.Stdout, "", logFlagsTimeOnly),
+		conLogger:   log.New(os.Stdout, "", logFlags),
 		indexNumber: 0,
 		mu:          new(sync.Mutex),
 		// chanWrite:   make(chan logMessage, asyncCache),
