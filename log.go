@@ -286,7 +286,7 @@ func (l *MxLog) writeLog(msg string, level byte) {
 
 // Debug writelog with level 10
 func (l *MxLog) Debug(msg string) {
-	// msg = fmt.Sprintf("[D] %s", msg)
+	msg = fmt.Sprintf("[10] %s", msg)
 	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
@@ -299,7 +299,7 @@ func (l *MxLog) Debug(msg string) {
 
 // Info writelog with level 20
 func (l *MxLog) Info(msg string) {
-	// msg = fmt.Sprintf("[I] %s", msg)
+	msg = fmt.Sprintf("[20] %s", msg)
 	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
@@ -312,7 +312,7 @@ func (l *MxLog) Info(msg string) {
 
 // Warning writelog with level 30
 func (l *MxLog) Warning(msg string) {
-	// msg = fmt.Sprintf("[W] %s", msg)
+	msg = fmt.Sprintf("[30] %s", msg)
 	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
@@ -325,7 +325,7 @@ func (l *MxLog) Warning(msg string) {
 
 // Error writelog with level 40
 func (l *MxLog) Error(msg string) {
-	// msg = fmt.Sprintf("[E] %s", msg)
+	msg = fmt.Sprintf("[40] %s", msg)
 	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
@@ -340,7 +340,7 @@ func (l *MxLog) Error(msg string) {
 
 // System writelog with level 90
 func (l *MxLog) System(msg string) {
-	// msg = fmt.Sprintf("[S] %s", msg)
+	msg = fmt.Sprintf("[90] %s", msg)
 	if l.writeAsync {
 		l.chanWrite <- logMessage{
 			msg:   msg,
