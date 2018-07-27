@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/zlib"
 	"container/list"
-	"database/sql"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -15,8 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	_ "github.com/go-sql-driver/mysql"
+	// _ "github.com/go-sql-driver/mysql"
 )
 
 const (
@@ -514,40 +512,40 @@ func VersionInfo(p, v, gv, bd, pl, a string) string {
 // maxOpenConns：连接池中最大连接数，有效范围1-200，超范围时强制为20
 // multiStatements：允许执行多条语句，true or false
 // readTimeout：I/O操作超时时间，单位秒，0-无超时
-func GetSqlConn(username, password, host, dbname string, port, maxOpenConns int, multiStatements bool, readTimeout uint32) (*sql.DB, error) {
-	ms := "false"
-	if multiStatements {
-		ms = "true"
-	}
-	if port > 65535 || port < 1 {
-		port = 3306
-	}
-	connString := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s"+
-		"?multiStatements=%s"+
-		"&readTimeout=%ds"+
-		"&parseTime=true"+
-		"&timeout=10s"+
-		"&charset=utf8"+
-		"&columnsWithAlias=true",
-		username, password, host, port, dbname, ms, readTimeout)
-	db, ex := sql.Open("mysql", strings.Replace(connString, "\n", "", -1))
-
-	if ex != nil {
-		return nil, ex
-	}
-
-	if maxOpenConns <= 0 || maxOpenConns > 200 {
-		maxOpenConns = 20
-	}
-	if maxOpenConns < 2 {
-		db.SetMaxIdleConns(maxOpenConns)
-	} else {
-		db.SetMaxIdleConns(maxOpenConns / 2)
-	}
-	db.SetMaxOpenConns(maxOpenConns)
-
-	if ex := db.Ping(); ex != nil {
-		return nil, ex
-	}
-	return db, nil
-}
+// func GetSqlConn(username, password, host, dbname string, port, maxOpenConns int, multiStatements bool, readTimeout uint32) (*sql.DB, error) {
+// 	ms := "false"
+// 	if multiStatements {
+// 		ms = "true"
+// 	}
+// 	if port > 65535 || port < 1 {
+// 		port = 3306
+// 	}
+// 	connString := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s"+
+// 		"?multiStatements=%s"+
+// 		"&readTimeout=%ds"+
+// 		"&parseTime=true"+
+// 		"&timeout=10s"+
+// 		"&charset=utf8"+
+// 		"&columnsWithAlias=true",
+// 		username, password, host, port, dbname, ms, readTimeout)
+// 	db, ex := sql.Open("mysql", strings.Replace(connString, "\n", "", -1))
+//
+// 	if ex != nil {
+// 		return nil, ex
+// 	}
+//
+// 	if maxOpenConns <= 0 || maxOpenConns > 200 {
+// 		maxOpenConns = 20
+// 	}
+// 	if maxOpenConns < 2 {
+// 		db.SetMaxIdleConns(maxOpenConns)
+// 	} else {
+// 		db.SetMaxIdleConns(maxOpenConns / 2)
+// 	}
+// 	db.SetMaxOpenConns(maxOpenConns)
+//
+// 	if ex := db.Ping(); ex != nil {
+// 		return nil, ex
+// 	}
+// 	return db, nil
+// }
