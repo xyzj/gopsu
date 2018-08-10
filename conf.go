@@ -19,14 +19,14 @@ type confItem struct {
 }
 
 // 配置文件结构体
-type confData struct {
+type ConfData struct {
 	items        []*confItem
 	fileFullPath string
 	fileName     string
 }
 
 // SetItem 设置配置项
-func (c *confData) SetItem(key, value, remark string) bool {
+func (c *ConfData) SetItem(key, value, remark string) bool {
 	// defer return false
 	key = strings.TrimSpace(key)
 	value = strings.TrimSpace(value)
@@ -54,7 +54,7 @@ func (c *confData) SetItem(key, value, remark string) bool {
 }
 
 // GetItem 获取配置项的value
-func (c *confData) GetItem(key string) (string, error) {
+func (c *ConfData) GetItem(key string) (string, error) {
 	found := false
 	var x string
 	for _, v := range c.items {
@@ -72,7 +72,7 @@ func (c *confData) GetItem(key string) (string, error) {
 }
 
 // GetKeys 获取所有配置项的key
-func (c *confData) GetKeys() []string {
+func (c *ConfData) GetKeys() []string {
 	keys := make([]string, len(c.items))
 	for k, v := range c.items {
 		keys[k] = strings.TrimSpace(v.key)
@@ -81,7 +81,7 @@ func (c *confData) GetKeys() []string {
 }
 
 // Save 保存配置文件
-func (c *confData) Save() error {
+func (c *ConfData) Save() error {
 	file, ex := os.OpenFile(c.fileFullPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if ex != nil {
 		return ex
@@ -104,7 +104,7 @@ func (c *confData) Save() error {
 }
 
 // GetAll 获取所有配置项的key，value，以json字符串返回
-func (c *confData) GetAll() string {
+func (c *ConfData) GetAll() string {
 	var s = make([]string, 0, len(c.items))
 	for _, v := range c.items {
 		s = append(s, fmt.Sprintf("\"%s\":\"%s\"", v.key, v.value))
@@ -113,13 +113,13 @@ func (c *confData) GetAll() string {
 }
 
 // GetCount 获取配置数量
-func (c *confData) GetCount() int {
+func (c *ConfData) Len() int {
 	return len(c.items)
 }
 
 // LoadConfig load config file
-func LoadConfig(fullpath string) (*confData, error) {
-	c := &confData{
+func LoadConfig(fullpath string) (*ConfData, error) {
+	c := &ConfData{
 		fileFullPath: fullpath,
 		fileName:     path.Base(fullpath),
 		items:        make([]*confItem, 0),
@@ -129,7 +129,7 @@ func LoadConfig(fullpath string) (*confData, error) {
 		if ex != nil {
 			return nil, ex
 		}
-		defer func() (*confData, error) {
+		defer func() (*ConfData, error) {
 			if ex := recover(); ex != nil {
 				file.Close()
 			}
