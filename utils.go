@@ -499,8 +499,30 @@ func SwapCase(s string) string {
 }
 
 // VersionInfo show something
+// Args:
+// 	p: program name
+// 	v: program version
+// 	gv: golang version
+// 	bd: build datetime
+// 	pl: platform info
+// 	a: auth name
 func VersionInfo(p, v, gv, bd, pl, a string) string {
 	return fmt.Sprintf("\n%s\r\nVersion:\t%s\r\nGo version:\t%s\r\nBuild date:\t%s\r\nBuild OS:\t%s\r\nCode by:\t%s", p, v, gv, pl, bd, a)
+}
+
+// WriteVersionInfo write version info to .ver file
+// Args:
+// 	p: program name
+// 	v: program version
+// 	gv: golang version
+// 	bd: build datetime
+// 	pl: platform info
+// 	a: auth name
+func WriteVersionInfo(p, v, gv, bd, pl, a string) {
+	fn, _ := os.Executable()
+	f, _ := os.OpenFile(fmt.Sprintf("%s.ver", fn), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0444)
+	defer f.Close()
+	f.WriteString(fmt.Sprintf("\n%s\r\nVersion:\t%s\r\nGo version:\t%s\r\nBuild date:\t%s\r\nBuild OS:\t%s\r\nCode by:\t%s\r\n", p, v, gv, pl, bd, a))
 }
 
 // GetSqlConn 获取数据库连接实例，utf8字符集，连接超时10s
