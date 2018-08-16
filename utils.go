@@ -364,15 +364,40 @@ func Stamp2Time(t int64) string {
 	return tm.Format("2006-01-02 15:04:05")
 }
 
-// Time2Stamp convert datetime string to stamp
-func Time2Stamp(t string) int64 {
-	loc, _ := time.LoadLocation("Local")
-	tm, ex := time.ParseInLocation("2006-01-02 15:04:05", t, loc)
-	// tm, ex := time.Parse("2006-01-02 15:04:05", t)
+// Time2Stampf 可根据制定的时间格式和时区转换为当前时区的Unix时间戳
+// fmt：
+//  year：2006
+//  month：01
+//  day：02
+//  hour：15
+//  minute：04
+//  second：05
+// tz：0～12,超范围时使用本地时区
+func Time2Stampf(s, fmt string, tz float32) int64 {
+	if fmt == "" {
+		fmt = "2006-01-02 15:04:05"
+	}
+	if tz > 12 || tz < 0 {
+		_, t := time.Now().Zone()
+		tz = float32(t / 3600)
+	}
+	var loc *time.Location
+	loc = time.FixedZone("", int((time.Duration(tz) * time.Hour).Seconds()))
+	tm, ex := time.ParseInLocation(fmt, s, loc)
 	if ex != nil {
 		return 0
 	}
 	return tm.Unix()
+}
+
+// Time2Stamp convert datetime string to stamp
+func Time2Stamp(s string) int64 {
+	return Time2Stampf(s, "", 8)
+}
+
+// Time2StampNB 电信NB平台数据时间戳转为本地unix时间戳
+func Time2StampNB(s string) int64 {
+	return Time2Stampf(s, "20060102T150405Z", 0)
 }
 
 // SwitchStamp switch stamp format between unix and c#
