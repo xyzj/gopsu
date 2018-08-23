@@ -171,6 +171,39 @@ func Bytes2String(data []byte, sep string) string {
 	return strings.Join(a, sep)
 }
 
+// String2Int convert string 2 int
+// Args:
+// 	s: 输入字符串
+// 	t: 返回数值进制
+// Return：
+// 	int
+func String2Int(s string, t int) int {
+	x, _ := strconv.ParseInt(s, t, 0)
+	return int(x)
+}
+
+// String2Int8 convert string 2 int8
+// Args:
+// 	s: 输入字符串
+// 	t: 返回数值进制
+// Return：
+// 	int8
+func String2Int8(s string, t int) byte {
+	x, _ := strconv.ParseInt(s, t, 0)
+	return byte(x)
+}
+
+// String2Int32 convert string 2 int32
+// Args:
+// 	s: 输入字符串
+// 	t: 返回数值进制
+// Return：
+// 	int32
+func String2Int32(s string, t int) int32 {
+	x, _ := strconv.ParseInt(s, t, 0)
+	return int32(x)
+}
+
 // String2Int64 convert string 2 int64
 // Args:
 // 	s: 输入字符串
@@ -182,26 +215,9 @@ func String2Int64(s string, t int) int64 {
 	return x
 }
 
-// String2Int32 convert string 2 int32
-// Args:
-// 	s: 输入字符串
-// 	t: 返回数值进制
-// Return：
-// 	int64
-func String2Int32(s string, t int) int32 {
-	x, _ := strconv.ParseInt(s, t, 0)
-	return int32(x)
-}
-
 //StringSlice2Int8 convert string Slice 2 int8
 func StringSlice2Int8(bs []string) byte {
 	return String2Int8(strings.Join(bs, ""), 2)
-}
-
-// String2Int8 convert string 2 int8
-func String2Int8(s string, t int) byte {
-	x, _ := strconv.ParseInt(s, t, 0)
-	return byte(x)
 }
 
 // CheckLrc check lrc data
