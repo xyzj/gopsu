@@ -7,13 +7,47 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"strings"
+	"time"
 )
 
 type cmdArgs struct {
 	inputFile  string
 	outputFile string
+}
+
+func downloadFile() bool {
+	durl := "https://raw.githubusercontent.com/mozillazg/pinyin-data/master/pinyin.txt"
+	uri, err := url.ParseRequestURI(durl)
+	if err != nil {
+		println(fmt.Sprintf("check url error. %s", err.Error()))
+		return false
+	}
+	filename := path.Base(uri.Path)
+
+	client := http.DefaultClient
+	client.Timeout = time.Second * 60 //设置超时时间
+	resp, err := client.Get(durl)
+	if err != nil {
+		println(fmt.Sprintf("download file error. %s", err.Error()))
+		return false
+	}
+	raw := resp.Body
+	defer raw.Close()
+	reader := bufio.NewReader(raw)
+	file, err := os.Create(filename)
+	if err != nil {
+		println(fmt.Sprintf("create file error. %s", err.Error()))
+		return false
+	}
+	defer file.Close()
+	writer := bufio.NewWriter(file)
+	reader.WriteTo(writer)
+	return true
 }
 
 func genCode(inFile *os.File, outFile *os.File) {
@@ -61,10 +95,14 @@ func parseCmdArgs() cmdArgs {
 }
 
 func main() {
-	args := parseCmdArgs()
+	if !downloadFile() {
+		// println("download pinyin.txt failed.")
+		os.Exit(1)
+	}
+	// args := parseCmdArgs()
 	usage := "gen_pinyin_dict INPUT OUTPUT"
-	inputFile := args.inputFile
-	outputFile := args.outputFile
+	inputFile := "pinyin.txt"
+	outputFile := "../pinyin_dict.go"
 	if inputFile == "" || outputFile == "" {
 		fmt.Println(usage)
 		os.Exit(1)
@@ -84,4 +122,5 @@ func main() {
 	defer outFp.Close()
 
 	genCode(inFp, outFp)
+	println("done.")
 }
