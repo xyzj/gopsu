@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"compress/zlib"
 	"container/list"
+	"crypto/md5"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -67,9 +70,9 @@ func (mq *Queue) Clean() {
 }
 
 // GetAddrFromString get addr from config string
-// Args:
+//  Args:
 //	straddr: something like "1,2,3-6"
-// return:
+//  return:
 //	[]int64,something like []int64{1,2,3,4,5,6}
 func GetAddrFromString(straddr string) ([]int64, error) {
 	lst := strings.Split(strings.TrimSpace(straddr), ",")
@@ -99,10 +102,10 @@ func GetAddrFromString(straddr string) ([]int64, error) {
 	return lstAddr, nil
 }
 
-//CheckIP check if the ipstring is legal
-// Args:
+// CheckIP check if the ipstring is legal
+//  Args:
 //	ip: ipstring something like 127.0.0.1:10001
-// return:
+//  return:
 //	true/false
 func CheckIP(ip string) bool {
 	regip := `^(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|[1-9])\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)$`
@@ -123,9 +126,9 @@ func CheckIP(ip string) bool {
 }
 
 // MakeRuntimeDirs make conf,log,cache dirs
-// Args：
+//  Args：
 //	rootpath： 输入路径
-// return：
+//  return：
 // 	conf，log，cache三个文件夹的完整路径
 func MakeRuntimeDirs(rootpath string) (string, string, string) {
 	var basepath string
@@ -140,11 +143,11 @@ func MakeRuntimeDirs(rootpath string) (string, string, string) {
 	return filepath.Join(basepath, "..", "conf"), filepath.Join(basepath, "..", "log"), filepath.Join(basepath, "..", "cache")
 }
 
-//String2Bytes convert hex-string to []byte
-// Args:
+// String2Bytes convert hex-string to []byte
+//  Args:
 // 	data: 输入字符串
 // 	sep： 用于分割字符串的分割字符
-// Return:
+//  Return:
 // 	字节切片
 func String2Bytes(data string, sep string) []byte {
 	var z []byte
@@ -158,10 +161,10 @@ func String2Bytes(data string, sep string) []byte {
 }
 
 // Bytes2String convert []byte to hex-string
-// Args:
+//  Args:
 // 	data: 输入字节切片
 // 	sep： 用于分割字符串的分割字符
-// Return:
+//  Return:
 // 	字符串
 func Bytes2String(data []byte, sep string) string {
 	a := make([]string, len(data))
@@ -172,10 +175,10 @@ func Bytes2String(data []byte, sep string) string {
 }
 
 // String2Int convert string 2 int
-// Args:
+//  Args:
 // 	s: 输入字符串
 // 	t: 返回数值进制
-// Return：
+//  Return：
 // 	int
 func String2Int(s string, t int) int {
 	x, _ := strconv.ParseInt(s, t, 0)
@@ -183,10 +186,10 @@ func String2Int(s string, t int) int {
 }
 
 // String2Int8 convert string 2 int8
-// Args:
+//  Args:
 // 	s: 输入字符串
 // 	t: 返回数值进制
-// Return：
+//  Return：
 // 	int8
 func String2Int8(s string, t int) byte {
 	x, _ := strconv.ParseInt(s, t, 0)
@@ -194,10 +197,10 @@ func String2Int8(s string, t int) byte {
 }
 
 // String2Int32 convert string 2 int32
-// Args:
+//  Args:
 // 	s: 输入字符串
 // 	t: 返回数值进制
-// Return：
+//  Return：
 // 	int32
 func String2Int32(s string, t int) int32 {
 	x, _ := strconv.ParseInt(s, t, 0)
@@ -205,10 +208,10 @@ func String2Int32(s string, t int) int32 {
 }
 
 // String2Int64 convert string 2 int64
-// Args:
+//  Args:
 // 	s: 输入字符串
 // 	t: 返回数值进制
-// Return：
+//  Return：
 // 	int64
 func String2Int64(s string, t int) int64 {
 	x, _ := strconv.ParseInt(s, t, 0)
@@ -381,14 +384,14 @@ func Stamp2Time(t int64) string {
 }
 
 // Time2Stampf 可根据制定的时间格式和时区转换为当前时区的Unix时间戳
-// fmt：
+//  fmt：
 //  year：2006
 //  month：01
 //  day：02
 //  hour：15
 //  minute：04
 //  second：05
-// tz：0～12,超范围时使用本地时区
+//  tz：0～12,超范围时使用本地时区
 func Time2Stampf(s, fmt string, tz float32) int64 {
 	if fmt == "" {
 		fmt = "2006-01-02 15:04:05"
@@ -540,7 +543,7 @@ func SwapCase(s string) string {
 }
 
 // VersionInfo show something
-// Args:
+//  Args:
 // 	p: program name
 // 	v: program version
 // 	gv: golang version
@@ -552,7 +555,7 @@ func VersionInfo(p, v, gv, bd, pl, a string) string {
 }
 
 // WriteVersionInfo write version info to .ver file
-// Args:
+//  Args:
 // 	p: program name
 // 	v: program version
 // 	gv: golang version
@@ -564,6 +567,64 @@ func WriteVersionInfo(p, v, gv, bd, pl, a string) {
 	f, _ := os.OpenFile(fmt.Sprintf("%s.ver", fn), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0444)
 	defer f.Close()
 	f.WriteString(fmt.Sprintf("\n%s\r\nVersion:\t%s\r\nGo version:\t%s\r\nBuild date:\t%s\r\nBuild OS:\t%s\r\nCode by:\t%s\r\n", p, v, gv, pl, bd, a))
+}
+
+// CalculateSecurityCode calculate security code
+//  Args:
+//	t: calculate type "h"-按小时计算，当分钟数在偏移值范围内时，同时计算前后一小时的值，"m"-按分钟计算，同时计算前后偏移量范围内的值
+//	salt: 拼接用字符串
+//	offset: 偏移值，范围0～59
+//  return:
+//	32位小写md5码切片
+func CalculateSecurityCode(t, salt string, offset int) []string {
+	var sc []string
+	if offset < 0 {
+		offset = 0
+	}
+	if offset > 59 {
+		offset = 59
+	}
+	tt := time.Now()
+	mm := tt.Minute()
+	switch t {
+	case "h":
+		sc = make([]string, 0, 3)
+		sc = append(sc, GetMD5(tt.Format("2006010215")+salt))
+		if mm < offset || 60-mm < offset {
+			sc = append(sc, GetMD5(tt.Add(-1*time.Hour).Format("2006010215")+salt))
+			sc = append(sc, GetMD5(tt.Add(time.Hour).Format("2006010215")+salt))
+		}
+	case "m":
+		sc = make([]string, 0, offset*2)
+		if offset > 0 {
+			tts := tt.Add(time.Duration(-1*(offset)) * time.Minute)
+			for i := 0; i < offset*2+1; i++ {
+				sc = append(sc, GetMD5(tts.Add(time.Duration(i)*time.Minute).Format("200601021504")+salt))
+			}
+		} else {
+			sc = append(sc, GetMD5(tt.Format("200601021504")+salt))
+		}
+	}
+	return sc
+}
+
+// GetMD5 生成32位md5字符串
+func GetMD5(text string) string {
+	ctx := md5.New()
+	ctx.Write([]byte(text))
+	return hex.EncodeToString(ctx.Sum(nil))
+}
+
+// GetRandomString 生成随机字符串
+func GetRandomString(l int64) string {
+	str := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_+[]{};:<>,./?-="
+	bb := []byte(str)
+	var rs bytes.Buffer
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := int64(0); i < l; i++ {
+		rs.WriteByte(bb[r.Intn(len(bb))])
+	}
+	return rs.String()
 }
 
 // GetSqlConn 获取数据库连接实例，utf8字符集，连接超时10s
