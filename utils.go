@@ -27,6 +27,29 @@ const (
 	OSARCH = runtime.GOARCH
 )
 
+// 字符串数组排序
+type StringSliceSort struct {
+	Items [][]string
+	Idx   int
+}
+
+func (arr *StringSliceSort) Len() int {
+	return len(arr.Items)
+}
+
+func (arr *StringSliceSort) Swap(i, j int) {
+	arr.Items[i], arr.Items[j] = arr.Items[j], arr.Items[i]
+}
+
+func (arr *StringSliceSort) Less(i, j int) bool {
+	arr1 := arr.Items[i]
+	arr2 := arr.Items[j]
+	if arr.Idx > len(arr.Items[0]) {
+		arr.Idx = 0
+	}
+	return arr1[arr.Idx] < arr2[arr.Idx]
+}
+
 // Queue queue for go
 type Queue struct {
 	Q *list.List
