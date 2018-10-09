@@ -29,25 +29,38 @@ const (
 
 // 字符串数组排序
 type StringSliceSort struct {
-	Items [][]string
-	Idx   int
+	OneDimensional []string
+	TwoDimensional [][]string
+	Idx            int
 }
 
 func (arr *StringSliceSort) Len() int {
-	return len(arr.Items)
+	if len(arr.OneDimensional) > 0 {
+		return len(arr.OneDimensional)
+	} else {
+		return len(arr.TwoDimensional)
+	}
 }
 
 func (arr *StringSliceSort) Swap(i, j int) {
-	arr.Items[i], arr.Items[j] = arr.Items[j], arr.Items[i]
+	if len(arr.OneDimensional) > 0 {
+		arr.OneDimensional[i], arr.OneDimensional[j] = arr.OneDimensional[j], arr.OneDimensional[i]
+	} else {
+		arr.TwoDimensional[i], arr.TwoDimensional[j] = arr.TwoDimensional[j], arr.TwoDimensional[i]
+	}
 }
 
 func (arr *StringSliceSort) Less(i, j int) bool {
-	arr1 := arr.Items[i]
-	arr2 := arr.Items[j]
-	if arr.Idx > len(arr.Items[0]) {
-		arr.Idx = 0
+	if len(arr.OneDimensional) > 0 {
+		return arr.OneDimensional[i] < arr.OneDimensional[j]
+	} else {
+		arr1 := arr.TwoDimensional[i]
+		arr2 := arr.TwoDimensional[j]
+		if arr.Idx > len(arr.TwoDimensional[0]) {
+			arr.Idx = 0
+		}
+		return arr1[arr.Idx] < arr2[arr.Idx]
 	}
-	return arr1[arr.Idx] < arr2[arr.Idx]
 }
 
 // Queue queue for go
