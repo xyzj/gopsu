@@ -663,6 +663,16 @@ func GetRandomString(l int64) string {
 	return rs.String()
 }
 
+// CheckSQLInject 检查sql语句是否包含注入攻击
+func CheckSQLInject(s string) bool {
+	str := `(?:')|(?:--)|(/\\*(?:.|[\\n\\r])*?\\*/)|(\b(select|update|and|or|delete|insert|trancate|char|chr|into|substr|ascii|declare|exec|count|master|into|drop|execute)\b)`
+	re, err := regexp.Compile(str)
+	if err != nil {
+		return false
+	}
+	return re.MatchString(s)
+}
+
 // GetSqlConn 获取数据库连接实例，utf8字符集，连接超时10s
 // username: 数据库连接用户名
 // password： 数据库连接密码
