@@ -106,7 +106,7 @@ func (mq *Queue) Clean() {
 }
 
 // GetAddrFromString get addr from config string
-//  Args:
+//  args:
 //	straddr: something like "1,2,3-6"
 //  return:
 //	[]int64,something like []int64{1,2,3,4,5,6}
@@ -139,7 +139,7 @@ func GetAddrFromString(straddr string) ([]int64, error) {
 }
 
 // CheckIP check if the ipstring is legal
-//  Args:
+//  args:
 //	ip: ipstring something like 127.0.0.1:10001
 //  return:
 //	true/false
@@ -180,10 +180,10 @@ func MakeRuntimeDirs(rootpath string) (string, string, string) {
 }
 
 // String2Bytes convert hex-string to []byte
-//  Args:
+//  args:
 // 	data: 输入字符串
 // 	sep： 用于分割字符串的分割字符
-//  Return:
+//  return:
 // 	字节切片
 func String2Bytes(data string, sep string) []byte {
 	var z []byte
@@ -197,10 +197,10 @@ func String2Bytes(data string, sep string) []byte {
 }
 
 // Bytes2String convert []byte to hex-string
-//  Args:
+//  args:
 // 	data: 输入字节切片
 // 	sep： 用于分割字符串的分割字符
-//  Return:
+//  return:
 // 	字符串
 func Bytes2String(data []byte, sep string) string {
 	a := make([]string, len(data))
@@ -211,7 +211,7 @@ func Bytes2String(data []byte, sep string) string {
 }
 
 // String2Int convert string 2 int
-//  Args:
+//  args:
 // 	s: 输入字符串
 // 	t: 返回数值进制
 //  Return：
@@ -222,7 +222,7 @@ func String2Int(s string, t int) int {
 }
 
 // String2Int8 convert string 2 int8
-//  Args:
+//  args:
 // 	s: 输入字符串
 // 	t: 返回数值进制
 //  Return：
@@ -233,7 +233,7 @@ func String2Int8(s string, t int) byte {
 }
 
 // String2Int32 convert string 2 int32
-//  Args:
+//  args:
 // 	s: 输入字符串
 // 	t: 返回数值进制
 //  Return：
@@ -244,7 +244,7 @@ func String2Int32(s string, t int) int32 {
 }
 
 // String2Int64 convert string 2 int64
-//  Args:
+//  args:
 // 	s: 输入字符串
 // 	t: 返回数值进制
 //  Return：
@@ -579,7 +579,7 @@ func SwapCase(s string) string {
 }
 
 // VersionInfo show something
-//  Args:
+//  args:
 // 	p: program name
 // 	v: program version
 // 	gv: golang version
@@ -591,7 +591,7 @@ func VersionInfo(p, v, gv, bd, pl, a string) string {
 }
 
 // WriteVersionInfo write version info to .ver file
-//  Args:
+//  args:
 // 	p: program name
 // 	v: program version
 // 	gv: golang version
@@ -606,7 +606,7 @@ func WriteVersionInfo(p, v, gv, bd, pl, a string) {
 }
 
 // CalculateSecurityCode calculate security code
-//  Args:
+//  args:
 //	t: calculate type "h"-按小时计算，当分钟数在偏移值范围内时，同时计算前后一小时的值，"m"-按分钟计算，同时计算前后偏移量范围内的值
 //	salt: 拼接用字符串
 //	offset: 偏移值，范围0～59
