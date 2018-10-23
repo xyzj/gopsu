@@ -7,6 +7,7 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
@@ -671,4 +672,16 @@ func CheckSQLInject(s string) bool {
 		return false
 	}
 	return re.MatchString(s)
+}
+
+// PB2Json pb2格式转换为json字符串
+func PB2Json(pb interface{}) ([]byte, error) {
+	jsonBytes, err := json.Marshal(pb)
+	return jsonBytes, err
+}
+
+// Json2PB json字符串转pb2格式
+func Json2PB(js string, pb interface{}) error {
+	err := json.Unmarshal([]byte(js), &pb)
+	return err
 }
