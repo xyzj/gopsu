@@ -255,6 +255,12 @@ func String2Int64(s string, t int) int64 {
 	return x
 }
 
+// String2Int64 convert string 2 float64
+func String2Float64(s string) float64 {
+	x, _ := strconv.ParseFloat(s, 0)
+	return x
+}
+
 //StringSlice2Int8 convert string Slice 2 int8
 func StringSlice2Int8(bs []string) byte {
 	return String2Int8(strings.Join(bs, ""), 2)
