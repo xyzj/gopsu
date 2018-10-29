@@ -421,9 +421,15 @@ func SplitDateTime(sdt int64) (y, m, d, h, mm, s, wd byte) {
 }
 
 // Stamp2Time convert stamp to datetime string
-func Stamp2Time(t int64) string {
+func Stamp2Time(t int64, fmt ...string) string {
+	var f string
+	if len(fmt) > 0 {
+		f = fmt[0]
+	} else {
+		f = "2006-01-02 15:04:05"
+	}
 	tm := time.Unix(t, 0)
-	return tm.Format("2006-01-02 15:04:05")
+	return tm.Format(f)
 }
 
 // Time2Stampf 可根据制定的时间格式和时区转换为当前时区的Unix时间戳
