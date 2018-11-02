@@ -533,6 +533,10 @@ func ReverseString(s string) string {
 
 // DecodeString 解码混淆字符串，兼容python算法
 func DecodeString(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) == 0 {
+		return ""
+	}
 	s = SwapCase(s)
 	var ns bytes.Buffer
 	ns.Write([]byte{120, 156})
@@ -553,7 +557,7 @@ func DecodeString(s string) string {
 		}
 		return ReverseString(string(DoZlibUnCompress(ns.Bytes())))
 	} else {
-		return "You screwed up."
+		return ""
 	}
 }
 
