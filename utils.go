@@ -6,10 +6,12 @@ import (
 	"container/list"
 	"crypto/md5"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -700,4 +702,116 @@ func PB2Json(pb interface{}) ([]byte, error) {
 func Json2PB(js string, pb interface{}) error {
 	err := json.Unmarshal([]byte(js), &pb)
 	return err
+}
+
+// Uint642Bytes 长整形转换字节数组（8位），bigOrder==true，高位在前
+func Uint642Bytes(i uint64, bigOrder bool) []byte {
+	var buf = make([]byte, 8)
+	if bigOrder {
+		binary.BigEndian.PutUint64(buf, i)
+	} else {
+		binary.LittleEndian.PutUint64(buf, i)
+	}
+	return buf
+}
+
+// UInt642Bytes 无符号长整形转换字节数组（8位），bigOrder==true，高位在前
+func Int642Bytes(i int64, bigOrder bool) []byte {
+	bytesBuffer := bytes.NewBuffer([]byte{})
+	if bigOrder {
+		binary.Write(bytesBuffer, binary.BigEndian, &i)
+	} else {
+		binary.Write(bytesBuffer, binary.LittleEndian, &i)
+	}
+	return bytesBuffer.Bytes()
+}
+
+// Bytes2Int64 字节数组转换为int64，bigOrder==true,高位在前
+func Bytes2Int64(b []byte, bigOrder bool) int64 {
+	var l = len(b)
+	switch l {
+	case 1:
+		var tmp int8
+		bytesBuffer := bytes.NewBuffer(b)
+		if bigOrder {
+			binary.Read(bytesBuffer, binary.BigEndian, &tmp)
+		} else {
+			binary.Read(bytesBuffer, binary.LittleEndian, &tmp)
+		}
+		return int64(tmp)
+	case 2:
+		var tmp int16
+		bytesBuffer := bytes.NewBuffer(b)
+		if bigOrder {
+			binary.Read(bytesBuffer, binary.BigEndian, &tmp)
+		} else {
+			binary.Read(bytesBuffer, binary.LittleEndian, &tmp)
+		}
+		return int64(tmp)
+	case 3, 4:
+		var tmp int32
+		bytesBuffer := bytes.NewBuffer(b)
+		if bigOrder {
+			if l == 3 {
+				b = append([]byte{0}, b...)
+			}
+			binary.Read(bytesBuffer, binary.BigEndian, &tmp)
+		} else {
+			if l == 3 {
+				b = append(b, 0)
+			}
+			binary.Read(bytesBuffer, binary.LittleEndian, &tmp)
+		}
+		return int64(tmp)
+	case 5, 6, 7, 8:
+		var tmp int64
+		bytesBuffer := bytes.NewBuffer(b)
+		if bigOrder {
+			if l < 8 {
+				bb := make([]byte, 8-l)
+				b = append(bb, b...)
+			}
+			binary.Read(bytesBuffer, binary.BigEndian, &tmp)
+		} else {
+			if l < 8 {
+				bb := make([]byte, 8-l)
+				b = append(b, bb...)
+			}
+			binary.Read(bytesBuffer, binary.LittleEndian, &tmp)
+		}
+		return int64(tmp)
+	}
+	return 0
+}
+
+// Bytes2Uint64 字节数组转换为uint64，bigOrder==true,高位在前
+func Bytes2Uint64(b []byte, bigOrder bool) uint64 {
+	var l int
+	if len(b) > 8 {
+		l = 0
+	} else {
+		l = 8 - len(b)
+	}
+	var bb = make([]byte, l)
+	if bigOrder {
+		bb = append(bb, b...)
+		b = bb
+	} else {
+		b = append(b, bb...)
+	}
+	if bigOrder {
+		return binary.BigEndian.Uint64(b)
+	} else {
+		return binary.LittleEndian.Uint64(b)
+	}
+}
+
+// Bytes2Float64 字节数组转双精度浮点，bigOrder==true,高位在前
+func Bytes2Float64(b []byte, bigOrder bool) float64 {
+	return math.Float64frombits(Bytes2Uint64(b, bigOrder))
+}
+
+// Bytes2Float32 字节数组转单精度浮点，bigOrder==true,高位在前
+func Bytes2Float32(b []byte, bigOrder bool) float32 {
+	return math.Float32frombits(uint32(Bytes2Uint64(b, bigOrder)))
 }
