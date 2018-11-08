@@ -539,6 +539,32 @@ func DecodeString(s string) string {
 	if len(s) == 0 {
 		return ""
 	}
+	s = ReverseString(SwapCase(s))
+	if x := 4 - len(s)%4; x != 4 {
+		for i := 0; i < x; i++ {
+			s += "="
+		}
+	}
+	if y, ex := base64.StdEncoding.DecodeString(s); ex == nil {
+		var ns bytes.Buffer
+		x := y[0]
+		for k, v := range y {
+			if k%2 != 0 {
+				ns.WriteByte(v - x)
+			}
+		}
+		return ns.String()
+	} else {
+		return ""
+	}
+}
+
+// DecodeStringOld 解码混淆字符串，兼容python算法
+func DecodeStringOld(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) == 0 {
+		return ""
+	}
 	s = SwapCase(s)
 	var ns bytes.Buffer
 	ns.Write([]byte{120, 156})
@@ -672,7 +698,7 @@ func GetMD5(text string) string {
 
 // GetRandomString 生成随机字符串
 func GetRandomString(l int64) string {
-	str := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_+[]{};:<>,./?-="
+	str := "!#$%&()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}"
 	bb := []byte(str)
 	var rs bytes.Buffer
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
