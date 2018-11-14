@@ -18,6 +18,7 @@ type RabbitMQ struct {
 	lockRMQConsumerHandle sync.WaitGroup      // rmq消费者线程监视锁
 	Producer              *RabbitMQArgs       // 生产者
 	Consumer              *RabbitMQArgs       // 消费者
+	err                   error               // 错误信息
 }
 
 type RabbitMQArgs struct {
@@ -33,13 +34,6 @@ type RabbitMQArgs struct {
 type RabbitMQData struct {
 	RoutingKey string
 	Data       amqp.Publishing
-}
-
-func (r *RabbitMQ) SetLogger(l *mxgo.MxLog, quiet bool) {
-	if l != nil {
-		r.Log = l
-	}
-	r.Quiet = quiet
 }
 
 // 接收数据
@@ -175,6 +169,7 @@ func (r *RabbitMQ) handleConsumer() {
 	if err != nil {
 		panic(err)
 	}
+	r.showMessages(fmt.Sprintf("%s RMQ Consumer connect to Rabbit-MQ Server.", mxgo.Stamp2Time(time.Now().Unix())[:10]), 90)
 	for {
 		for msg := range msgs {
 			r.chanRMQRecv <- &msg
@@ -228,6 +223,7 @@ func (r *RabbitMQ) handleProducer() {
 		panic(err)
 	}
 
+	r.showMessages(fmt.Sprintf("%s RMQ Producer connect to Rabbit-MQ Server.", mxgo.Stamp2Time(time.Now().Unix())[:10]), 90)
 	for {
 		select {
 		case msg := <-r.chanRMQSend:
