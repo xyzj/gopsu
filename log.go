@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 const (
@@ -46,10 +48,11 @@ type MxLog struct {
 	conLogger    *log.Logger
 	indexNumber  byte
 	mu           *sync.Mutex
-	chanWrite    chan logMessage
+	chanWrite    chan *logMessage
 	chanClose    chan bool
 	writeAsync   bool
 	asyncLock    sync.WaitGroup
+	chanWatcher  chan string
 }
 
 type logMessage struct {
@@ -196,71 +199,91 @@ func (l *MxLog) SetLogLevel(loglevel byte, conlevel byte) {
 	l.conLevel = conlevel
 }
 
-func (l *MxLog) SetAsyncCache(c int) bool {
-	if len(l.chanWrite) > 0 {
-		return false
+// SetAsync 设置异步写入参数
+func (l *MxLog) SetAsync(c int) {
+	if c <= 0 {
+		l.chanClose <- true
+		l.writeAsync = false
 	}
-	if asyncCache < 1 {
-		asyncCache = 1000
+	if c < 1000 {
+		c = 1000
 	}
-	if asyncCache > 10000 {
-		asyncCache = 10000
+	if c > 10000 {
+		c = 10000
 	}
-	l.chanWrite = make(chan logMessage, asyncCache)
-	return true
+	l.chanWrite = make(chan *logMessage, c)
+	l.writeAsync = true
+
+	go l.coreWatcher()
+	go l.writeLogAsync()
+
 }
 
-func (l *MxLog) SetAsync(async bool) {
-	if async {
-		if l.writeAsync {
-			l.asyncLock.Wait()
+func (l *MxLog) coreWatcher() {
+	closeme := false
+	for {
+		if closeme {
+			break
 		}
-		l.writeLogAsync()
-	} else {
-		if l.writeAsync {
-			l.chanClose <- true
+		select {
+		case n := <-l.chanWatcher:
+			time.Sleep(100 * time.Millisecond)
+			switch n {
+			case "mxlog":
+				go l.writeLogAsync()
+			case "close":
+				closeme = true
+				break
+			}
 		}
 	}
 }
 
 // StartWriteLog StartWriteLog
 func (l *MxLog) writeLogAsync() {
-	l.writeAsync = true
-	l.chanWrite = make(chan logMessage, asyncCache)
 	go func() {
 		defer func() {
-			l.writeAsync = false
-			l.asyncLock.Done()
+			if err := recover(); err != nil {
+				ioutil.WriteFile(fmt.Sprintf("crash-log-%s.log", time.Now().Format("20060102150405")), []byte(fmt.Sprintf("%v", errors.WithStack(err.(error)))), 0644)
+				time.Sleep(300 * time.Millisecond)
+				l.chanWatcher <- "mxlog"
+			} else {
+				l.chanWatcher <- "close"
+			}
 		}()
 		closeme := false
 		for {
-			if closeme && len(l.chanWrite) == 0 {
-				l.writeAsync = false
+			if closeme {
 				break
 			}
 			select {
 			case msg := <-l.chanWrite:
-				l.fileCheckNoLock()
-				if msg.level >= l.logLevel {
-					l.fileLogger.Println(msg.msg)
-					l.fileSize += int64(len(msg.msg) + 17)
-				}
-				if msg.level >= l.conLevel {
-					l.conLogger.Println(msg.msg)
-				}
+				l.writeLog(msg.msg, msg.level, false)
 			case <-l.chanClose:
 				if !closeme {
 					closeme = true
-					l.asyncLock.Add(1)
 					close(l.chanWrite)
+					if len(l.chanWrite) > 0 {
+						for {
+							msg, ok := <-l.chanWrite
+							if !ok {
+								break
+							}
+							l.writeLog(msg.msg, msg.level, false)
+						}
+					}
 				}
 			}
 		}
 	}()
 }
 
-func (l *MxLog) writeLog(msg string, level byte) {
-	l.fileCheck()
+func (l *MxLog) writeLog(msg string, level byte, lock bool) {
+	if lock {
+		l.fileCheck()
+	} else {
+		l.fileCheckNoLock()
+	}
 	if level >= l.logLevel {
 		l.fileLogger.Println(msg)
 		l.fileSize += int64(len(msg) + 17)
@@ -288,12 +311,12 @@ func (l *MxLog) writeLog(msg string, level byte) {
 func (l *MxLog) Debug(msg string) {
 	msg = fmt.Sprintf("[10] %s", msg)
 	if l.writeAsync {
-		l.chanWrite <- logMessage{
+		l.chanWrite <- &logMessage{
 			msg:   msg,
 			level: logDebug,
 		}
 	} else {
-		l.writeLog(msg, logDebug)
+		l.writeLog(msg, logDebug, true)
 	}
 }
 
@@ -301,12 +324,12 @@ func (l *MxLog) Debug(msg string) {
 func (l *MxLog) Info(msg string) {
 	msg = fmt.Sprintf("[20] %s", msg)
 	if l.writeAsync {
-		l.chanWrite <- logMessage{
+		l.chanWrite <- &logMessage{
 			msg:   msg,
 			level: logInfo,
 		}
 	} else {
-		l.writeLog(msg, logInfo)
+		l.writeLog(msg, logInfo, true)
 	}
 }
 
@@ -314,12 +337,12 @@ func (l *MxLog) Info(msg string) {
 func (l *MxLog) Warning(msg string) {
 	msg = fmt.Sprintf("[30] %s", msg)
 	if l.writeAsync {
-		l.chanWrite <- logMessage{
+		l.chanWrite <- &logMessage{
 			msg:   msg,
 			level: logWarning,
 		}
 	} else {
-		l.writeLog(msg, logWarning)
+		l.writeLog(msg, logWarning, true)
 	}
 }
 
@@ -327,12 +350,12 @@ func (l *MxLog) Warning(msg string) {
 func (l *MxLog) Error(msg string) {
 	msg = fmt.Sprintf("[40] %s", msg)
 	if l.writeAsync {
-		l.chanWrite <- logMessage{
+		l.chanWrite <- &logMessage{
 			msg:   msg,
 			level: logError,
 		}
 	} else {
-		l.writeLog(msg, logError)
+		l.writeLog(msg, logError, true)
 	}
 	// _, fn, lno, _ := runtime.Caller(1)
 	// go l.writeLog(fmt.Sprintf("[%s:%d] %s", filepath.Base(fn), lno, msg), logError)
@@ -342,22 +365,18 @@ func (l *MxLog) Error(msg string) {
 func (l *MxLog) System(msg string) {
 	msg = fmt.Sprintf("[90] %s", msg)
 	if l.writeAsync {
-		l.chanWrite <- logMessage{
+		l.chanWrite <- &logMessage{
 			msg:   msg,
 			level: logSystem,
 		}
 	} else {
-		l.writeLog(msg, logSystem)
+		l.writeLog(msg, logSystem, true)
 	}
 }
 
 // CurrentFileSize current file size
 func (l *MxLog) CurrentFileSize() int64 {
 	return l.fileSize
-}
-
-func (l *MxLog) SetChannelSize(i int) {
-	l.chanWrite = make(chan logMessage, i)
 }
 
 // Close close logger
@@ -394,9 +413,10 @@ func InitNewLogger(f string) *MxLog {
 		conLogger:   log.New(os.Stdout, "", logFlags),
 		indexNumber: 0,
 		mu:          new(sync.Mutex),
-		// chanWrite:   make(chan logMessage, asyncCache),
-		chanClose:  make(chan bool, 2),
-		writeAsync: false,
+		chanWrite:   make(chan *logMessage, 1000),
+		chanClose:   make(chan bool, 2),
+		chanWatcher: make(chan string, 2),
+		writeAsync:  false,
 	}
 	mylog.getFileSize()
 	return mylog

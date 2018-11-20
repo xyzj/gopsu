@@ -2,25 +2,28 @@ package mq
 
 import (
 	"fmt"
-	"sync"
+	"io/ioutil"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 	"github.com/xyzj/mxgo"
 )
 
+// RabbitMQ rabbit-mq struct
 type RabbitMQ struct {
-	Log                   *mxgo.MxLog         // 日志
-	Quiet                 bool                // 是否打印信息
-	chanRMQSend           chan *RabbitMQData  //  发送队列
-	chanRMQRecv           chan *amqp.Delivery // 接收队列
-	lockRMQProducerHandle sync.WaitGroup      // rmq生产者线程监视锁
-	lockRMQConsumerHandle sync.WaitGroup      // rmq消费者线程监视锁
-	Producer              *RabbitMQArgs       // 生产者
-	Consumer              *RabbitMQArgs       // 消费者
-	err                   error               // 错误信息
+	Log               *mxgo.MxLog         // 日志
+	Verbose           bool                // 是否打印信息
+	chanSend          chan *RabbitMQData  // 发送队列
+	chanRecv          chan *amqp.Delivery // 接收队列
+	chanWatcher       chan string         // 子线程监视通道
+	Producer          *RabbitMQArgs       // 生产者
+	Consumer          *RabbitMQArgs       // 消费者
+	chanCloseProducer chan bool
+	chanCloseConsumer chan bool
 }
 
+// RabbitMQArgs rabbit-mq connect args
 type RabbitMQArgs struct {
 	ConnStr      string   // 连接字符串
 	ExchangeName string   // 交换机名称
@@ -29,46 +32,57 @@ type RabbitMQArgs struct {
 	QueueName    string   // 队列名
 	QueueDurable bool     // 队列是否持久化
 	QueueMax     int32    // 队列长度
+	ChannelCache int      // 通道大小，默认2k
 }
 
+// RabbitMQData rabbit-mq data send struct
 type RabbitMQData struct {
 	RoutingKey string
 	Data       amqp.Publishing
 }
 
-// 接收数据
-func (r *RabbitMQ) Recv() *amqp.Delivery {
-	return <-r.chanRMQRecv
+// CloseAll close all
+func (r *RabbitMQ) CloseAll() {
+	r.chanCloseProducer <- true
+	r.chanCloseConsumer <- true
 }
 
-// 发送数据
-//
-// amqp.Publishing{
-// 	ContentType:  "text/plain",
-// 	DeliveryMode: amqp.Persistent,
-// 	Expiration:   "300000",
-// 	Timestamp:    time.Now(),
-// 	Body:         []byte("abcd"),
-// },
-func (r *RabbitMQ) Send(d *RabbitMQData) {
-	r.chanRMQSend <- d
-}
-
-// 使用线程发送
-func (r *RabbitMQ) SendGo(d *RabbitMQData) {
-	go r.Send(d)
-}
-
-func (r *RabbitMQ) StartConsumer() {
-	r.chanRMQRecv = make(chan *amqp.Delivery, 1000)
-	go r.waitConsumerHandle()
-	go r.handleConsumer()
-}
-
-func (r *RabbitMQ) StartProducer() {
-	r.chanRMQSend = make(chan *RabbitMQData, 1000)
-	go r.waitProducerHandle()
-	go r.handleProducer()
+func (r *RabbitMQ) coreWatcher() {
+	defer func() {
+		if err := recover(); err != nil {
+			ioutil.WriteFile(fmt.Sprintf("crash-rmq-%s.log", time.Now().Format("20060102150405")), []byte(fmt.Sprintf("%v", errors.WithStack(err.(error)))), 0644)
+			time.Sleep(300 * time.Millisecond)
+		}
+	}()
+	var closehandle = make(map[string]bool)
+	var closeme = false
+	for {
+		for _, v := range closehandle {
+			if v == false {
+				closeme = false
+				break
+			}
+		}
+		if closeme == true {
+			break
+		}
+		select {
+		case n := <-r.chanWatcher:
+			time.Sleep(100 * time.Millisecond)
+			switch n {
+			case "producer":
+				go r.handleProducer()
+				closehandle["producer"] = false
+			case "consumer":
+				go r.handleConsumer()
+				closehandle["consumer"] = false
+			case "closeproducer":
+				closehandle["producer"] = true
+			case "closeconsumer":
+				closehandle["consumer"] = true
+			}
+		}
+	}
 }
 
 func (r *RabbitMQ) showMessages(s string, level int) {
@@ -86,30 +100,45 @@ func (r *RabbitMQ) showMessages(s string, level int) {
 			r.Log.System(s)
 		}
 	}
-	if !r.Quiet {
+	if r.Verbose {
 		println(s)
 	}
 }
 
-// 消费者线程状态监控
-func (r *RabbitMQ) waitConsumerHandle() {
-	for {
-		time.Sleep(3 * time.Second)
-		r.lockRMQConsumerHandle.Wait()
-		time.Sleep(10 * time.Second)
-		go r.handleConsumer()
+// Recv 接收数据
+func (r *RabbitMQ) Recv() *amqp.Delivery {
+	return <-r.chanRecv
+}
+
+// CloseConsumer close Consumer
+func (r *RabbitMQ) CloseConsumer() {
+	r.chanCloseConsumer <- true
+}
+
+// StartConsumer 启动消费者线程
+func (r *RabbitMQ) StartConsumer() {
+	if r.chanWatcher == nil {
+		r.chanWatcher = make(chan string, 2)
+		go r.coreWatcher()
 	}
+	if r.Consumer.ChannelCache == 0 {
+		r.Consumer.ChannelCache = 2000
+	}
+	r.chanRecv = make(chan *amqp.Delivery, r.Consumer.ChannelCache)
+	r.chanCloseConsumer = make(chan bool, 2)
+	go r.handleConsumer()
 }
 
 // 启动消费者线程
 func (r *RabbitMQ) handleConsumer() {
 	defer func() {
 		if err := recover(); err != nil {
-			r.showMessages(fmt.Sprintf("rmq consumer handle crash: %s", err.(error).Error()), 40)
+			r.showMessages(fmt.Sprintf("RMQ Consumer goroutine crash: %s", err.(error).Error()), 40)
+			r.chanWatcher <- "consumer"
+		} else {
+			r.chanWatcher <- "closeconsumer"
 		}
-		r.lockRMQConsumerHandle.Done()
 	}()
-	r.lockRMQConsumerHandle.Add(1)
 	conn, err := amqp.Dial(r.Consumer.ConnStr)
 	if err != nil {
 		panic(err)
@@ -158,7 +187,7 @@ func (r *RabbitMQ) handleConsumer() {
 			panic(err)
 		}
 	}
-	msgs, err := ch.Consume(q.Name, // queue
+	chanMsgs, err := ch.Consume(q.Name, // queue
 		"",    // consumer
 		true,  // auto ack
 		false, // exclusive
@@ -170,32 +199,75 @@ func (r *RabbitMQ) handleConsumer() {
 		panic(err)
 	}
 	r.showMessages(fmt.Sprintf("%s RMQ Consumer connect to Rabbit-MQ Server.", mxgo.Stamp2Time(time.Now().Unix())[:10]), 90)
+	closeme := false
 	for {
-		for msg := range msgs {
-			r.chanRMQRecv <- &msg
+		if closeme {
+			break
+		}
+		select {
+		case msg := <-chanMsgs:
+			r.chanRecv <- &msg
+		case <-r.chanCloseConsumer:
+			closeme = true
 		}
 	}
+	// for {
+	// 	for msg := range chanMsgs {
+	// 		r.chanRecv <- &msg
+	// 	}
+	// }
 }
 
-// 生产者线程监控
-func (r *RabbitMQ) waitProducerHandle() {
-	for {
-		time.Sleep(1 * time.Second)
-		r.lockRMQProducerHandle.Wait()
-		time.Sleep(10 * time.Second)
-		go r.handleProducer()
+// Send 发送数据
+//
+// amqp.Publishing{
+// 	ContentType:  "text/plain",
+// 	DeliveryMode: amqp.Persistent,
+// 	Expiration:   "300000",
+// 	Timestamp:    time.Now(),
+// 	Body:         []byte("abcd"),
+// },
+func (r *RabbitMQ) Send(d *RabbitMQData) {
+	if r.chanSend == nil {
+		return
 	}
+	r.chanSend <- d
+}
+
+// SendGo 使用线程发送
+func (r *RabbitMQ) SendGo(d *RabbitMQData) {
+	go r.Send(d)
+}
+
+// CloseProducer close Producer
+func (r *RabbitMQ) CloseProducer() {
+	r.chanCloseProducer <- true
+}
+
+// StartProducer 启动生产者线程
+func (r *RabbitMQ) StartProducer() {
+	if r.chanWatcher == nil {
+		r.chanWatcher = make(chan string, 2)
+		go r.coreWatcher()
+	}
+	if r.Producer.ChannelCache == 0 {
+		r.Producer.ChannelCache = 2000
+	}
+	r.chanSend = make(chan *RabbitMQData, r.Producer.ChannelCache)
+	r.chanCloseProducer = make(chan bool, 2)
+	go r.handleProducer()
 }
 
 // 启动生产者线程
 func (r *RabbitMQ) handleProducer() {
 	defer func() {
 		if err := recover(); err != nil {
-			r.showMessages(fmt.Sprintf("RMQ Producer handle crash: %s", err.(error).Error()), 30)
+			r.showMessages(fmt.Sprintf("RMQ Producer goroutine crash: %s", err.(error).Error()), 40)
+			r.chanWatcher <- "producer"
+		} else {
+			r.chanWatcher <- "closeproducer"
 		}
-		r.lockRMQProducerHandle.Done()
 	}()
-	r.lockRMQProducerHandle.Add(1)
 	conn, err := amqp.Dial(r.Producer.ConnStr)
 	if err != nil {
 		panic(err)
@@ -224,9 +296,13 @@ func (r *RabbitMQ) handleProducer() {
 	}
 
 	r.showMessages(fmt.Sprintf("%s RMQ Producer connect to Rabbit-MQ Server.", mxgo.Stamp2Time(time.Now().Unix())[:10]), 90)
+	closeme := false
 	for {
+		if closeme {
+			break
+		}
 		select {
-		case msg := <-r.chanRMQSend:
+		case msg := <-r.chanSend:
 			err = ch.Publish(
 				r.Producer.ExchangeName, // exchange
 				msg.RoutingKey,          // routing key
@@ -244,6 +320,8 @@ func (r *RabbitMQ) handleProducer() {
 			if err != nil {
 				panic(err)
 			}
+		case <-r.chanCloseProducer:
+			closeme = true
 		}
 	}
 }
