@@ -22,8 +22,8 @@ type ZeroMQ struct {
 	Push          *ZeroMQArgs
 	Pub           *ZeroMQArgs
 	Sub           *ZeroMQArgs
-	chanPush      chan []string
-	chanSub       chan [][]byte
+	chanPush      chan *ZeroMQData
+	chanSub       chan *ZeroMQData
 	chanWatcher   chan string
 	chanClosePush chan bool
 	chanCloseSub  chan bool
@@ -37,6 +37,12 @@ type ZeroMQArgs struct {
 	ChannelCache     int           // 信号通道大小，默认2k
 	Subscribe        []string      //  sub过滤器
 	ReconnectIfTimeo bool
+}
+
+// ZeroMQData zmq data
+type ZeroMQData struct {
+	RoutingKey string
+	Body       []byte
 }
 
 func (z *ZeroMQ) showMessages(s string, level int) {
@@ -97,13 +103,16 @@ func (z *ZeroMQ) coreWatcher() {
 	}
 }
 
-// PushDataGo push data
-func (z *ZeroMQ) PushDataGo(f string, d []byte) {
+// PushData push data
+func (z *ZeroMQ) PushData(f string, d []byte) {
 	if z.chanPush == nil {
 		return
 	}
 	go func() {
-		z.chanPush <- []string{f, string(d)}
+		z.chanPush <- &ZeroMQData{
+			RoutingKey: f,
+			Body:       d,
+		}
 	}()
 }
 
@@ -128,7 +137,7 @@ func (z *ZeroMQ) StartPush() {
 		z.Push.Timeo = 50 * time.Millisecond
 	}
 
-	z.chanPush = make(chan []string, z.Push.ChannelCache)
+	z.chanPush = make(chan *ZeroMQData, z.Push.ChannelCache)
 	go z.handlePush()
 }
 func (z *ZeroMQ) handlePush() {
@@ -168,7 +177,7 @@ func (z *ZeroMQ) handlePush() {
 }
 
 // SubData sub data use channel
-func (z *ZeroMQ) SubData() [][]byte {
+func (z *ZeroMQ) SubData() *ZeroMQData {
 	return <-z.chanSub
 }
 
@@ -189,7 +198,7 @@ func (z *ZeroMQ) StartSub() {
 	}
 
 	z.chanCloseSub = make(chan bool)
-	z.chanSub = make(chan [][]byte, z.Sub.ChannelCache)
+	z.chanSub = make(chan *ZeroMQData, z.Sub.ChannelCache)
 	go z.handleSub()
 }
 func (z *ZeroMQ) handleSub() {
@@ -231,7 +240,10 @@ func (z *ZeroMQ) handleSub() {
 			continue
 		}
 		if len(msg) > 1 {
-			z.chanSub <- msg
+			z.chanSub <- &ZeroMQData{
+				RoutingKey: string(msg[0]),
+				Body:       msg[1],
+			}
 		}
 	}
 }

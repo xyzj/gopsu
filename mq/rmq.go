@@ -38,7 +38,7 @@ type RabbitMQArgs struct {
 // RabbitMQData rabbit-mq data send struct
 type RabbitMQData struct {
 	RoutingKey string
-	Data       amqp.Publishing
+	Data       *amqp.Publishing
 }
 
 // CloseAll close all
@@ -218,7 +218,21 @@ func (r *RabbitMQ) handleConsumer() {
 	// }
 }
 
-// Send 发送数据
+// Send 发送数据,默认数据有效期10分钟
+func (r *RabbitMQ) Send(f string, d []byte) {
+	r.SendCustom(&RabbitMQData{
+		RoutingKey: f,
+		Data: &amqp.Publishing{
+			ContentType:  "text/plain",
+			DeliveryMode: amqp.Persistent,
+			Expiration:   "600000",
+			Timestamp:    time.Now(),
+			Body:         d,
+		},
+	})
+}
+
+// SendCustom 自定义发送参数
 //
 // amqp.Publishing{
 // 	ContentType:  "text/plain",
@@ -227,16 +241,11 @@ func (r *RabbitMQ) handleConsumer() {
 // 	Timestamp:    time.Now(),
 // 	Body:         []byte("abcd"),
 // },
-func (r *RabbitMQ) Send(d *RabbitMQData) {
+func (r *RabbitMQ) SendCustom(d *RabbitMQData) {
 	if r.chanSend == nil {
 		return
 	}
-	r.chanSend <- d
-}
-
-// SendGo 使用线程发送
-func (r *RabbitMQ) SendGo(d *RabbitMQData) {
-	go r.Send(d)
+	go func() { r.chanSend <- d }()
 }
 
 // CloseProducer close Producer
@@ -308,7 +317,7 @@ func (r *RabbitMQ) handleProducer() {
 				msg.RoutingKey,          // routing key
 				false,                   // mandatory
 				false,                   // immediate
-				msg.Data,
+				*msg.Data,
 				// amqp.Publishing{
 				// 	ContentType:  "text/plain",
 				// 	DeliveryMode: amqp.Persistent,
