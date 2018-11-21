@@ -31,8 +31,7 @@ type ZeroMQ struct {
 
 // ZeroMQArgs zmq args
 type ZeroMQArgs struct {
-	Host             string        // ip
-	Port             uint16        // 端口
+	ConnStr          string        // 连接字符串
 	Timeo            time.Duration // IO超时
 	ChannelCache     int           // 信号通道大小，默认2k
 	Subscribe        []string      //  sub过滤器
@@ -130,9 +129,6 @@ func (z *ZeroMQ) StartPush() {
 	if z.Push.ChannelCache == 0 {
 		z.Push.ChannelCache = 2000
 	}
-	if z.Push.Host == "" {
-		z.Push.Host = "127.0.0.1"
-	}
 	if z.Push.Timeo == 0 {
 		z.Push.Timeo = 50 * time.Millisecond
 	}
@@ -154,8 +150,8 @@ func (z *ZeroMQ) handlePush() {
 	push.SetSndhwm(zmqRShwm)
 	push.SetSndtimeo(z.Push.Timeo)
 	// push.SetLinger(0)
-	push.Connect(fmt.Sprintf("tcp://%s:%d", z.Push.Host, z.Push.Port))
-	z.showMessages(fmt.Sprintf("%s 0MQ-Push connect to %s:%d", mxgo.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Push.Host, z.Push.Port), 90)
+	push.Connect(z.Push.ConnStr)
+	z.showMessages(fmt.Sprintf("%s 0MQ-Push connect to %s", mxgo.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Push.ConnStr), 90)
 
 	closeme := false
 	for {
@@ -193,9 +189,6 @@ func (z *ZeroMQ) StartSub() {
 	if z.Sub.Timeo <= 0 {
 		z.Sub.Timeo = 5 * time.Second
 	}
-	if z.Sub.Host == "" {
-		z.Sub.Host = "127.0.0.1"
-	}
 
 	z.chanCloseSub = make(chan bool)
 	z.chanSub = make(chan *ZeroMQData, z.Sub.ChannelCache)
@@ -221,8 +214,8 @@ func (z *ZeroMQ) handleSub() {
 			sub.SetSubscribe(v)
 		}
 	}
-	sub.Connect(fmt.Sprintf("tcp://%s:%d", z.Sub.Host, z.Sub.Port))
-	z.showMessages(fmt.Sprintf("%s 0MQ-Sub connect to %s:%d", mxgo.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Sub.Host, z.Sub.Port), 90)
+	sub.Connect(z.Sub.ConnStr)
+	z.showMessages(fmt.Sprintf("%s 0MQ-Sub connect to %s", mxgo.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Sub.ConnStr), 90)
 	closeme := false
 	go func() {
 		closeme = <-z.chanCloseSub
@@ -255,8 +248,8 @@ func (z *ZeroMQ) StartProxy() {
 	frontend.SetRcvhwm(zmqRShwm)
 	frontend.SetLinger(0)
 	defer frontend.Close()
-	if err := frontend.Bind(fmt.Sprintf("tcp://*:%d", z.Pull.Port)); err != nil {
-		z.showMessages(fmt.Sprintf("0MQ-Binding frontend: %+v", err), 40)
+	if err := frontend.Bind(z.Pull.ConnStr); err != nil {
+		z.showMessages(fmt.Sprintf("0MQ-Binding %s failed: %+v", z.Pull.ConnStr, err), 40)
 		return
 	}
 
@@ -266,11 +259,11 @@ func (z *ZeroMQ) StartProxy() {
 	backend.SetSndhwm(zmqRShwm)
 	backend.SetLinger(0)
 	defer backend.Close()
-	if err := backend.Bind(fmt.Sprintf("tcp://*:%d", z.Pub.Port)); err != nil {
-		z.showMessages(fmt.Sprintf("0MQ-Binding backend: %+v", err), 40)
+	if err := backend.Bind(z.Pub.ConnStr); err != nil {
+		z.showMessages(fmt.Sprintf("0MQ-Binding %s failed: %+v", z.Pub.ConnStr, err), 40)
 		return
 	}
-	z.showMessages(fmt.Sprintf("%s 0MQ-Proxy start success on %d to %d", mxgo.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Pull.Port, z.Pub.Port), 90)
+	z.showMessages(fmt.Sprintf("%s 0MQ-Proxy start success on %s to %s", mxgo.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Pull.ConnStr, z.Pub.ConnStr), 90)
 	//  Start the proxy
 	if err := zmq4.Proxy(frontend, backend, nil); err != nil {
 		z.showMessages(fmt.Sprintf("0MQ-Proxy interrupted: %+v", err), 40)
