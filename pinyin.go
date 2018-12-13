@@ -1,4 +1,4 @@
-package mxgo
+package gopsu
 
 import (
 	"regexp"

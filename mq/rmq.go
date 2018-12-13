@@ -7,12 +7,12 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
-	"github.com/xyzj/mxgo"
+	"github.com/xyzj/gopsu"
 )
 
 // RabbitMQ rabbit-mq struct
 type RabbitMQ struct {
-	Log               *mxgo.MxLog         // 日志
+	Log               *gopsu.MxLog         // 日志
 	Verbose           bool                // 是否打印信息
 	chanSend          chan *RabbitMQData  // 发送队列
 	chanRecv          chan *amqp.Delivery // 接收队列
@@ -198,7 +198,7 @@ func (r *RabbitMQ) handleConsumer() {
 	if err != nil {
 		panic(err)
 	}
-	r.showMessages(fmt.Sprintf("%s RMQ Consumer connect to Rabbit-MQ Server.", mxgo.Stamp2Time(time.Now().Unix())[:10]), 90)
+	r.showMessages(fmt.Sprintf("%s RMQ Consumer connect to Rabbit-MQ Server.", gopsu.Stamp2Time(time.Now().Unix())[:10]), 90)
 	closeme := false
 	for {
 		if closeme {
@@ -304,7 +304,7 @@ func (r *RabbitMQ) handleProducer() {
 		panic(err)
 	}
 
-	r.showMessages(fmt.Sprintf("%s RMQ Producer connect to Rabbit-MQ Server.", mxgo.Stamp2Time(time.Now().Unix())[:10]), 90)
+	r.showMessages(fmt.Sprintf("%s RMQ Producer connect to Rabbit-MQ Server.", gopsu.Stamp2Time(time.Now().Unix())[:10]), 90)
 	closeme := false
 	for {
 		if closeme {

@@ -7,7 +7,7 @@ import (
 
 	"github.com/pebbe/zmq4"
 	"github.com/pkg/errors"
-	"github.com/xyzj/mxgo"
+	"github.com/xyzj/gopsu"
 )
 
 var (
@@ -16,7 +16,7 @@ var (
 
 // ZeroMQ zeromq
 type ZeroMQ struct {
-	Log           *mxgo.MxLog // 日志
+	Log           *gopsu.MxLog // 日志
 	Verbose       bool        // 是否打印信息
 	Pull          *ZeroMQArgs
 	Push          *ZeroMQArgs
@@ -151,7 +151,7 @@ func (z *ZeroMQ) handlePush() {
 	push.SetSndtimeo(z.Push.Timeo)
 	// push.SetLinger(0)
 	push.Connect(z.Push.ConnStr)
-	z.showMessages(fmt.Sprintf("%s 0MQ-Push connect to %s", mxgo.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Push.ConnStr), 90)
+	z.showMessages(fmt.Sprintf("%s 0MQ-Push connect to %s", gopsu.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Push.ConnStr), 90)
 
 	closeme := false
 	for {
@@ -215,7 +215,7 @@ func (z *ZeroMQ) handleSub() {
 		}
 	}
 	sub.Connect(z.Sub.ConnStr)
-	z.showMessages(fmt.Sprintf("%s 0MQ-Sub connect to %s", mxgo.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Sub.ConnStr), 90)
+	z.showMessages(fmt.Sprintf("%s 0MQ-Sub connect to %s", gopsu.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Sub.ConnStr), 90)
 	closeme := false
 	go func() {
 		closeme = <-z.chanCloseSub
@@ -263,7 +263,7 @@ func (z *ZeroMQ) StartProxy() {
 		z.showMessages(fmt.Sprintf("0MQ-Binding %s failed: %+v", z.Pub.ConnStr, err), 40)
 		return
 	}
-	z.showMessages(fmt.Sprintf("%s 0MQ-Proxy start success on %s to %s", mxgo.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Pull.ConnStr, z.Pub.ConnStr), 90)
+	z.showMessages(fmt.Sprintf("%s 0MQ-Proxy start success on %s to %s", gopsu.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Pull.ConnStr, z.Pub.ConnStr), 90)
 	//  Start the proxy
 	if err := zmq4.Proxy(frontend, backend, nil); err != nil {
 		z.showMessages(fmt.Sprintf("0MQ-Proxy interrupted: %+v", err), 40)

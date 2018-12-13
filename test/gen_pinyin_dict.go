@@ -52,7 +52,7 @@ func downloadFile() bool {
 
 func genCode(inFile *os.File, outFile *os.File) {
 	rd := bufio.NewReader(inFile)
-	output := `package mxgo
+	output := `package gopsu
 
 // PinyinDict is data map
 // Warning: Auto-generated file, don't edit.

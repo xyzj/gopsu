@@ -1,4 +1,4 @@
-package mxgo
+package gopsu
 
 // PinyinDict is data map
 // Warning: Auto-generated file, don't edit.
