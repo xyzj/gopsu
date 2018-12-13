@@ -76,6 +76,11 @@ func (mq *Queue) Put(value interface{}) {
 	mq.Q.PushBack(value)
 }
 
+// PutFront put data to the first of the queue
+func (mq *Queue) PutFront(value interface{}) {
+	mq.Q.PushFront(value)
+}
+
 // Get get data from front
 func (mq *Queue) Get() interface{} {
 	if mq.Q.Len() == 0 {
