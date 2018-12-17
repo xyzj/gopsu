@@ -197,6 +197,11 @@ func (l *MxLog) SetLogLevel(loglevel byte, conlevel byte) {
 	l.conLevel = conlevel
 }
 
+// GetLogLevel get file & console log level
+func (l *MxLog) GetLogLevel() (byte, byte) {
+	return l.logLevel, l.conLevel
+}
+
 // SetAsync 设置异步写入参数
 func (l *MxLog) SetAsync(c int) {
 	if c <= 0 {

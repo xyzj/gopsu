@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	zmqRShwm = 7000 // zmq缓存队列大小
+	ZMQRShwm = 7000 // 0MQ缓存队列大小
 )
 
 // ZeroMQ zeromq
@@ -29,7 +29,7 @@ type ZeroMQ struct {
 	chanCloseSub  chan bool
 }
 
-// ZeroMQArgs zmq args
+// ZeroMQArgs 0MQ args
 type ZeroMQArgs struct {
 	ConnStr          string        // 连接字符串
 	Timeo            time.Duration // IO超时
@@ -38,13 +38,14 @@ type ZeroMQArgs struct {
 	ReconnectIfTimeo bool
 }
 
-// ZeroMQData zmq data
+// ZeroMQData 0MQ data
 type ZeroMQData struct {
 	RoutingKey string
 	Body       []byte
 }
 
 func (z *ZeroMQ) showMessages(s string, level int) {
+	println(z.Log)
 	if z.Log != nil {
 		switch level {
 		case 10:
@@ -120,7 +121,7 @@ func (z *ZeroMQ) ClosePush() {
 	z.chanClosePush <- true
 }
 
-// StartPush start zmq push
+// StartPush start 0MQ push
 func (z *ZeroMQ) StartPush() {
 	if z.chanWatcher == nil {
 		z.chanWatcher = make(chan string, 2)
@@ -147,12 +148,12 @@ func (z *ZeroMQ) handlePush() {
 	}()
 	push, _ := zmq4.NewSocket(zmq4.PUSH)
 	defer push.Close()
-	push.SetSndhwm(zmqRShwm)
+	push.SetSndhwm(ZMQRShwm)
 	push.SetSndtimeo(z.Push.Timeo)
 	// push.SetLinger(0)
 	push.Connect(z.Push.ConnStr)
 	z.showMessages(fmt.Sprintf("%s 0MQ-Push connect to %s", gopsu.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Push.ConnStr), 90)
-
+	fl, _ := z.Log.GetLogLevel()
 	closeme := false
 	for {
 		if closeme {
@@ -161,6 +162,11 @@ func (z *ZeroMQ) handlePush() {
 		select {
 		case msg := <-z.chanPush:
 			_, ex := push.SendMessage([]string{msg.RoutingKey, string(msg.Body)})
+			if fl <= 10 {
+				z.showMessages(fmt.Sprintf("0MQ-Push:%s", fmt.Sprintf("%s|%s", msg.RoutingKey, gopsu.Bytes2String(msg.Body, "-"))), 10)
+			} else {
+				z.showMessages(fmt.Sprintf("0MQ-Push:%s", fmt.Sprintf("%s", msg.RoutingKey)), 20)
+			}
 			if ex != nil {
 				z.showMessages(fmt.Sprintf("0MQ-PushEx:%s", ex.Error()), 40)
 			}
@@ -177,7 +183,7 @@ func (z *ZeroMQ) SubData() *ZeroMQData {
 	return <-z.chanSub
 }
 
-// StartSub start zmq sub
+// StartSub start 0MQ sub
 func (z *ZeroMQ) StartSub() {
 	if z.chanWatcher == nil {
 		z.chanWatcher = make(chan string, 2)
@@ -204,7 +210,7 @@ func (z *ZeroMQ) handleSub() {
 		}
 	}()
 	sub, _ := zmq4.NewSocket(zmq4.SUB)
-	sub.SetRcvhwm(zmqRShwm)
+	sub.SetRcvhwm(ZMQRShwm)
 	sub.SetLinger(0)
 	sub.SetRcvtimeo(z.Sub.Timeo)
 	if len(z.Sub.Subscribe) == 0 {
@@ -220,6 +226,7 @@ func (z *ZeroMQ) handleSub() {
 	go func() {
 		closeme = <-z.chanCloseSub
 	}()
+	fl, _ := z.Log.GetLogLevel()
 	for {
 		if closeme {
 			break
@@ -228,24 +235,28 @@ func (z *ZeroMQ) handleSub() {
 		if ex != nil {
 			if z.Sub.ReconnectIfTimeo {
 				sub.Close()
-				z.showMessages("ZMQ-SUB recv timeout, try reconnect", 40)
+				z.showMessages("0MQ-SUB recv timeout, try reconnect", 40)
 			}
 			continue
 		}
+
 		if len(msg) > 1 {
 			z.chanSub <- &ZeroMQData{
 				RoutingKey: string(msg[0]),
 				Body:       msg[1],
 			}
+			if fl <= 10 {
+				z.showMessages(fmt.Sprintf("0MQ-SUB: %s|%s", string(msg[0]), gopsu.Bytes2String(msg[1], "-")), 10)
+			}
 		}
 	}
 }
 
-// StartProxy start a zmq proxy
+// StartProxy start a 0MQ proxy
 func (z *ZeroMQ) StartProxy() {
 	frontend, _ := zmq4.NewSocket(zmq4.PULL)
 	frontend.SetReconnectIvl(70 * time.Second)
-	frontend.SetRcvhwm(zmqRShwm)
+	frontend.SetRcvhwm(ZMQRShwm)
 	frontend.SetLinger(0)
 	defer frontend.Close()
 	if err := frontend.Bind(z.Pull.ConnStr); err != nil {
@@ -256,7 +267,7 @@ func (z *ZeroMQ) StartProxy() {
 	//  Socket facing services
 	backend, _ := zmq4.NewSocket(zmq4.PUB)
 	backend.SetReconnectIvl(70 * time.Second)
-	backend.SetSndhwm(zmqRShwm)
+	backend.SetSndhwm(ZMQRShwm)
 	backend.SetLinger(0)
 	defer backend.Close()
 	if err := backend.Bind(z.Pub.ConnStr); err != nil {
