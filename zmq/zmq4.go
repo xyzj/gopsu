@@ -17,7 +17,7 @@ var (
 // ZeroMQ zeromq
 type ZeroMQ struct {
 	Log           *gopsu.MxLog // 日志
-	Verbose       bool        // 是否打印信息
+	Verbose       bool         // 是否打印信息
 	Pull          *ZeroMQArgs
 	Push          *ZeroMQArgs
 	Pub           *ZeroMQArgs
@@ -160,7 +160,7 @@ func (z *ZeroMQ) handlePush() {
 		}
 		select {
 		case msg := <-z.chanPush:
-			_, ex := push.SendMessage(msg)
+			_, ex := push.SendMessage([]string{msg.RoutingKey, string(msg.Body)})
 			if ex != nil {
 				z.showMessages(fmt.Sprintf("0MQ-PushEx:%s", ex.Error()), 40)
 			}
