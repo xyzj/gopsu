@@ -45,7 +45,6 @@ type ZeroMQData struct {
 }
 
 func (z *ZeroMQ) showMessages(s string, level int) {
-	println(z.Log)
 	if z.Log != nil {
 		switch level {
 		case 10:
