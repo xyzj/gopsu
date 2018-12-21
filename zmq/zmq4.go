@@ -152,7 +152,7 @@ func (z *ZeroMQ) handlePush() {
 	// push.SetLinger(0)
 	push.Connect(z.Push.ConnStr)
 	z.showMessages(fmt.Sprintf("%s 0MQ-Push connect to %s", gopsu.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Push.ConnStr), 90)
-	fl, _ := z.Log.GetLogLevel()
+	// fl, _ := z.Log.GetLogLevel()
 	closeme := false
 	for {
 		if closeme {
@@ -161,11 +161,9 @@ func (z *ZeroMQ) handlePush() {
 		select {
 		case msg := <-z.chanPush:
 			_, ex := push.SendMessage([]string{msg.RoutingKey, string(msg.Body)})
-			if fl <= 10 {
-				z.showMessages(fmt.Sprintf("0MQ-Push:%s", fmt.Sprintf("%s|%s", msg.RoutingKey, gopsu.Bytes2String(msg.Body, "-"))), 10)
-			} else {
-				z.showMessages(fmt.Sprintf("0MQ-Push:%s", fmt.Sprintf("%s", msg.RoutingKey)), 20)
-			}
+			// if fl <= 10 {
+			// 	z.showMessages(fmt.Sprintf("0MQ-Push:%s", fmt.Sprintf("%s|%s", msg.RoutingKey, gopsu.Bytes2String(msg.Body, "-"))), 10)
+			// }
 			if ex != nil {
 				z.showMessages(fmt.Sprintf("0MQ-PushEx:%s", ex.Error()), 40)
 			}
@@ -225,7 +223,7 @@ func (z *ZeroMQ) handleSub() {
 	go func() {
 		closeme = <-z.chanCloseSub
 	}()
-	fl, _ := z.Log.GetLogLevel()
+	// fl, _ := z.Log.GetLogLevel()
 	for {
 		if closeme {
 			break
@@ -244,9 +242,9 @@ func (z *ZeroMQ) handleSub() {
 				RoutingKey: string(msg[0]),
 				Body:       msg[1],
 			}
-			if fl <= 10 {
-				z.showMessages(fmt.Sprintf("0MQ-SUB: %s|%s", string(msg[0]), gopsu.Bytes2String(msg[1], "-")), 10)
-			}
+			// if fl <= 10 {
+			// 	z.showMessages(fmt.Sprintf("0MQ-SUB: %s|%s", string(msg[0]), gopsu.Bytes2String(msg[1], "-")), 10)
+			// }
 		}
 	}
 }
