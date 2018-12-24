@@ -1,6 +1,7 @@
 package zmq
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"time"
@@ -209,7 +210,7 @@ func (z *ZeroMQ) handlePush(push *zmq4.Socket) {
 				z.showMessages(fmt.Sprintf("0MQ-PushEx:%s", ex.Error()), 40)
 			} else {
 				if z.Verbose {
-					z.showMessages(fmt.Sprintf("0MQ-Push:%s", fmt.Sprintf("%s|%s", msg.RoutingKey, gopsu.Bytes2String(msg.Body, "-"))), 10)
+					z.showMessages(fmt.Sprintf("0MQ-Push:%s", fmt.Sprintf("%s|%s", msg.RoutingKey, base64.StdEncoding.EncodeToString(msg.Body))), 10)
 				}
 			}
 		case msg := <-z.chanClosePush:
@@ -271,7 +272,7 @@ func (z *ZeroMQ) handleSub(sub *zmq4.Socket) {
 		if ex != nil {
 			if z.Sub.ReconnectIfTimeo {
 				sub.Close()
-				z.showMessages("0MQ-SUB recv timeout, try reconnect", 40)
+				z.showMessages("0MQ-Sub recv timeout, try reconnect", 40)
 			}
 			continue
 		}
@@ -282,7 +283,7 @@ func (z *ZeroMQ) handleSub(sub *zmq4.Socket) {
 				Body:       msg[1],
 			}
 			if z.Verbose {
-				z.showMessages(fmt.Sprintf("0MQ-SUB: %s|%s", string(msg[0]), gopsu.Bytes2String(msg[1], "-")), 10)
+				z.showMessages(fmt.Sprintf("0MQ-Sub: %s|%s", string(msg[0]), base64.StdEncoding.EncodeToString(msg[1])), 10)
 			}
 		}
 	}
