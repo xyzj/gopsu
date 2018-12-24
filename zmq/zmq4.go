@@ -89,21 +89,27 @@ func (z *ZeroMQ) coreWatcher() {
 			time.Sleep(100 * time.Millisecond)
 			switch n {
 			case "push":
-				push, err := z.initPush()
-				if err != nil {
-					time.Sleep(15 * time.Second)
-				} else {
-					go z.handlePush(push)
-					closehandle["push"] = false
+				for {
+					push, err := z.initPush()
+					if err != nil {
+						time.Sleep(15 * time.Second)
+					} else {
+						go z.handlePush(push)
+						break
+					}
 				}
+				closehandle["push"] = false
 			case "sub":
-				sub, err := z.initSub()
-				if err != nil {
-					time.Sleep(15 * time.Second)
-				} else {
-					go z.handleSub(sub)
-					closehandle["sub"] = false
+				for {
+					sub, err := z.initSub()
+					if err != nil {
+						time.Sleep(15 * time.Second)
+					} else {
+						go z.handleSub(sub)
+						break
+					}
 				}
+				closehandle["sub"] = false
 			case "closepush":
 				closehandle["push"] = true
 			case "closesub":
