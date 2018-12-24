@@ -88,11 +88,21 @@ func (z *ZeroMQ) coreWatcher() {
 			time.Sleep(100 * time.Millisecond)
 			switch n {
 			case "push":
-				go z.handlePush()
-				closehandle["push"] = false
+				push, err := z.initPush()
+				if err != nil {
+					time.Sleep(15 * time.Second)
+				} else {
+					go z.handlePush(push)
+					closehandle["push"] = false
+				}
 			case "sub":
-				go z.handleSub()
-				closehandle["sub"] = false
+				sub, err := z.initSub()
+				if err != nil {
+					time.Sleep(15 * time.Second)
+				} else {
+					go z.handleSub(sub)
+					closehandle["sub"] = false
+				}
 			case "closepush":
 				closehandle["push"] = true
 			case "closesub":
@@ -100,6 +110,41 @@ func (z *ZeroMQ) coreWatcher() {
 			}
 		}
 	}
+}
+
+func (z *ZeroMQ) initPush() (*zmq4.Socket, error) {
+	push, _ := zmq4.NewSocket(zmq4.PUSH)
+	push.SetSndhwm(ZMQRShwm)
+	push.SetSndtimeo(z.Push.Timeo)
+	// push.SetLinger(0)
+	err := push.Connect(z.Push.ConnStr)
+	if err != nil {
+		z.showMessages(fmt.Sprintf("%s 0MQ-Push connect to %s failed: %s", gopsu.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Push.ConnStr, err.Error()), 40)
+		return nil, err
+	}
+	z.showMessages(fmt.Sprintf("%s 0MQ-Push connect to %s", gopsu.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Push.ConnStr), 90)
+	return push, nil
+}
+
+func (z *ZeroMQ) initSub() (*zmq4.Socket, error) {
+	sub, _ := zmq4.NewSocket(zmq4.SUB)
+	sub.SetRcvhwm(ZMQRShwm)
+	sub.SetLinger(0)
+	sub.SetRcvtimeo(z.Sub.Timeo)
+	if len(z.Sub.Subscribe) == 0 {
+		sub.SetSubscribe("")
+	} else {
+		for _, v := range z.Sub.Subscribe {
+			sub.SetSubscribe(v)
+		}
+	}
+	err := sub.Connect(z.Sub.ConnStr)
+	if err != nil {
+		z.showMessages(fmt.Sprintf("%s 0MQ-Sub connect to %s failed: %s", gopsu.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Sub.ConnStr, err.Error()), 40)
+		return nil, err
+	}
+	z.showMessages(fmt.Sprintf("%s 0MQ-Sub connect to %s", gopsu.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Sub.ConnStr), 90)
+	return sub, nil
 }
 
 // PushData push data
@@ -121,7 +166,7 @@ func (z *ZeroMQ) ClosePush() {
 }
 
 // StartPush start 0MQ push
-func (z *ZeroMQ) StartPush() {
+func (z *ZeroMQ) StartPush() error {
 	if z.chanWatcher == nil {
 		z.chanWatcher = make(chan string, 2)
 		go z.coreWatcher()
@@ -134,9 +179,16 @@ func (z *ZeroMQ) StartPush() {
 	}
 
 	z.chanPush = make(chan *ZeroMQData, z.Push.ChannelCache)
-	go z.handlePush()
+
+	push, err := z.initPush()
+	if err != nil {
+		return err
+	}
+
+	go z.handlePush(push)
+	return nil
 }
-func (z *ZeroMQ) handlePush() {
+func (z *ZeroMQ) handlePush(push *zmq4.Socket) {
 	defer func() {
 		if err := recover(); err != nil {
 			z.showMessages(fmt.Sprintf("0MQ-Push goroutine crash: %s", err.(error).Error()), 40)
@@ -145,13 +197,6 @@ func (z *ZeroMQ) handlePush() {
 			z.chanWatcher <- "closepush"
 		}
 	}()
-	push, _ := zmq4.NewSocket(zmq4.PUSH)
-	defer push.Close()
-	push.SetSndhwm(ZMQRShwm)
-	push.SetSndtimeo(z.Push.Timeo)
-	// push.SetLinger(0)
-	push.Connect(z.Push.ConnStr)
-	z.showMessages(fmt.Sprintf("%s 0MQ-Push connect to %s", gopsu.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Push.ConnStr), 90)
 	closeme := false
 	for {
 		if closeme {
@@ -160,11 +205,12 @@ func (z *ZeroMQ) handlePush() {
 		select {
 		case msg := <-z.chanPush:
 			_, ex := push.SendMessage([]string{msg.RoutingKey, string(msg.Body)})
-			if z.Verbose {
-				z.showMessages(fmt.Sprintf("0MQ-Push:%s", fmt.Sprintf("%s|%s", msg.RoutingKey, gopsu.Bytes2String(msg.Body, "-"))), 10)
-			}
 			if ex != nil {
 				z.showMessages(fmt.Sprintf("0MQ-PushEx:%s", ex.Error()), 40)
+			} else {
+				if z.Verbose {
+					z.showMessages(fmt.Sprintf("0MQ-Push:%s", fmt.Sprintf("%s|%s", msg.RoutingKey, gopsu.Bytes2String(msg.Body, "-"))), 10)
+				}
 			}
 		case msg := <-z.chanClosePush:
 			if msg {
@@ -180,7 +226,7 @@ func (z *ZeroMQ) SubData() *ZeroMQData {
 }
 
 // StartSub start 0MQ sub
-func (z *ZeroMQ) StartSub() {
+func (z *ZeroMQ) StartSub() error {
 	if z.chanWatcher == nil {
 		z.chanWatcher = make(chan string, 2)
 		go z.coreWatcher()
@@ -194,9 +240,15 @@ func (z *ZeroMQ) StartSub() {
 
 	z.chanCloseSub = make(chan bool)
 	z.chanSub = make(chan *ZeroMQData, z.Sub.ChannelCache)
-	go z.handleSub()
+
+	sub, err := z.initSub()
+	if err != nil {
+		return err
+	}
+	go z.handleSub(sub)
+	return nil
 }
-func (z *ZeroMQ) handleSub() {
+func (z *ZeroMQ) handleSub(sub *zmq4.Socket) {
 	defer func() {
 		if err := recover(); err != nil {
 			z.showMessages(fmt.Sprintf("0MQ-Sub goroutine crash: %s", err.(error).Error()), 40)
@@ -205,19 +257,7 @@ func (z *ZeroMQ) handleSub() {
 			z.chanWatcher <- "closesub"
 		}
 	}()
-	sub, _ := zmq4.NewSocket(zmq4.SUB)
-	sub.SetRcvhwm(ZMQRShwm)
-	sub.SetLinger(0)
-	sub.SetRcvtimeo(z.Sub.Timeo)
-	if len(z.Sub.Subscribe) == 0 {
-		sub.SetSubscribe("")
-	} else {
-		for _, v := range z.Sub.Subscribe {
-			sub.SetSubscribe(v)
-		}
-	}
-	sub.Connect(z.Sub.ConnStr)
-	z.showMessages(fmt.Sprintf("%s 0MQ-Sub connect to %s", gopsu.Stamp2Time(time.Now().Unix(), "2006-01-02"), z.Sub.ConnStr), 90)
+
 	closeme := false
 	go func() {
 		closeme = <-z.chanCloseSub
