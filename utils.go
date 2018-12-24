@@ -35,6 +35,7 @@ type StringSliceSort struct {
 	OneDimensional []string
 	TwoDimensional [][]string
 	Idx            int
+	Order          string
 }
 
 func (arr *StringSliceSort) Len() int {
@@ -54,15 +55,28 @@ func (arr *StringSliceSort) Swap(i, j int) {
 }
 
 func (arr *StringSliceSort) Less(i, j int) bool {
-	if len(arr.OneDimensional) > 0 {
-		return arr.OneDimensional[i] < arr.OneDimensional[j]
-	} else {
-		arr1 := arr.TwoDimensional[i]
-		arr2 := arr.TwoDimensional[j]
-		if arr.Idx > len(arr.TwoDimensional[0]) {
-			arr.Idx = 0
+	if arr.Order == "desc" {
+		if len(arr.OneDimensional) > 0 {
+			return arr.OneDimensional[i] > arr.OneDimensional[j]
+		} else {
+			arr1 := arr.TwoDimensional[i]
+			arr2 := arr.TwoDimensional[j]
+			if arr.Idx > len(arr.TwoDimensional[0]) {
+				arr.Idx = 0
+			}
+			return arr1[arr.Idx] > arr2[arr.Idx]
 		}
-		return arr1[arr.Idx] < arr2[arr.Idx]
+	} else {
+		if len(arr.OneDimensional) > 0 {
+			return arr.OneDimensional[i] < arr.OneDimensional[j]
+		} else {
+			arr1 := arr.TwoDimensional[i]
+			arr2 := arr.TwoDimensional[j]
+			if arr.Idx > len(arr.TwoDimensional[0]) {
+				arr.Idx = 0
+			}
+			return arr1[arr.Idx] < arr2[arr.Idx]
+		}
 	}
 }
 
