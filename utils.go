@@ -87,12 +87,18 @@ type Queue struct {
 	locker *sync.RWMutex
 }
 
+// NewQueue get a new queue
 func NewQueue() *Queue {
 	mq := &Queue{
 		Q:      list.New(),
 		locker: &sync.RWMutex{},
 	}
 	return mq
+}
+
+// Clear clear queue list
+func (mq *Queue) Clear() {
+	mq.Q.Init()
 }
 
 // Put put data to the end of the queue
