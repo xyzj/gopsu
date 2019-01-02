@@ -19,6 +19,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	// _ "github.com/go-sql-driver/mysql"
 )
@@ -82,17 +83,30 @@ func (arr *StringSliceSort) Less(i, j int) bool {
 
 // Queue queue for go
 type Queue struct {
-	Q *list.List
+	Q      *list.List
+	locker *sync.RWMutex
+}
+
+func NewQueue() *Queue {
+	mq := &Queue{
+		Q:      list.New(),
+		locker: &sync.RWMutex{},
+	}
+	return mq
 }
 
 // Put put data to the end of the queue
 func (mq *Queue) Put(value interface{}) {
+	mq.locker.Lock()
 	mq.Q.PushBack(value)
+	mq.locker.Unlock()
 }
 
 // PutFront put data to the first of the queue
 func (mq *Queue) PutFront(value interface{}) {
+	mq.locker.Lock()
 	mq.Q.PushFront(value)
+	mq.locker.Unlock()
 }
 
 // Get get data from front
@@ -100,6 +114,8 @@ func (mq *Queue) Get() interface{} {
 	if mq.Q.Len() == 0 {
 		return nil
 	}
+	defer mq.locker.RUnlock()
+	mq.locker.RLock()
 	e := mq.Q.Front()
 	if e != nil {
 		mq.Q.Remove(e)
