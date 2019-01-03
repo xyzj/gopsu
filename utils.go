@@ -81,72 +81,63 @@ func (arr *StringSliceSort) Less(i, j int) bool {
 	}
 }
 
-// Queue queue for go
-type Queue struct {
-	Q      *list.List
-	locker *sync.RWMutex
+// queue queue for go
+type queue struct {
+	q      *list.List
+	locker *sync.Mutex
 }
 
-// NewQueue get a new queue
-func NewQueue() *Queue {
-	mq := &Queue{
-		Q:      list.New(),
-		locker: &sync.RWMutex{},
+// Newqueue get a new queue
+func NewQueue() *queue {
+	mq := &queue{
+		q:      list.New(),
+		locker: &sync.Mutex{},
 	}
 	return mq
 }
 
 // Clear clear queue list
-func (mq *Queue) Clear() {
-	mq.Q.Init()
+func (mq *queue) Clear() {
+	mq.q.Init()
 }
 
 // Put put data to the end of the queue
-func (mq *Queue) Put(value interface{}) {
+func (mq *queue) Put(value interface{}) {
 	mq.locker.Lock()
-	mq.Q.PushBack(value)
-	mq.locker.Unlock()
+	defer mq.locker.Unlock()
+	mq.q.PushBack(value)
 }
 
 // PutFront put data to the first of the queue
-func (mq *Queue) PutFront(value interface{}) {
+func (mq *queue) PutFront(value interface{}) {
 	mq.locker.Lock()
-	mq.Q.PushFront(value)
-	mq.locker.Unlock()
+	defer mq.locker.Unlock()
+	mq.q.PushFront(value)
 }
 
 // Get get data from front
-func (mq *Queue) Get() interface{} {
-	if mq.Q.Len() == 0 {
+func (mq *queue) Get() interface{} {
+	if mq.q.Len() == 0 {
 		return nil
 	}
-	defer mq.locker.RUnlock()
-	mq.locker.RLock()
-	e := mq.Q.Front()
+	mq.locker.Lock()
+	defer mq.locker.Unlock()
+	e := mq.q.Front()
 	if e != nil {
-		mq.Q.Remove(e)
+		mq.q.Remove(e)
 		return e.Value
 	}
 	return nil
 }
 
 // Len get queue len
-func (mq *Queue) Len() int64 {
-	return int64(mq.Q.Len())
+func (mq *queue) Len() int64 {
+	return int64(mq.q.Len())
 }
 
 // Empty check if empty
-func (mq *Queue) Empty() bool {
-	return mq.Q.Len() == 0
-}
-
-// Clean clean the queue
-func (mq *Queue) Clean() {
-	var n *list.Element
-	for e := mq.Q.Front(); e != nil; e = n {
-		n = e.Next()
-		mq.Q.Remove(e)
-	}
+func (mq *queue) Empty() bool {
+	return mq.q.Len() == 0
 }
 
 // GetAddrFromString get addr from config string
