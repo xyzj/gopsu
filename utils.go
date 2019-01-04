@@ -81,15 +81,15 @@ func (arr *StringSliceSort) Less(i, j int) bool {
 	}
 }
 
-// queue queue for go
-type queue struct {
+// Queue queue for go
+type Queue struct {
 	q      *list.List
 	locker *sync.Mutex
 }
 
-// Newqueue get a new queue
-func NewQueue() *queue {
-	mq := &queue{
+// NewQueue get a new queue
+func NewQueue() *Queue {
+	mq := &Queue{
 		q:      list.New(),
 		locker: &sync.Mutex{},
 	}
@@ -97,26 +97,26 @@ func NewQueue() *queue {
 }
 
 // Clear clear queue list
-func (mq *queue) Clear() {
+func (mq *Queue) Clear() {
 	mq.q.Init()
 }
 
 // Put put data to the end of the queue
-func (mq *queue) Put(value interface{}) {
+func (mq *Queue) Put(value interface{}) {
 	mq.locker.Lock()
 	defer mq.locker.Unlock()
 	mq.q.PushBack(value)
 }
 
 // PutFront put data to the first of the queue
-func (mq *queue) PutFront(value interface{}) {
+func (mq *Queue) PutFront(value interface{}) {
 	mq.locker.Lock()
 	defer mq.locker.Unlock()
 	mq.q.PushFront(value)
 }
 
 // Get get data from front
-func (mq *queue) Get() interface{} {
+func (mq *Queue) Get() interface{} {
 	if mq.q.Len() == 0 {
 		return nil
 	}
@@ -131,12 +131,12 @@ func (mq *queue) Get() interface{} {
 }
 
 // Len get queue len
-func (mq *queue) Len() int64 {
+func (mq *Queue) Len() int64 {
 	return int64(mq.q.Len())
 }
 
 // Empty check if empty
-func (mq *queue) Empty() bool {
+func (mq *Queue) Empty() bool {
 	return mq.q.Len() == 0
 }
 
