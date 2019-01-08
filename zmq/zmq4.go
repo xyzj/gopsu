@@ -245,7 +245,7 @@ func (z *ZeroMQ) StartSub() error {
 		z.Sub.Timeo = 5 * time.Second
 	}
 
-	z.chanCloseSub = make(chan bool)
+	z.chanCloseSub = make(chan bool, 3)
 	z.chanSub = make(chan *ZeroMQData, z.Sub.ChannelCache)
 
 	sub, err := z.initSub()
@@ -278,7 +278,9 @@ func (z *ZeroMQ) handleSub(sub *zmq4.Socket) {
 		if ex != nil {
 			if z.Sub.ReconnectIfTimeo {
 				sub.Close()
-				z.showMessages("0MQ-Sub recv timeout, try reconnect", 40)
+				z.chanCloseSub <- true
+				panic(errors.New("0MQ-Sub recv timeout, try reconnect"))
+				// z.showMessages("0MQ-Sub recv timeout, try reconnect", 40)
 			}
 			continue
 		}
