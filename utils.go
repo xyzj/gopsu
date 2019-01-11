@@ -632,18 +632,19 @@ func CompressData(src []byte, t string) []byte {
 		w := gzip.NewWriter(&in)
 		w.Write(src)
 		w.Close()
-	case "lz4":
+	case "lz4hc":
 		var b = make([]byte, len(src))
 		di, err := lz4.CompressBlockHC(src, b, 0)
 		if err == nil {
 			in.Write(b[:di])
 		}
-		// w := lz4.NewWriter(&in)
-		// w.Header = lz4.Header{
-		// 	CompressionLevel: 0,
-		// }
-		// w.Write(src)
-		// w.Close()
+	case "lz4":
+		w := lz4.NewWriter(&in)
+		w.Header = lz4.Header{
+			CompressionLevel: 6,
+		}
+		w.Write(src)
+		w.Close()
 	default: // zlib
 		w := zlib.NewWriter(&in)
 		w.Write(src)
@@ -661,23 +662,22 @@ func UncompressData(src []byte, t string) []byte {
 		r, _ := gzip.NewReader(b)
 		io.Copy(&out, r)
 	case "lz4":
-		// b := bytes.NewReader(src)
-		// r := lz4.NewReader(b)
-		// r.Header = lz4.Header{
-		// 	BlockChecksum:    false,
-		// 	NoChecksum:       true,
-		// 	CompressionLevel: 0,
-		// }
-		// buf := make([]byte, 512)
-		// for {
-		// 	n, err := r.Read(buf)
-		// 	if err != nil || err == io.EOF || n == 0 {
-		// 		break
-		// 	}
-		// 	if n > 0 {
-		// 		out.Write(buf[:n])
-		// 	}
-		// }
+		b := bytes.NewReader(src)
+		r := lz4.NewReader(b)
+		r.Header = lz4.Header{
+			CompressionLevel: 6,
+		}
+		buf := make([]byte, 512)
+		for {
+			n, err := r.Read(buf)
+			if err != nil || err == io.EOF || n == 0 {
+				break
+			}
+			if n > 0 {
+				out.Write(buf[:n])
+			}
+		}
+	case "lz4hc":
 		count := 300
 		var b []byte
 	RETRY:
