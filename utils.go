@@ -2,6 +2,7 @@ package gopsu
 
 import (
 	"bytes"
+	"compress/gzip"
 	"compress/zlib"
 	"container/list"
 	"crypto/md5"
@@ -21,6 +22,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/pierrec/lz4"
 	// _ "github.com/go-sql-driver/mysql"
 )
 
@@ -619,6 +622,81 @@ func DecodeStringOld(s string) string {
 	} else {
 		return ""
 	}
+}
+
+// CompressData 使用gzip，zlib，lz4压缩数据
+func CompressData(src []byte, t string) []byte {
+	var in bytes.Buffer
+	switch t {
+	case "gzip":
+		w := gzip.NewWriter(&in)
+		w.Write(src)
+		w.Close()
+	case "lz4":
+		var b = make([]byte, len(src))
+		di, err := lz4.CompressBlockHC(src, b, 0)
+		if err == nil {
+			in.Write(b[:di])
+		}
+		// w := lz4.NewWriter(&in)
+		// w.Header = lz4.Header{
+		// 	CompressionLevel: 0,
+		// }
+		// w.Write(src)
+		// w.Close()
+	default: // zlib
+		w := zlib.NewWriter(&in)
+		w.Write(src)
+		w.Close()
+	}
+	return in.Bytes()
+}
+
+// UncompressData 使用gzip，zlib，lz4解压缩数据
+func UncompressData(src []byte, t string) []byte {
+	var out bytes.Buffer
+	switch t {
+	case "gzip":
+		b := bytes.NewReader(src)
+		r, _ := gzip.NewReader(b)
+		io.Copy(&out, r)
+	case "lz4":
+		// b := bytes.NewReader(src)
+		// r := lz4.NewReader(b)
+		// r.Header = lz4.Header{
+		// 	BlockChecksum:    false,
+		// 	NoChecksum:       true,
+		// 	CompressionLevel: 0,
+		// }
+		// buf := make([]byte, 512)
+		// for {
+		// 	n, err := r.Read(buf)
+		// 	if err != nil || err == io.EOF || n == 0 {
+		// 		break
+		// 	}
+		// 	if n > 0 {
+		// 		out.Write(buf[:n])
+		// 	}
+		// }
+		count := 300
+		var b []byte
+	RETRY:
+		b = make([]byte, len(src)*count)
+		di, err := lz4.UncompressBlock(src, b)
+		if err == nil {
+			out.Write(b[:di])
+		} else {
+			if err == lz4.ErrInvalidSourceShortBuffer {
+				count++
+				goto RETRY
+			}
+		}
+	default: // zlib
+		b := bytes.NewReader(src)
+		r, _ := zlib.NewReader(b)
+		io.Copy(&out, r)
+	}
+	return out.Bytes()
 }
 
 // DoZlibUnCompress zlib uncompress
