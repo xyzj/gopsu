@@ -279,7 +279,10 @@ func (r *RabbitMQ) SendCustom(d *RabbitMQData) {
 	if r.chanSend == nil {
 		return
 	}
-	go func() { r.chanSend <- d }()
+	go func() {
+		defer func() { recover() }()
+		r.chanSend <- d
+	}()
 }
 
 // CloseProducer close Producer

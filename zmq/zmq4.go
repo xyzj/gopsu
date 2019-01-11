@@ -160,6 +160,7 @@ func (z *ZeroMQ) PushData(f string, d []byte) {
 		return
 	}
 	go func() {
+		defer func() { recover() }()
 		z.chanPush <- &ZeroMQData{
 			RoutingKey: f,
 			Body:       d,
