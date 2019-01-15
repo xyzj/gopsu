@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/snappy"
 	"github.com/pierrec/lz4"
 	// _ "github.com/go-sql-driver/mysql"
 )
@@ -625,6 +626,7 @@ func DecodeStringOld(s string) string {
 }
 
 // CompressData 使用gzip，zlib，lz4压缩数据
+// lz4hc 目前无法跨语言使用
 func CompressData(src []byte, t string) []byte {
 	var in bytes.Buffer
 	switch t {
@@ -645,6 +647,8 @@ func CompressData(src []byte, t string) []byte {
 		}
 		w.Write(src)
 		w.Close()
+	case "snappy":
+		in.Write(snappy.Encode(nil, src))
 	default: // zlib
 		w := zlib.NewWriter(&in)
 		w.Write(src)
@@ -654,7 +658,7 @@ func CompressData(src []byte, t string) []byte {
 }
 
 // UncompressData 使用gzip，zlib，lz4解压缩数据
-func UncompressData(src []byte, t string) []byte {
+func UncompressData(src []byte, t string, dstlen ...interface{}) []byte {
 	var out bytes.Buffer
 	switch t {
 	case "gzip":
@@ -678,18 +682,41 @@ func UncompressData(src []byte, t string) []byte {
 			}
 		}
 	case "lz4hc":
-		count := 300
-		var b []byte
-	RETRY:
-		b = make([]byte, len(src)*count)
-		di, err := lz4.UncompressBlock(src, b)
-		if err == nil {
-			out.Write(b[:di])
-		} else {
-			if err == lz4.ErrInvalidSourceShortBuffer {
-				count++
-				goto RETRY
+		var dst []byte
+		var count = 500
+		if len(dstlen) > 0 {
+			if value, ok := dstlen[0].(int); ok == true {
+				count = value/len(src) + 1
 			}
+		}
+		// RETRY:
+		for {
+			dst = make([]byte, len(src)*count)
+			di, err := lz4.UncompressBlock(src, dst)
+			if err == nil {
+				out.Write(dst[:di])
+				break
+			} else {
+				if err == lz4.ErrInvalidSourceShortBuffer {
+					count += 10
+				} else {
+					break
+				}
+			}
+		}
+		// di, err := lz4.UncompressBlock(src, b)
+		// if err == nil {
+		// 	out.Write(b[:di])
+		// } else {
+		// 	if err == lz4.ErrInvalidSourceShortBuffer {
+		// 		count++
+		// 		goto RETRY
+		// 	}
+		// }
+	case "snappy":
+		b, err := snappy.Decode(nil, src)
+		if err == nil {
+			out.Write(b)
 		}
 	default: // zlib
 		b := bytes.NewReader(src)
