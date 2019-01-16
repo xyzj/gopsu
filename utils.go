@@ -50,18 +50,20 @@ const (
 
 // archiveWorker 压缩管理器，避免重复New
 type archiveWorker struct {
-	archiveType  byte
-	in           *bytes.Reader
-	code         bytes.Buffer
-	decode       bytes.Buffer
-	gzipReader   *gzip.Reader
-	gzipWriter   *gzip.Writer
-	zlibReader   io.ReadCloser
-	zlibWriter   *zlib.Writer
-	lz4Reader    *lz4.Reader
-	lz4Writer    *lz4.Writer
-	snappyReader *snappy.Reader
-	snappyWriter *snappy.Writer
+	archiveType      byte
+	in               *bytes.Reader
+	code             bytes.Buffer
+	decode           bytes.Buffer
+	gzipReader       *gzip.Reader
+	gzipWriter       *gzip.Writer
+	zlibReader       io.ReadCloser
+	zlibWriter       *zlib.Writer
+	lz4Reader        *lz4.Reader
+	lz4Writer        *lz4.Writer
+	snappyReader     *snappy.Reader
+	snappyWriter     *snappy.Writer
+	compressLocker   sync.Mutex
+	uncompressLocker sync.Mutex
 }
 
 // GetNewArchiveWorker 获取新的压缩管理器
@@ -96,6 +98,8 @@ func GetNewArchiveWorker(archiveType byte) *archiveWorker {
 
 // Compress 压缩
 func (a *archiveWorker) Compress(src []byte) []byte {
+	a.compressLocker.Lock()
+	defer a.compressLocker.Unlock()
 	a.code.Reset()
 	switch a.archiveType {
 	case ArchiveGZip:
@@ -124,6 +128,8 @@ func (a *archiveWorker) Compress(src []byte) []byte {
 
 // Uncompress 解压缩
 func (a *archiveWorker) Uncompress(src []byte) []byte {
+	a.uncompressLocker.Lock()
+	defer a.uncompressLocker.Unlock()
 	a.decode.Reset()
 	switch a.archiveType {
 	case ArchiveGZip:
