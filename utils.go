@@ -48,8 +48,8 @@ const (
 	ArchiveSnappy
 )
 
-// archiveWorker 压缩管理器，避免重复New
-type archiveWorker struct {
+// ArchiveWorker 压缩管理器，避免重复New
+type ArchiveWorker struct {
 	archiveType      byte
 	in               *bytes.Reader
 	code             bytes.Buffer
@@ -67,8 +67,8 @@ type archiveWorker struct {
 }
 
 // GetNewArchiveWorker 获取新的压缩管理器
-func GetNewArchiveWorker(archiveType byte) *archiveWorker {
-	a := &archiveWorker{
+func GetNewArchiveWorker(archiveType byte) *ArchiveWorker {
+	a := &ArchiveWorker{
 		archiveType: archiveType,
 		in:          bytes.NewReader(nil),
 	}
@@ -97,7 +97,7 @@ func GetNewArchiveWorker(archiveType byte) *archiveWorker {
 }
 
 // Compress 压缩
-func (a *archiveWorker) Compress(src []byte) []byte {
+func (a *ArchiveWorker) Compress(src []byte) []byte {
 	a.compressLocker.Lock()
 	defer a.compressLocker.Unlock()
 	a.code.Reset()
@@ -127,7 +127,7 @@ func (a *archiveWorker) Compress(src []byte) []byte {
 }
 
 // Uncompress 解压缩
-func (a *archiveWorker) Uncompress(src []byte) []byte {
+func (a *ArchiveWorker) Uncompress(src []byte) []byte {
 	a.uncompressLocker.Lock()
 	defer a.uncompressLocker.Unlock()
 	a.decode.Reset()
@@ -274,7 +274,7 @@ func UncompressData(src []byte, t byte, dstlen ...interface{}) []byte {
 	return out.Bytes()
 }
 
-// 字符串数组排序
+// StringSliceSort 字符串数组排序
 type StringSliceSort struct {
 	OneDimensional []string
 	TwoDimensional [][]string
