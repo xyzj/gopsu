@@ -6,11 +6,14 @@ import (
 	"compress/zlib"
 	"container/list"
 	"crypto/md5"
+	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"hash"
 	"io"
 	"math"
 	"math/rand"
@@ -34,6 +37,43 @@ const (
 	// OSARCH from runtime
 	OSARCH = runtime.GOARCH
 )
+const (
+	CryptoMD5 = iota
+	CryptoSHA256
+	CryptoSHA512
+)
+
+// CryptoWorker 序列化或加密管理器
+type CryptoWorker struct {
+	cryptoType   byte
+	cryptoHash   hash.Hash
+	cryptoLocker sync.Mutex
+}
+
+// GetNewCryptoWorker 获取新的序列化或加密管理器
+func GetNewCryptoWorker(cryptoType byte) *CryptoWorker {
+	h := &CryptoWorker{
+		cryptoType: cryptoType,
+	}
+	switch cryptoType {
+	case CryptoMD5:
+		h.cryptoHash = md5.New()
+	case CryptoSHA256:
+		h.cryptoHash = sha256.New()
+	case CryptoSHA512:
+		h.cryptoHash = sha512.New()
+	}
+	return h
+}
+
+// Hash 计算序列
+func (h *CryptoWorker) Hash(b []byte) string {
+	h.cryptoLocker.Lock()
+	defer h.cryptoLocker.Unlock()
+	h.cryptoHash.Reset()
+	h.cryptoHash.Write(b)
+	return fmt.Sprintf("%x", h.cryptoHash.Sum(nil))
+}
 
 const (
 	// ArchiveZlib zlib压缩/解压缩
@@ -532,7 +572,7 @@ func String2Int64(s string, t int) int64 {
 	return x
 }
 
-// String2Int64 convert string 2 float64
+// String2Float64 convert string 2 float64
 func String2Float64(s string) float64 {
 	x, _ := strconv.ParseFloat(s, 0)
 	return x
