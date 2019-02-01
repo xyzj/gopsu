@@ -75,6 +75,26 @@ func (h *CryptoWorker) Hash(b []byte) string {
 	return fmt.Sprintf("%x", h.cryptoHash.Sum(nil))
 }
 
+// GetMD5 生成32位md5字符串
+func GetMD5(text string) string {
+	ctx := md5.New()
+	ctx.Write([]byte(text))
+	return hex.EncodeToString(ctx.Sum(nil))
+}
+
+// HashData 计算hash
+func HashData(b []byte, cryptoType byte) string {
+	switch cryptoType {
+	case CryptoMD5:
+		return fmt.Sprintf("%x", md5.Sum(b))
+	case CryptoSHA256:
+		return fmt.Sprintf("%x", sha256.Sum256(b))
+	case CryptoSHA512:
+		return fmt.Sprintf("%x", sha512.Sum512(b))
+	}
+	return ""
+}
+
 const (
 	// ArchiveZlib zlib压缩/解压缩
 	ArchiveZlib = iota
@@ -1002,13 +1022,6 @@ func CalculateSecurityCode(t, salt string, offset int) []string {
 		}
 	}
 	return sc
-}
-
-// GetMD5 生成32位md5字符串
-func GetMD5(text string) string {
-	ctx := md5.New()
-	ctx.Write([]byte(text))
-	return hex.EncodeToString(ctx.Sum(nil))
 }
 
 // GetRandomString 生成随机字符串
