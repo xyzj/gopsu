@@ -5,7 +5,10 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"container/list"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/md5"
+	crand "crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
@@ -41,20 +44,32 @@ const (
 	CryptoMD5 = iota
 	CryptoSHA256
 	CryptoSHA512
+	CryptoAES128CBC
+	CryptoAES128CFB
 )
 
 // CryptoWorker 序列化或加密管理器
 type CryptoWorker struct {
-	cryptoType   byte
-	cryptoHash   hash.Hash
-	cryptoLocker sync.Mutex
+	cryptoType         byte
+	cryptoHash         hash.Hash
+	cryptoLocker       sync.Mutex
+	cryptoKey          []byte
+	cryptoIV           []byte
+	cryptoBlock        cipher.Block
+	cryptoCBCEncrypter cipher.BlockMode
+	cryptoCBCDecrypter cipher.BlockMode
+	cryptoCFBEncrypter cipher.Stream
+	cryptoCFBDecrypter cipher.Stream
 }
 
 // GetNewCryptoWorker 获取新的序列化或加密管理器
 func GetNewCryptoWorker(cryptoType byte) *CryptoWorker {
 	h := &CryptoWorker{
 		cryptoType: cryptoType,
+		cryptoKey:  []byte("d64c7be2-3644-11e9-a13f-aaaa000ef3c9"),
 	}
+	ctx := md5.New()
+	ctx.Write(h.cryptoKey)
 	switch cryptoType {
 	case CryptoMD5:
 		h.cryptoHash = md5.New()
@@ -62,17 +77,117 @@ func GetNewCryptoWorker(cryptoType byte) *CryptoWorker {
 		h.cryptoHash = sha256.New()
 	case CryptoSHA512:
 		h.cryptoHash = sha512.New()
+	case CryptoAES128CBC:
+		h.cryptoBlock, _ = aes.NewCipher([]byte(hex.EncodeToString(ctx.Sum(nil)))[:16])
+		h.cryptoIV = make([]byte, aes.BlockSize)
+		if _, err := io.ReadFull(crand.Reader, h.cryptoIV); err != nil {
+			h.cryptoIV = []byte(GetRandomString(16))
+		}
+		h.cryptoCBCEncrypter = cipher.NewCBCEncrypter(h.cryptoBlock, h.cryptoIV)
+		h.cryptoCBCDecrypter = cipher.NewCBCDecrypter(h.cryptoBlock, h.cryptoIV)
+	case CryptoAES128CFB:
+		h.cryptoBlock, _ = aes.NewCipher([]byte(hex.EncodeToString(ctx.Sum(nil)))[:16])
+		h.cryptoIV = make([]byte, aes.BlockSize)
+		if _, err := io.ReadFull(crand.Reader, h.cryptoIV); err != nil {
+			h.cryptoIV = []byte(GetRandomString(16))
+		}
+		h.cryptoCFBEncrypter = cipher.NewCFBEncrypter(h.cryptoBlock, h.cryptoIV)
+		h.cryptoCFBDecrypter = cipher.NewCFBDecrypter(h.cryptoBlock, h.cryptoIV)
 	}
 	return h
+}
+
+func pkcs5Padding(ciphertext []byte, blockSize int) []byte {
+	padding := blockSize - len(ciphertext)%blockSize
+	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
+	return append(ciphertext, padtext...)
+}
+
+func pkcs5Unpadding(encrypt []byte) []byte {
+	padding := encrypt[len(encrypt)-1]
+	return encrypt[:len(encrypt)-int(padding)]
+}
+
+// SetKey 设置aes-key,iv
+func (h *CryptoWorker) SetKey(k, iv string) {
+	ctx := md5.New()
+	ctx.Reset()
+	ctx.Write([]byte(iv))
+	switch h.cryptoType {
+	case CryptoAES128CBC:
+		ctx.Write([]byte(k))
+		h.cryptoBlock, _ = aes.NewCipher([]byte(hex.EncodeToString(ctx.Sum(nil)))[:16])
+		ctx.Reset()
+		ctx.Write([]byte(iv))
+		h.cryptoIV = []byte(hex.EncodeToString(ctx.Sum(nil)))[:16]
+		h.cryptoCBCEncrypter = cipher.NewCBCEncrypter(h.cryptoBlock, h.cryptoIV)
+		h.cryptoCBCDecrypter = cipher.NewCBCDecrypter(h.cryptoBlock, h.cryptoIV)
+	case CryptoAES128CFB:
+		ctx.Write([]byte(k))
+		h.cryptoBlock, _ = aes.NewCipher([]byte(hex.EncodeToString(ctx.Sum(nil)))[:16])
+		ctx.Reset()
+		ctx.Write([]byte(iv))
+		h.cryptoIV = []byte(hex.EncodeToString(ctx.Sum(nil)))[:16]
+		h.cryptoCBCEncrypter = cipher.NewCBCEncrypter(h.cryptoBlock, h.cryptoIV)
+		h.cryptoCBCDecrypter = cipher.NewCBCDecrypter(h.cryptoBlock, h.cryptoIV)
+	default:
+	}
+}
+
+// Encrypt 加密
+func (h *CryptoWorker) Encrypt(s string) string {
+	switch h.cryptoType {
+	case CryptoAES128CBC:
+		content := pkcs5Padding([]byte(s), h.cryptoBlock.BlockSize())
+		crypted := make([]byte, len(content))
+		h.cryptoCBCEncrypter.CryptBlocks(crypted, content)
+		return base64.StdEncoding.EncodeToString(crypted)
+	case CryptoAES128CFB:
+		crypted := make([]byte, aes.BlockSize+len(s))
+		cipher.NewCFBEncrypter(h.cryptoBlock, h.cryptoIV).XORKeyStream(crypted[aes.BlockSize:], []byte(s))
+		return base64.StdEncoding.EncodeToString(crypted)
+	}
+	return ""
+}
+
+// EncryptNoTail 加密，去掉base64尾巴的=符号
+func (h *CryptoWorker) EncryptNoTail(s string) string {
+	return strings.Replace(h.Encrypt(s), "=", "", -1)
+}
+
+// Decrypt 解密
+func (h *CryptoWorker) Decrypt(s string) string {
+	if x := 4 - len(s)%4; x != 4 {
+		for i := 0; i < x; i++ {
+			s += "="
+		}
+	}
+
+	msg, _ := base64.StdEncoding.DecodeString(s)
+	switch h.cryptoType {
+	case CryptoAES128CBC:
+		decrypted := make([]byte, len(msg))
+		h.cryptoCBCDecrypter.CryptBlocks(decrypted, msg)
+		return string(pkcs5Unpadding(decrypted))
+	case CryptoAES128CFB:
+		msg = msg[aes.BlockSize:]
+		cipher.NewCFBDecrypter(h.cryptoBlock, h.cryptoIV).XORKeyStream(msg, msg)
+		return string(msg)
+	}
+	return ""
 }
 
 // Hash 计算序列
 func (h *CryptoWorker) Hash(b []byte) string {
 	h.cryptoLocker.Lock()
 	defer h.cryptoLocker.Unlock()
-	h.cryptoHash.Reset()
-	h.cryptoHash.Write(b)
-	return fmt.Sprintf("%x", h.cryptoHash.Sum(nil))
+	switch h.cryptoType {
+	case CryptoMD5, CryptoSHA256, CryptoSHA512:
+		h.cryptoHash.Reset()
+		h.cryptoHash.Write(b)
+		return fmt.Sprintf("%x", h.cryptoHash.Sum(nil))
+	}
+	return ""
 }
 
 // GetMD5 生成32位md5字符串
@@ -332,6 +447,27 @@ func UncompressData(src []byte, t byte, dstlen ...interface{}) []byte {
 		io.Copy(&out, r)
 	}
 	return out.Bytes()
+}
+
+// Base64URLDecode url解码
+func Base64URLDecode(data string) ([]byte, error) {
+	var missing = (4 - len(data)%4) % 4
+	data += strings.Repeat("=", missing)
+	res, err := base64.URLEncoding.DecodeString(data)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// Base64UrlSafeEncode url safe 编码
+func Base64UrlSafeEncode(source []byte) string {
+	// Base64 Url Safe is the same as Base64 but does not contain '/' and '+' (replaced by '_' and '-') and trailing '=' are removed.
+	bytearr := base64.StdEncoding.EncodeToString(source)
+	// safeurl := strings.Replace(string(bytearr), "/", "_", -1)
+	// safeurl = strings.Replace(safeurl, "+", "-", -1)
+	// safeurl = strings.Replace(safeurl, "=", "", -1)
+	return strings.NewReplacer("/", " ", "+", "-", "=", "").Replace(bytearr)
 }
 
 // StringSliceSort 字符串数组排序
