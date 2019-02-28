@@ -12,15 +12,17 @@ import (
 
 // RabbitMQ rabbit-mq struct
 type RabbitMQ struct {
-	Log               *gopsu.MxLog        // 日志
-	Verbose           bool                // 是否打印信息
-	chanSend          chan *RabbitMQData  // 发送队列
-	chanRecv          chan *amqp.Delivery // 接收队列
-	chanWatcher       chan string         // 子线程监视通道
-	Producer          *RabbitMQArgs       // 生产者
-	Consumer          *RabbitMQArgs       // 消费者
-	chanCloseProducer chan bool
-	chanCloseConsumer chan bool
+	Log                 *gopsu.MxLog        // 日志
+	Verbose             bool                // 是否打印信息
+	chanSend            chan *RabbitMQData  // 发送队列
+	chanRecv            chan *amqp.Delivery // 接收队列
+	chanWatcher         chan string         // 子线程监视通道
+	chanProducerWatcher chan string         // 子线程监视通道
+	chanConsumerWatcher chan string         // 子线程监视通道
+	Producer            *RabbitMQArgs       // 生产者
+	Consumer            *RabbitMQArgs       // 消费者
+	chanCloseProducer   chan bool
+	chanCloseConsumer   chan bool
 }
 
 // RabbitMQArgs rabbit-mq connect args
@@ -43,8 +45,12 @@ type RabbitMQData struct {
 
 // CloseAll close all
 func (r *RabbitMQ) CloseAll() {
-	r.chanCloseProducer <- true
-	r.chanCloseConsumer <- true
+	if r.chanCloseProducer != nil {
+		r.chanCloseProducer <- true
+	}
+	if r.chanCloseConsumer != nil {
+		r.chanCloseConsumer <- true
+	}
 }
 
 func (r *RabbitMQ) coreWatcher() {
@@ -83,7 +89,7 @@ func (r *RabbitMQ) coreWatcher() {
 				closehandle["producer"] = false
 			case "consumer":
 				for {
-					conn, err := r.initProducer()
+					conn, err := r.initConsumer()
 					if err != nil {
 						time.Sleep(15 * time.Second)
 					} else {
