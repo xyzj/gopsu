@@ -33,6 +33,7 @@ type RabbitMQArgs struct {
 	RoutingKeys  []string // 过滤器
 	QueueName    string   // 队列名
 	QueueDurable bool     // 队列是否持久化
+	QueueDelete  bool     // 队列在不用时是否删除
 	QueueMax     int32    // 队列长度
 	ChannelCache int      // 通道大小，默认2k
 }
@@ -206,7 +207,7 @@ func (r *RabbitMQ) handleConsumer(conn *amqp.Connection) {
 	q, err := ch.QueueDeclare(
 		r.Consumer.QueueName,    // name
 		r.Consumer.QueueDurable, // durable
-		false,                   // delete when usused
+		r.Consumer.QueueDelete,  // delete when unused
 		false,                   // exclusive
 		false,                   // no-wait
 		amqp.Table{
@@ -214,7 +215,7 @@ func (r *RabbitMQ) handleConsumer(conn *amqp.Connection) {
 		}, // arguments
 	)
 	if err != nil {
-		ch.QueueDelete("tcs_recv", false, false, true)
+		ch.QueueDelete(r.Consumer.ExchangeName, false, false, true)
 		panic(err)
 	}
 	for _, v := range r.Consumer.RoutingKeys {
