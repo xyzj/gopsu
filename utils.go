@@ -453,7 +453,8 @@ func UncompressData(src []byte, t byte, dstlen ...interface{}) []byte {
 
 // GetUUID1 GetUUID1
 func GetUUID1() string {
-	return uuid.New().String()
+	uid, _ := uuid.NewUUID()
+	return uid.String()
 }
 
 // Base64URLDecode url解码
