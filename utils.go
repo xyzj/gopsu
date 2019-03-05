@@ -29,9 +29,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/golang/snappy"
 	"github.com/pierrec/lz4"
-	"github.com/xyzj/gopsu/uuid"
 	// _ "github.com/go-sql-driver/mysql"
 )
 
@@ -452,8 +453,7 @@ func UncompressData(src []byte, t byte, dstlen ...interface{}) []byte {
 
 // GetUUID1 GetUUID1
 func GetUUID1() string {
-	uid, _ := uuid.NewV1()
-	return uid.String()
+	return uuid.New().String()
 }
 
 // Base64URLDecode url解码
