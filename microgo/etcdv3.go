@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"math/rand"
 	"sort"
 	"strings"
 	"sync"
@@ -16,15 +17,19 @@ import (
 	"go.etcd.io/etcd/clientv3"
 )
 
+const (
+	leaseTimeout   = 10
+	contextTimeout = 2 * time.Second
+)
+
 // Etcdv3Client 微服务结构体
 type Etcdv3Client struct {
-	etcdRoot      string           // etcd注册根路经
-	etcdAddr      []string         // etcd服务地址
-	etcdKATime    time.Duration    // 心跳间隔
-	etcdKATimeout time.Duration    // 心跳超时
-	etcdClient    *clientv3.Client // 连接实例
-	svrName       string           // 服务名称
-	svrPool       sync.Map         // 线程安全服务信息字典
+	etcdRoot   string           // etcd注册根路经
+	etcdAddr   []string         // etcd服务地址
+	etcdClient *clientv3.Client // 连接实例
+	svrName    string           // 服务名称
+	svrPool    sync.Map         // 线程安全服务信息字典
+	svrDetail  string           // 服务信息
 }
 
 // RegisteredServer 获取到的服务注册信息
@@ -38,24 +43,20 @@ type registeredServer struct {
 }
 
 // NewEtcdv3Client 获取新的微服务结构
-func NewEtcdv3Client(etcdaddr []string, timeka, timekao time.Duration) (*Etcdv3Client, error) {
-	return NewEtcdv3ClientTLS(etcdaddr, timeka, timekao, nil)
+func NewEtcdv3Client(etcdaddr []string) (*Etcdv3Client, error) {
+	return NewEtcdv3ClientTLS(etcdaddr, nil)
 }
 
 // NewEtcdv3ClientTLS 获取新的微服务结构（tls）
-func NewEtcdv3ClientTLS(etcdaddr []string, timeka, timekao time.Duration, tlsconf *tls.Config) (*Etcdv3Client, error) {
+func NewEtcdv3ClientTLS(etcdaddr []string, tlsconf *tls.Config) (*Etcdv3Client, error) {
 	m := &Etcdv3Client{
-		etcdRoot:      "wlst-micro",
-		etcdAddr:      etcdaddr,
-		etcdKATime:    timeka,
-		etcdKATimeout: timekao,
+		etcdRoot: "wlst-micro",
+		etcdAddr: etcdaddr,
 	}
 	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:            m.etcdAddr,
-		DialTimeout:          2 * time.Second,
-		DialKeepAliveTime:    m.etcdKATime,
-		DialKeepAliveTimeout: m.etcdKATimeout,
-		TLS:                  tlsconf,
+		Endpoints:   m.etcdAddr,
+		DialTimeout: 2 * time.Second,
+		TLS:         tlsconf,
 	})
 	if err != nil {
 		return nil, err
@@ -68,11 +69,11 @@ func NewEtcdv3ClientTLS(etcdaddr []string, timeka, timekao time.Duration, tlscon
 func (m *Etcdv3Client) listServers() error {
 	defer func() error {
 		if err := recover(); err != nil {
-			fmt.Printf("%+v\n", err)
+			// fmt.Printf("%+v\n", err)
 		}
 		return nil
 	}()
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
 	resp, err := m.etcdClient.Get(ctx, fmt.Sprintf("/%s", m.etcdRoot), clientv3.WithPrefix())
 	cancel()
 	if err != nil {
@@ -106,7 +107,7 @@ func (m *Etcdv3Client) listServers() error {
 
 // addPickTimes 增加计数器
 func (m *Etcdv3Client) addPickTimes(k string, r *registeredServer) {
-	if r.svrPickTimes >= 0xffffffff {
+	if r.svrPickTimes >= 0xffffffff { // 防止溢出
 		r.svrPickTimes = 0
 	} else {
 		r.svrPickTimes++
@@ -114,12 +115,36 @@ func (m *Etcdv3Client) addPickTimes(k string, r *registeredServer) {
 	m.svrPool.Store(k, r)
 }
 
+// 服务注册，并发送心跳
+func (m *Etcdv3Client) etcdRegister() (*clientv3.LeaseID, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
+	lresp, err := m.etcdClient.Grant(ctx, leaseTimeout)
+	defer cancel()
+	if err != nil {
+		return nil, false
+	}
+	m.etcdClient.Put(ctx, fmt.Sprintf("/%s/%s/%s-%s", m.etcdRoot, m.svrName, m.svrName, gopsu.GetUUID1()), m.svrDetail, clientv3.WithLease(lresp.ID))
+	return &lresp.ID, true
+}
+
 // SetRoot 自定义根路径
+//
+// args:
+//  root: 注册根路径，默认'wlst-micro'
 func (m *Etcdv3Client) SetRoot(root string) {
 	m.etcdRoot = root
 }
 
 // Register 服务注册
+//
+// args:
+//  svrname: 服务名称
+//  svrip: 服务ip
+//  intfc: 接口类型
+//  protoname: 协议类型
+//  svrport: 服务端口
+// return:
+//  error
 func (m *Etcdv3Client) Register(svrname, svrip, intfc, protoname string, svrport int) error {
 	m.svrName = svrname
 	js, _ := sjson.Set("", "ip", svrip)
@@ -129,20 +154,25 @@ func (m *Etcdv3Client) Register(svrname, svrip, intfc, protoname string, svrport
 	js, _ = sjson.Set(js, "protocol", protoname)
 	js, _ = sjson.Set(js, "timeConnect", time.Now().Unix())
 	js, _ = sjson.Set(js, "timeActive", time.Now().Unix())
+	m.svrDetail = js
 
-	lease := clientv3.NewLease(m.etcdClient)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	lresp, _ := lease.Grant(ctx, int64(m.etcdKATimeout.Seconds()))
-	_, err := m.etcdClient.Put(ctx, fmt.Sprintf("/%s/%s/%s-%s", m.etcdRoot, svrname, svrname, gopsu.GetUUID1()), js, clientv3.WithLease(lresp.ID))
-	cancel()
-	if err != nil {
-		return err
-	}
+	// 监视线程，在etcd崩溃并重启时重新注册
 	go func() {
-		ch, _ := lease.KeepAlive(context.TODO(), lresp.ID)
-		t := time.NewTicker(time.Second * 2)
+		// 注册
+		leaseid, ok := m.etcdRegister()
+		// 使用1-4s内的随机间隔
+		t := time.NewTicker(time.Duration(rand.Intn(3000)+1000) * time.Millisecond)
 		for _ = range t.C {
-			<-ch
+			if ok { // 成功注册时发送心跳
+				ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
+				_, err := m.etcdClient.KeepAliveOnce(ctx, *leaseid)
+				cancel()
+				if err != nil {
+					ok = false
+				}
+			} else { // 注册失败时重新注册
+				leaseid, ok = m.etcdRegister()
+			}
 		}
 	}()
 	return nil
@@ -156,7 +186,7 @@ func (m *Etcdv3Client) Watcher(model ...byte) error {
 		mo = model[0]
 	}
 	switch mo {
-	default:
+	default: // 默认采用定时主动获取
 		go func() {
 			for {
 				select {
@@ -170,6 +200,13 @@ func (m *Etcdv3Client) Watcher(model ...byte) error {
 }
 
 // Picker 服务选择
+//
+// args:
+//  svrname: 服务名称
+//  intfc: 服务类型，协议类型
+// return:
+//  string: 服务地址
+//  error
 func (m *Etcdv3Client) Picker(svrname string, intfc ...string) (string, error) {
 	t := time.Now().Unix()
 	listSvr := make([][]string, 0)
@@ -228,7 +265,7 @@ func (m *Etcdv3Client) Picker(svrname string, intfc ...string) (string, error) {
 	return "", fmt.Errorf(`No matching server was found with the name %s`, svrname)
 }
 
-// ReportDeadServer 报告无法访问的服务
+// ReportDeadServer 报告无法访问的服务，从缓存中删除
 func (m *Etcdv3Client) ReportDeadServer(addr string) {
 	m.svrPool.Range(func(k, v interface{}) bool {
 		s := v.(*registeredServer)
