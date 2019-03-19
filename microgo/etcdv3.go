@@ -15,6 +15,7 @@ import (
 	"github.com/tidwall/sjson"
 	"github.com/xyzj/gopsu"
 	"go.etcd.io/etcd/clientv3"
+	"go.etcd.io/etcd/pkg/transport"
 )
 
 const (
@@ -44,14 +45,29 @@ type registeredServer struct {
 
 // NewEtcdv3Client 获取新的微服务结构
 func NewEtcdv3Client(etcdaddr []string) (*Etcdv3Client, error) {
-	return NewEtcdv3ClientTLS(etcdaddr, nil)
+	return NewEtcdv3ClientTLS(etcdaddr, "", "", "")
 }
 
 // NewEtcdv3ClientTLS 获取新的微服务结构（tls）
-func NewEtcdv3ClientTLS(etcdaddr []string, tlsconf *tls.Config) (*Etcdv3Client, error) {
+func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile string) (*Etcdv3Client, error) {
 	m := &Etcdv3Client{
 		etcdRoot: "wlst-micro",
 		etcdAddr: etcdaddr,
+	}
+	var tlsconf *tls.Config
+	if strings.TrimSpace(certfile+keyfile+cafile) == "" {
+		tlsconf = nil
+	} else {
+		tlsinfo := transport.TLSInfo{
+			CertFile:      "./etcdca/etcd.pem",
+			KeyFile:       "./etcdca/etcd-key.pem",
+			TrustedCAFile: "./etcdca/wlst-rootca.pem",
+		}
+		var err error
+		tlsconf, err = tlsinfo.ClientConfig()
+		if err != nil {
+			return nil, err
+		}
 	}
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   m.etcdAddr,
