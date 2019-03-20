@@ -131,7 +131,7 @@ func (m *Etcdv3Client) addPickTimes(k string, r *registeredServer) {
 	m.svrPool.Store(k, r)
 }
 
-// 服务注册，并发送心跳
+// 服务注册
 func (m *Etcdv3Client) etcdRegister() (*clientv3.LeaseID, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
 	lresp, err := m.etcdClient.Grant(ctx, leaseTimeout)

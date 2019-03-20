@@ -53,7 +53,7 @@ func NewGRPCClient(svraddr string, cafiles ...string) (*grpc.ClientConn, error) 
 // GetGRPCSecureConfig 获取grpc安全参数
 //
 // args:
-//	cafiles： 依次填入，服务端证书（必填），服务端key（服务端单向认证/双向验证必填），根证书（双向验证必填），证书内服务端合法域名或ip（双向验证必填）
+//	cafiles： 依次填入:服务端证书（必填）;服务端key（服务端单向认证/双向验证必填）;根证书（双向验证必填）;证书内服务端合法域名或ip（客户端双向验证必填）
 // return：
 //	*credentials.TransportCredentials, error
 func GetGRPCSecureConfig(cafiles ...string) (*credentials.TransportCredentials, error) {
@@ -80,12 +80,14 @@ func GetGRPCSecureConfig(cafiles ...string) (*credentials.TransportCredentials, 
 			return nil, err
 		}
 		return &creds, nil
-	case 4: // 客户端/服务端双向认证
+	case 3, 4: // 服务端/客户端双向认证
 		certfile = cafiles[0]
 		keyfile = cafiles[1]
 		caroot = cafiles[2]
-		svrip = cafiles[3]
-		if gopsu.IsExist(certfile) && gopsu.IsExist(keyfile) && gopsu.IsExist(caroot) && gopsu.IsExist(svrip) {
+		if len(cafiles) == 4 {
+			svrip = cafiles[3]
+		}
+		if gopsu.IsExist(certfile) && gopsu.IsExist(keyfile) && gopsu.IsExist(caroot) {
 			// Load the client certificates from disk
 			certificate, err := tls.LoadX509KeyPair(certfile, keyfile)
 			if err != nil {
