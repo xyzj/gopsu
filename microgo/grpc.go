@@ -9,9 +9,32 @@ import (
 	"io/ioutil"
 	"time"
 
+	"google.golang.org/grpc/keepalive"
+
 	"github.com/xyzj/gopsu"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+)
+
+var (
+	kacp = keepalive.ClientParameters{
+		Time:                10 * time.Second, // send pings every 10 seconds if there is no activity
+		Timeout:             time.Second,      // wait 1 second for ping ack before considering the connection dead
+		PermitWithoutStream: false,            // send pings even without active streams
+	}
+
+	kaep = keepalive.EnforcementPolicy{
+		MinTime:             5 * time.Second, // If a client pings more than once every 5 seconds, terminate the connection
+		PermitWithoutStream: false,           // Allow pings even when there are no active streams
+	}
+
+	kasp = keepalive.ServerParameters{
+		MaxConnectionIdle:     15 * time.Second, // If a client is idle for 15 seconds, send a GOAWAY
+		MaxConnectionAge:      30 * time.Second, // If any connection is alive for more than 30 seconds, send a GOAWAY
+		MaxConnectionAgeGrace: 5 * time.Second,  // Allow 5 seconds for pending RPCs to complete before forcibly closing connections
+		Time:                  5 * time.Second,  // Ping the client if it is idle for 5 seconds to ensure the connection is still active
+		Timeout:               1 * time.Second,  // Wait 1 second for the ping ack before assuming the connection is dead
+	}
 )
 
 // NewGRPCServer 初始化新的grpc服务
@@ -21,9 +44,9 @@ func NewGRPCServer(cafiles ...string) (*grpc.Server, error) {
 		if err != nil {
 			return nil, err
 		}
-		return grpc.NewServer(grpc.Creds(*creds)), nil
+		return grpc.NewServer(grpc.Creds(*creds), grpc.KeepaliveEnforcementPolicy(kaep), grpc.KeepaliveParams(kasp)), nil
 	}
-	return grpc.NewServer(), nil
+	return grpc.NewServer(grpc.KeepaliveEnforcementPolicy(kaep), grpc.KeepaliveParams(kasp)), nil
 }
 
 // NewGRPCClient 初始化新的grpc客户端
@@ -34,7 +57,11 @@ func NewGRPCClient(svraddr string, cafiles ...string) (*grpc.ClientConn, error) 
 			return nil, err
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-		conn, err := grpc.DialContext(ctx, svraddr, grpc.WithTransportCredentials(*creds))
+		conn, err := grpc.DialContext(
+			ctx,
+			svraddr,
+			grpc.WithTransportCredentials(*creds),
+			grpc.WithKeepaliveParams(kacp))
 		cancel()
 		if err != nil {
 			return nil, err
@@ -42,7 +69,10 @@ func NewGRPCClient(svraddr string, cafiles ...string) (*grpc.ClientConn, error) 
 		return conn, nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	conn, err := grpc.DialContext(ctx, svraddr, grpc.WithInsecure())
+	conn, err := grpc.DialContext(
+		ctx,
+		svraddr, grpc.WithInsecure(),
+		grpc.WithKeepaliveParams(kacp))
 	cancel()
 	if err != nil {
 		return nil, err
