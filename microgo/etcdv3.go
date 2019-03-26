@@ -55,19 +55,19 @@ func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile string) (*E
 		etcdAddr: etcdaddr,
 	}
 	var tlsconf *tls.Config
-	if strings.TrimSpace(certfile+keyfile+cafile) == "" {
-		tlsconf = nil
-	} else {
+	if gopsu.IsExist(certfile) && gopsu.IsExist(keyfile) && gopsu.IsExist(cafile) {
 		tlsinfo := transport.TLSInfo{
-			CertFile:      "./etcdca/etcd.pem",
-			KeyFile:       "./etcdca/etcd-key.pem",
-			TrustedCAFile: "./etcdca/wlst-rootca.pem",
+			CertFile:      certfile,
+			KeyFile:       keyfile,
+			TrustedCAFile: cafile,
 		}
 		var err error
 		tlsconf, err = tlsinfo.ClientConfig()
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		tlsconf = nil
 	}
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   m.etcdAddr,

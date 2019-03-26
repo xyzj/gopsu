@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"io/ioutil"
 	"math"
 	"math/rand"
 	"net"
@@ -1352,4 +1353,22 @@ func Bytes2Float64(b []byte, bigOrder bool) float64 {
 // Bytes2Float32 字节数组转单精度浮点，bigOrder==true,高位在前
 func Bytes2Float32(b []byte, bigOrder bool) float32 {
 	return math.Float32frombits(uint32(Bytes2Uint64(b, bigOrder)))
+}
+
+// Imgfile2Base64 图片转base64
+func Imgfile2Base64(s string) (string, error) {
+	f, err := ioutil.ReadFile(s)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(f), nil
+}
+
+// Base64Imgfile base64码保存为图片
+func Base64Imgfile(b, f string) error {
+	a, err := base64.StdEncoding.DecodeString(b)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(f, a, 0666)
 }
