@@ -38,35 +38,33 @@ var (
 )
 
 // NewGRPCServer 初始化新的grpc服务
-func NewGRPCServer(cafiles ...string) (*grpc.Server, error) {
+func NewGRPCServer(cafiles ...string) (*grpc.Server, bool) {
 	if len(cafiles) > 0 {
 		creds, err := GetGRPCSecureConfig(cafiles...)
-		if err != nil {
-			return nil, err
+		if err == nil {
+			return grpc.NewServer(grpc.Creds(*creds), grpc.KeepaliveEnforcementPolicy(kaep), grpc.KeepaliveParams(kasp)), true
 		}
-		return grpc.NewServer(grpc.Creds(*creds), grpc.KeepaliveEnforcementPolicy(kaep), grpc.KeepaliveParams(kasp)), nil
 	}
-	return grpc.NewServer(grpc.KeepaliveEnforcementPolicy(kaep), grpc.KeepaliveParams(kasp)), nil
+	return grpc.NewServer(grpc.KeepaliveEnforcementPolicy(kaep), grpc.KeepaliveParams(kasp)), false
 }
 
 // NewGRPCClient 初始化新的grpc客户端
 func NewGRPCClient(svraddr string, cafiles ...string) (*grpc.ClientConn, error) {
 	if len(cafiles) > 0 {
 		creds, err := GetGRPCSecureConfig(cafiles...)
-		if err != nil {
-			return nil, err
+		if err == nil {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			conn, err := grpc.DialContext(
+				ctx,
+				svraddr,
+				grpc.WithTransportCredentials(*creds),
+				grpc.WithKeepaliveParams(kacp))
+			cancel()
+			if err != nil {
+				return nil, err
+			}
+			return conn, nil
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-		conn, err := grpc.DialContext(
-			ctx,
-			svraddr,
-			grpc.WithTransportCredentials(*creds),
-			grpc.WithKeepaliveParams(kacp))
-		cancel()
-		if err != nil {
-			return nil, err
-		}
-		return conn, nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	conn, err := grpc.DialContext(

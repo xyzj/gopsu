@@ -19,12 +19,13 @@ import (
 )
 
 const (
-	leaseTimeout   = 10
+	leaseTimeout   = 7
 	contextTimeout = 2 * time.Second
 )
 
 // Etcdv3Client 微服务结构体
 type Etcdv3Client struct {
+	etcdLog    *gopsu.MxLog     // 日志
 	etcdRoot   string           // etcd注册根路经
 	etcdAddr   []string         // etcd服务地址
 	etcdClient *clientv3.Client // 连接实例
@@ -137,9 +138,11 @@ func (m *Etcdv3Client) etcdRegister() (*clientv3.LeaseID, bool) {
 	lresp, err := m.etcdClient.Grant(ctx, leaseTimeout)
 	defer cancel()
 	if err != nil {
+		m.etcdLog.Error(fmt.Sprintf("ETCD registration to %v failed: %s", m.etcdAddr, err.Error()))
 		return nil, false
 	}
-	m.etcdClient.Put(ctx, fmt.Sprintf("/%s/%s/%s-%s", m.etcdRoot, m.svrName, m.svrName, gopsu.GetUUID1()), m.svrDetail, clientv3.WithLease(lresp.ID))
+	m.etcdClient.Put(ctx, fmt.Sprintf("/%s/%s/%s_%s", m.etcdRoot, m.svrName, m.svrName, gopsu.GetUUID1()), m.svrDetail, clientv3.WithLease(lresp.ID))
+	m.etcdLog.System(fmt.Sprintf("ETCD registration to %v success.", m.etcdAddr))
 	return &lresp.ID, true
 }
 
@@ -149,6 +152,11 @@ func (m *Etcdv3Client) etcdRegister() (*clientv3.LeaseID, bool) {
 //  root: 注册根路径，默认'wlst-micro'
 func (m *Etcdv3Client) SetRoot(root string) {
 	m.etcdRoot = root
+}
+
+// SetLogger 设置日志记录器
+func (m *Etcdv3Client) SetLogger(l *gopsu.MxLog) {
+	m.etcdLog = l
 }
 
 // Register 服务注册
@@ -161,8 +169,11 @@ func (m *Etcdv3Client) SetRoot(root string) {
 //  svrport: 服务端口
 // return:
 //  error
-func (m *Etcdv3Client) Register(svrname, svrip, intfc, protoname string, svrport int) error {
+func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string) {
 	m.svrName = svrname
+	if svrip == "" {
+		svrip, _ = gopsu.RealIP("")
+	}
 	js, _ := sjson.Set("", "ip", svrip)
 	js, _ = sjson.Set(js, "port", svrport)
 	js, _ = sjson.Set(js, "name", svrname)
@@ -177,13 +188,14 @@ func (m *Etcdv3Client) Register(svrname, svrip, intfc, protoname string, svrport
 		// 注册
 		leaseid, ok := m.etcdRegister()
 		// 使用1-4s内的随机间隔
-		t := time.NewTicker(time.Duration(rand.Intn(3000)+1000) * time.Millisecond)
+		t := time.NewTicker(time.Duration(rand.Intn(2000)+1000) * time.Millisecond)
 		for _ = range t.C {
 			if ok { // 成功注册时发送心跳
 				ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
 				_, err := m.etcdClient.KeepAliveOnce(ctx, *leaseid)
 				cancel()
 				if err != nil {
+					m.etcdLog.Error("Lost connection with etcd server, retrying ...")
 					ok = false
 				}
 			} else { // 注册失败时重新注册
@@ -191,7 +203,6 @@ func (m *Etcdv3Client) Register(svrname, svrip, intfc, protoname string, svrport
 			}
 		}
 	}()
-	return nil
 }
 
 // Watcher 监视服务信息变化
