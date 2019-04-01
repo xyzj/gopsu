@@ -124,7 +124,7 @@ func (m *Etcdv3Client) listServers() error {
 
 // addPickTimes 增加计数器
 func (m *Etcdv3Client) addPickTimes(k string, r *registeredServer) {
-	if r.svrPickTimes >= 0xffffffff { // 防止溢出
+	if r.svrPickTimes >= 0xffffff { // 防止溢出
 		r.svrPickTimes = 0
 	} else {
 		r.svrPickTimes++
