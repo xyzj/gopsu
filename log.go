@@ -132,7 +132,7 @@ func (l *MxLog) splitLogFile(t *time.Time) {
 	}
 	os.Rename(l.fileFullPath, nf)
 	l.indexNumber = 0
-	fno, ex := os.OpenFile(l.fileFullPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	fno, ex := os.OpenFile(l.fileFullPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
 	if ex != nil {
 		fmt.Println(ex)
 	}
@@ -395,7 +395,7 @@ func (l *MxLog) Close() error {
 
 // InitNewLogger init logger
 func InitNewLogger(f string) *MxLog {
-	fno, ex := os.OpenFile(f, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	fno, ex := os.OpenFile(f, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
 	if ex != nil {
 		fmt.Println(ex)
 	}

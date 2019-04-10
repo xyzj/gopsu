@@ -155,23 +155,24 @@ func (r *RabbitMQ) CloseConsumer() {
 }
 
 // StartConsumer 启动消费者线程
-func (r *RabbitMQ) StartConsumer() error {
-	if r.chanWatcher == nil {
-		r.chanWatcher = make(chan string, 2)
-		go r.coreWatcher()
-	}
+func (r *RabbitMQ) StartConsumer() {
 	if r.Consumer.ChannelCache == 0 {
 		r.Consumer.ChannelCache = 2000
 	}
 	r.chanRecv = make(chan *amqp.Delivery, r.Consumer.ChannelCache)
 	r.chanCloseConsumer = make(chan bool, 2)
 
-	conn, err := r.initConsumer()
-	if err != nil {
-		return err
+	// conn, err := r.initConsumer()
+	// if err != nil {
+	// 	return err
+	// }
+	// go r.handleConsumer(conn)
+
+	if r.chanWatcher == nil {
+		r.chanWatcher = make(chan string, 2)
+		go r.coreWatcher()
 	}
-	go r.handleConsumer(conn)
-	return nil
+	r.chanWatcher <- "consumer"
 }
 
 // 启动消费者线程
@@ -298,23 +299,24 @@ func (r *RabbitMQ) CloseProducer() {
 }
 
 // StartProducer 启动生产者线程
-func (r *RabbitMQ) StartProducer() error {
-	if r.chanWatcher == nil {
-		r.chanWatcher = make(chan string, 2)
-		go r.coreWatcher()
-	}
+func (r *RabbitMQ) StartProducer() {
 	if r.Producer.ChannelCache == 0 {
 		r.Producer.ChannelCache = 2000
 	}
 	r.chanSend = make(chan *RabbitMQData, r.Producer.ChannelCache)
 	r.chanCloseProducer = make(chan bool, 2)
 
-	conn, err := r.initProducer()
-	if err != nil {
-		return err
+	// conn, err := r.initProducer()
+	// if err != nil {
+	// 	return err
+	// }
+	// go r.handleProducer(conn)
+
+	if r.chanWatcher == nil {
+		r.chanWatcher = make(chan string, 2)
+		go r.coreWatcher()
 	}
-	go r.handleProducer(conn)
-	return nil
+	r.chanWatcher <- "producer"
 }
 
 // 启动生产者线程
