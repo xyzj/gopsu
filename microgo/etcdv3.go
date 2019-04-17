@@ -82,6 +82,25 @@ func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile string) (*E
 	return m, nil
 }
 
+func (m *Etcdv3Client) writeLog(s string, level int) {
+	if m.etcdLog == nil {
+		println(s)
+	} else {
+		switch level {
+		case 10:
+			m.etcdLog.Debug(s)
+		case 20:
+			m.etcdLog.Info(s)
+		case 30:
+			m.etcdLog.Warning(s)
+		case 40:
+			m.etcdLog.Error(s)
+		case 90:
+			m.etcdLog.System(s)
+		}
+	}
+}
+
 // listServers 查询根路径下所有服务
 func (m *Etcdv3Client) listServers() error {
 	defer func() error {
@@ -138,11 +157,11 @@ func (m *Etcdv3Client) etcdRegister() (*clientv3.LeaseID, bool) {
 	lresp, err := m.etcdClient.Grant(ctx, leaseTimeout)
 	defer cancel()
 	if err != nil {
-		m.etcdLog.Error(fmt.Sprintf("ETCD registration to %v failed: %s", m.etcdAddr, err.Error()))
+		m.writeLog(fmt.Sprintf("ETCD registration to %v failed: %s", m.etcdAddr, err.Error()), 40)
 		return nil, false
 	}
 	m.etcdClient.Put(ctx, fmt.Sprintf("/%s/%s/%s_%s", m.etcdRoot, m.svrName, m.svrName, gopsu.GetUUID1()), m.svrDetail, clientv3.WithLease(lresp.ID))
-	m.etcdLog.System(fmt.Sprintf("ETCD registration to %v success.", m.etcdAddr))
+	m.writeLog(fmt.Sprintf("ETCD registration to %v success.", m.etcdAddr), 90)
 	return &lresp.ID, true
 }
 
@@ -195,7 +214,7 @@ func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string
 				_, err := m.etcdClient.KeepAliveOnce(ctx, *leaseid)
 				cancel()
 				if err != nil {
-					m.etcdLog.Error("Lost connection with etcd server, retrying ...")
+					m.writeLog("Lost connection with etcd server, retrying ...", 40)
 					ok = false
 				}
 			} else { // 注册失败时重新注册

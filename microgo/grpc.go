@@ -38,6 +38,9 @@ var (
 )
 
 // NewGRPCServer 初始化新的grpc服务
+//
+// args:
+//	cafiles： 依次填入:服务端证书（必填）;服务端key（服务端单向认证/双向验证必填）;根证书（双向验证必填）;证书内服务端合法域名或ip（客户端双向验证必填）
 func NewGRPCServer(cafiles ...string) (*grpc.Server, bool) {
 	if len(cafiles) > 0 {
 		creds, err := GetGRPCSecureConfig(cafiles...)
