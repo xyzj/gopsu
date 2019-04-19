@@ -1232,9 +1232,12 @@ func CheckSQLInject(s string) bool {
 }
 
 // PB2Json pb2格式转换为json字符串
-func PB2Json(pb interface{}) ([]byte, error) {
+func PB2Json(pb interface{}) []byte {
 	jsonBytes, err := json.Marshal(pb)
-	return jsonBytes, err
+	if err != nil {
+		return nil
+	}
+	return jsonBytes
 }
 
 // Json2PB json字符串转pb2格式
@@ -1323,27 +1326,27 @@ func Bytes2Int64(b []byte, bigOrder bool) int64 {
 	return 0
 }
 
-// Bytes2Uint64 字节数组转换为uint64，bigOrder==true,高位在前
-func Bytes2Uint64(b []byte, bigOrder bool) uint64 {
-	var l int
-	if len(b) > 8 {
-		l = 0
-	} else {
-		l = 8 - len(b)
-	}
-	var bb = make([]byte, l)
-	if bigOrder {
-		bb = append(bb, b...)
-		b = bb
-	} else {
-		b = append(b, bb...)
-	}
-	if bigOrder {
-		return binary.BigEndian.Uint64(b)
-	} else {
-		return binary.LittleEndian.Uint64(b)
-	}
-}
+// // Bytes2Uint64 字节数组转换为uint64，bigOrder==true,高位在前
+// func Bytes2Uint64(b []byte, bigOrder bool) uint64 {
+// 	var l int
+// 	if len(b) > 8 {
+// 		l = 0
+// 	} else {
+// 		l = 8 - len(b)
+// 	}
+// 	var bb = make([]byte, l)
+// 	if bigOrder {
+// 		bb = append(bb, b...)
+// 		b = bb
+// 	} else {
+// 		b = append(b, bb...)
+// 	}
+// 	if bigOrder {
+// 		return binary.BigEndian.Uint64(b)
+// 	} else {
+// 		return binary.LittleEndian.Uint64(b)
+// 	}
+// }
 
 // Bytes2Float64 字节数组转双精度浮点，bigOrder==true,高位在前
 func Bytes2Float64(b []byte, bigOrder bool) float64 {
@@ -1371,4 +1374,60 @@ func Base64Imgfile(b, f string) error {
 		return err
 	}
 	return ioutil.WriteFile(f, a, 0666)
+}
+
+// SplitStringWithLen 按制定长度分割字符串
+// s-原始字符串,l-切割长度
+func SplitStringWithLen(s string, l int) []string {
+	rs := []rune(s)
+	var ss = make([]string, 0)
+	xs := ""
+	for k, v := range rs {
+		xs = xs + string(v)
+		if (k+1)%l == 0 {
+			ss = append(ss, xs)
+			xs = ""
+		}
+	}
+	if len(xs) > 0 {
+		ss = append(ss, xs)
+	}
+	return ss
+}
+
+// HexString2Bytes 转换hexstring为字节数组
+// s-hexstring（11aabb），bigorder-是否高位在前，false低位在前
+func HexString2Bytes(s string, bigorder bool) []byte {
+	if len(s)%2 == 1 {
+		s = "0" + s
+	}
+	ss := SplitStringWithLen(s, 2)
+	var b = make([]byte, len(ss))
+	if bigorder {
+		for k, v := range ss {
+			b[k] = String2Int8(v, 16)
+		}
+	} else {
+		c := 0
+		for i := len(ss) - 1; i >= 0; i-- {
+			b[c] = String2Int8(ss[i], 16)
+			c++
+		}
+	}
+	return b
+}
+
+// Bytes2Uint64 字节数组转换为uint64
+// b-字节数组，bigorder-是否高位在前，false低位在前
+func Bytes2Uint64(b []byte, bigorder bool) uint64 {
+	s := ""
+	for _, v := range b {
+		if bigorder {
+			s = s + fmt.Sprintf("%02x", v)
+		} else {
+			s = fmt.Sprintf("%02x", v) + s
+		}
+	}
+	u, _ := strconv.ParseUint(s, 16, 64)
+	return u
 }
