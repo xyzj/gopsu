@@ -1269,62 +1269,62 @@ func Int642Bytes(i int64, bigOrder bool) []byte {
 }
 
 // Bytes2Int64 字节数组转换为int64，bigOrder==true,高位在前
-func Bytes2Int64(b []byte, bigOrder bool) int64 {
-	var l = len(b)
-	switch l {
-	case 1:
-		var tmp int8
-		bytesBuffer := bytes.NewBuffer(b)
-		if bigOrder {
-			binary.Read(bytesBuffer, binary.BigEndian, &tmp)
-		} else {
-			binary.Read(bytesBuffer, binary.LittleEndian, &tmp)
-		}
-		return int64(tmp)
-	case 2:
-		var tmp int16
-		bytesBuffer := bytes.NewBuffer(b)
-		if bigOrder {
-			binary.Read(bytesBuffer, binary.BigEndian, &tmp)
-		} else {
-			binary.Read(bytesBuffer, binary.LittleEndian, &tmp)
-		}
-		return int64(tmp)
-	case 3, 4:
-		var tmp int32
-		bytesBuffer := bytes.NewBuffer(b)
-		if bigOrder {
-			if l == 3 {
-				b = append([]byte{0}, b...)
-			}
-			binary.Read(bytesBuffer, binary.BigEndian, &tmp)
-		} else {
-			if l == 3 {
-				b = append(b, 0)
-			}
-			binary.Read(bytesBuffer, binary.LittleEndian, &tmp)
-		}
-		return int64(tmp)
-	case 5, 6, 7, 8:
-		var tmp int64
-		bytesBuffer := bytes.NewBuffer(b)
-		if bigOrder {
-			if l < 8 {
-				bb := make([]byte, 8-l)
-				b = append(bb, b...)
-			}
-			binary.Read(bytesBuffer, binary.BigEndian, &tmp)
-		} else {
-			if l < 8 {
-				bb := make([]byte, 8-l)
-				b = append(b, bb...)
-			}
-			binary.Read(bytesBuffer, binary.LittleEndian, &tmp)
-		}
-		return int64(tmp)
-	}
-	return 0
-}
+// func Bytes2Int64(b []byte, bigOrder bool) int64 {
+// 	var l = len(b)
+// 	switch l {
+// 	case 1:
+// 		var tmp int8
+// 		bytesBuffer := bytes.NewBuffer(b)
+// 		if bigOrder {
+// 			binary.Read(bytesBuffer, binary.BigEndian, &tmp)
+// 		} else {
+// 			binary.Read(bytesBuffer, binary.LittleEndian, &tmp)
+// 		}
+// 		return int64(tmp)
+// 	case 2:
+// 		var tmp int16
+// 		bytesBuffer := bytes.NewBuffer(b)
+// 		if bigOrder {
+// 			binary.Read(bytesBuffer, binary.BigEndian, &tmp)
+// 		} else {
+// 			binary.Read(bytesBuffer, binary.LittleEndian, &tmp)
+// 		}
+// 		return int64(tmp)
+// 	case 3, 4:
+// 		var tmp int32
+// 		bytesBuffer := bytes.NewBuffer(b)
+// 		if bigOrder {
+// 			if l == 3 {
+// 				b = append([]byte{0}, b...)
+// 			}
+// 			binary.Read(bytesBuffer, binary.BigEndian, &tmp)
+// 		} else {
+// 			if l == 3 {
+// 				b = append(b, 0)
+// 			}
+// 			binary.Read(bytesBuffer, binary.LittleEndian, &tmp)
+// 		}
+// 		return int64(tmp)
+// 	case 5, 6, 7, 8:
+// 		var tmp int64
+// 		bytesBuffer := bytes.NewBuffer(b)
+// 		if bigOrder {
+// 			if l < 8 {
+// 				bb := make([]byte, 8-l)
+// 				b = append(bb, b...)
+// 			}
+// 			binary.Read(bytesBuffer, binary.BigEndian, &tmp)
+// 		} else {
+// 			if l < 8 {
+// 				bb := make([]byte, 8-l)
+// 				b = append(b, bb...)
+// 			}
+// 			binary.Read(bytesBuffer, binary.LittleEndian, &tmp)
+// 		}
+// 		return int64(tmp)
+// 	}
+// 	return 0
+// }
 
 // // Bytes2Uint64 字节数组转换为uint64，bigOrder==true,高位在前
 // func Bytes2Uint64(b []byte, bigOrder bool) uint64 {
@@ -1429,5 +1429,20 @@ func Bytes2Uint64(b []byte, bigorder bool) uint64 {
 		}
 	}
 	u, _ := strconv.ParseUint(s, 16, 64)
+	return u
+}
+
+// Bytes2Int64 字节数组转换为uint64
+// b-字节数组，bigorder-是否高位在前，false低位在前
+func Bytes2Int64(b []byte, bigorder bool) int64 {
+	s := ""
+	for _, v := range b {
+		if bigorder {
+			s = s + fmt.Sprintf("%02x", v)
+		} else {
+			s = fmt.Sprintf("%02x", v) + s
+		}
+	}
+	u, _ := strconv.ParseInt(s, 16, 64)
 	return u
 }
