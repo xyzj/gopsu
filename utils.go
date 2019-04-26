@@ -11,6 +11,8 @@ import (
 	crand "crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -1445,4 +1447,46 @@ func Bytes2Int64(b []byte, bigorder bool) int64 {
 	}
 	u, _ := strconv.ParseInt(s, 16, 64)
 	return u
+}
+
+// GetServerTLSConfig 获取https配置
+func GetServerTLSConfig(certfile, keyfile, cafile string) (*tls.Config, error) {
+	pool := x509.NewCertPool()
+
+	caCrt, err := ioutil.ReadFile(cafile)
+	if err != nil {
+		return nil, err
+	}
+	pool.AppendCertsFromPEM(caCrt)
+
+	cliCrt, err := tls.LoadX509KeyPair(certfile, keyfile)
+	if err != nil {
+		return nil, err
+	}
+	return &tls.Config{
+		ClientCAs:    pool,
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		Certificates: []tls.Certificate{cliCrt},
+	}, nil
+}
+
+// GetClientTLSConfig 获取https配置
+func GetClientTLSConfig(certfile, keyfile, cafile string) (*tls.Config, error) {
+	pool := x509.NewCertPool()
+
+	caCrt, err := ioutil.ReadFile(cafile)
+	if err != nil {
+		return nil, err
+	}
+	pool.AppendCertsFromPEM(caCrt)
+
+	cliCrt, err := tls.LoadX509KeyPair(certfile, keyfile)
+	if err != nil {
+		return nil, err
+	}
+	return &tls.Config{
+		RootCAs:            pool,
+		InsecureSkipVerify: false,
+		Certificates:       []tls.Certificate{cliCrt},
+	}, nil
 }
