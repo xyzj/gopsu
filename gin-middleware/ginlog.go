@@ -59,11 +59,13 @@ func LoggerWithRolling(logdir, filename string, maxdays int64, enablegz, debug b
 	f.newFile()
 	// 设置io
 	gin.DefaultWriter = f.out
+	gin.DefaultErrorWriter = f.out
 
 	return func(c *gin.Context) {
 		// 检查是否需要切分文件
 		if f.rollingFile() {
 			gin.DefaultWriter = f.out
+			gin.DefaultErrorWriter = f.out
 		}
 
 		start := time.Now()
@@ -72,11 +74,10 @@ func LoggerWithRolling(logdir, filename string, maxdays int64, enablegz, debug b
 
 		c.Next()
 
-		param := gin.LogFormatterParams{
+		param := &gin.LogFormatterParams{
 			Request: c.Request,
 			Keys:    c.Keys,
 		}
-
 		// Stop timer
 		param.TimeStamp = time.Now()
 		param.Latency = param.TimeStamp.Sub(start)
@@ -220,11 +221,7 @@ func (f *ginLogger) newFile() {
 	if f.err != nil {
 		println("Log file open error: " + f.err.Error())
 	}
-	if f.debug {
-		f.out = io.MultiWriter(f.fno, os.Stdout)
-	} else {
-		f.out = io.MultiWriter(f.fno, os.Stderr)
-	}
+	f.out = io.MultiWriter(f.fno, os.Stdout)
 	// 判断是否压缩旧日志
 	if f.enablegz {
 		f.zipFile(f.nameOld)
