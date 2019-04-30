@@ -3,6 +3,7 @@ package mq
 import (
 	"fmt"
 	"io/ioutil"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -10,32 +11,37 @@ import (
 	"github.com/xyzj/gopsu"
 )
 
-// RabbitMQ rabbit-mq struct
-type RabbitMQ struct {
-	Log                 *gopsu.MxLog        // 日志
-	Verbose             bool                // 是否打印信息
-	chanSend            chan *RabbitMQData  // 发送队列
-	chanRecv            chan *amqp.Delivery // 接收队列
-	chanWatcher         chan string         // 子线程监视通道
-	chanProducerWatcher chan string         // 子线程监视通道
-	chanConsumerWatcher chan string         // 子线程监视通道
-	Producer            *RabbitMQArgs       // 生产者
-	Consumer            *RabbitMQArgs       // 消费者
-	chanCloseProducer   chan bool
-	chanCloseConsumer   chan bool
+// RMQConsumer rabbit-mq Consumer struct
+type RMQConsumer struct {
+	logRmq      *gopsu.MxLog        // 日志
+	verbose     bool                // 是否打印信息
+	chanRecv    chan *amqp.Delivery // 接收队列
+	chanClose   chan bool           // 子线程close
+	chanWatcher chan string         // 子线程监视通道
+
+	connStr      string   // 连接字符串
+	exchangeName string   // 交换机名称
+	exchangeType string   // 交换机类型
+	routingKeys  []string // 过滤器
+	queueName    string   // 队列名
+	queueDurable bool     // 队列是否持久化
+	queueDelete  bool     // 队列在不用时是否删除
+	queueMax     int32    // 队列长度
+	addr         string   // ip:port
 }
 
-// RabbitMQArgs rabbit-mq connect args
-type RabbitMQArgs struct {
-	ConnStr      string   // 连接字符串
-	ExchangeName string   // 交换机名称
-	ExchangeType string   // 交换机类型
-	RoutingKeys  []string // 过滤器
-	QueueName    string   // 队列名
-	QueueDurable bool     // 队列是否持久化
-	QueueDelete  bool     // 队列在不用时是否删除
-	QueueMax     int32    // 队列长度
-	ChannelCache int      // 通道大小，默认2k
+// RMQProducer 生产者
+type RMQProducer struct {
+	logRmq      *gopsu.MxLog       // 日志
+	verbose     bool               // 是否打印信息
+	chanSend    chan *RabbitMQData // send queue
+	chanClose   chan bool          // 子线程close
+	chanWatcher chan string        // 子线程监视通道
+
+	connStr      string // 连接字符串
+	exchangeName string // 交换机名称
+	exchangeType string // 交换机类型
+	addr         string // ip:port
 }
 
 // RabbitMQData rabbit-mq data send struct
@@ -44,32 +50,63 @@ type RabbitMQData struct {
 	Data       *amqp.Publishing
 }
 
-// CloseAll close all
-func (r *RabbitMQ) CloseAll() {
-	if r.chanCloseProducer != nil {
-		r.chanCloseProducer <- true
-	}
-	if r.chanCloseConsumer != nil {
-		r.chanCloseConsumer <- true
+// NewConsumer 新的消费者
+func NewConsumer(conn, exchangeName, exchangeType, queueName string, routingKeys []string) *RMQConsumer {
+	return &RMQConsumer{
+		connStr:      conn,
+		exchangeName: exchangeName,
+		exchangeType: exchangeType,
+		queueName:    queueName,
+		routingKeys:  routingKeys,
+		queueDurable: true,
+		queueMax:     70000,
+		chanRecv:     make(chan *amqp.Delivery, 2000),
+		chanClose:    make(chan bool, 2),
+		chanWatcher:  make(chan string, 2),
+		addr:         strings.Split(conn, "@")[1],
 	}
 }
 
-func (r *RabbitMQ) coreWatcher() {
+// SetLogger 设置日志
+func (r *RMQConsumer) SetLogger(l *gopsu.MxLog) {
+	r.logRmq = l
+}
+
+// SetDebug 设置是否调试
+func (r *RMQConsumer) SetDebug(b bool) {
+	r.verbose = b
+}
+
+// Recv 接收数据
+func (r *RMQConsumer) Recv() *amqp.Delivery {
+	return <-r.chanRecv
+}
+
+// Start Start consumer
+func (r *RMQConsumer) Start() {
+	go r.coreWatcher()
+	r.chanWatcher <- "consumer"
+}
+
+// Close 关闭消费者
+func (r *RMQConsumer) Close() {
+	r.chanClose <- true
+}
+
+// String 返回ip:port
+func (r *RMQConsumer) String() string {
+	return r.addr
+}
+
+func (r *RMQConsumer) coreWatcher() {
 	defer func() {
 		if err := recover(); err != nil {
 			ioutil.WriteFile(fmt.Sprintf("crash-rmq-%s.log", time.Now().Format("20060102150405")), []byte(fmt.Sprintf("%v", errors.WithStack(err.(error)))), 0644)
 			time.Sleep(300 * time.Millisecond)
 		}
 	}()
-	var closehandle = make(map[string]bool)
 	var closeme = false
 	for {
-		for _, v := range closehandle {
-			if v == false {
-				closeme = false
-				break
-			}
-		}
 		if closeme == true {
 			break
 		}
@@ -77,17 +114,6 @@ func (r *RabbitMQ) coreWatcher() {
 		case n := <-r.chanWatcher:
 			time.Sleep(100 * time.Millisecond)
 			switch n {
-			case "producer":
-				for {
-					conn, err := r.initProducer()
-					if err != nil {
-						time.Sleep(15 * time.Second)
-					} else {
-						go r.handleProducer(conn)
-						break
-					}
-				}
-				closehandle["producer"] = false
 			case "consumer":
 				for {
 					conn, err := r.initConsumer()
@@ -98,85 +124,44 @@ func (r *RabbitMQ) coreWatcher() {
 						break
 					}
 				}
-				closehandle["consumer"] = false
-			case "closeproducer":
-				closehandle["producer"] = true
+				closeme = false
 			case "closeconsumer":
-				closehandle["consumer"] = true
+				closeme = true
 			}
 		}
 	}
 }
 
-func (r *RabbitMQ) showMessages(s string, level int) {
-	if r.Log != nil {
+func (r *RMQConsumer) showMessages(s string, level int) {
+	if r.logRmq != nil {
 		switch level {
 		case 10:
-			r.Log.Debug(s)
+			r.logRmq.Debug(s)
 		case 20:
-			r.Log.Info(s)
+			r.logRmq.Info(s)
 		case 30:
-			r.Log.Warning(s)
+			r.logRmq.Warning(s)
 		case 40:
-			r.Log.Error(s)
+			r.logRmq.Error(s)
 		case 90:
-			r.Log.System(s)
+			r.logRmq.System(s)
 		}
 	}
-	if r.Verbose {
+	if r.verbose {
 		println(s)
 	}
 }
 
-func (r *RabbitMQ) initConsumer() (*amqp.Connection, error) {
-	conn, err := amqp.Dial(r.Consumer.ConnStr)
+func (r *RMQConsumer) initConsumer() (*amqp.Connection, error) {
+	conn, err := amqp.Dial(r.connStr)
 	if err != nil {
 		return nil, err
 	}
 	return conn, nil
-}
-
-func (r *RabbitMQ) initProducer() (*amqp.Connection, error) {
-	conn, err := amqp.Dial(r.Producer.ConnStr)
-	if err != nil {
-		return nil, err
-	}
-	return conn, nil
-}
-
-// Recv 接收数据
-func (r *RabbitMQ) Recv() *amqp.Delivery {
-	return <-r.chanRecv
-}
-
-// CloseConsumer close Consumer
-func (r *RabbitMQ) CloseConsumer() {
-	r.chanCloseConsumer <- true
-}
-
-// StartConsumer 启动消费者线程
-func (r *RabbitMQ) StartConsumer() {
-	if r.Consumer.ChannelCache == 0 {
-		r.Consumer.ChannelCache = 2000
-	}
-	r.chanRecv = make(chan *amqp.Delivery, r.Consumer.ChannelCache)
-	r.chanCloseConsumer = make(chan bool, 2)
-
-	// conn, err := r.initConsumer()
-	// if err != nil {
-	// 	return err
-	// }
-	// go r.handleConsumer(conn)
-
-	if r.chanWatcher == nil {
-		r.chanWatcher = make(chan string, 2)
-		go r.coreWatcher()
-	}
-	r.chanWatcher <- "consumer"
 }
 
 // 启动消费者线程
-func (r *RabbitMQ) handleConsumer(conn *amqp.Connection) {
+func (r *RMQConsumer) handleConsumer(conn *amqp.Connection) {
 	defer func() {
 		if err := recover(); err != nil {
 			r.showMessages(fmt.Sprintf("RMQ Consumer goroutine crash: %s", err.(error).Error()), 40)
@@ -194,35 +179,35 @@ func (r *RabbitMQ) handleConsumer(conn *amqp.Connection) {
 	defer ch.Close()
 
 	err = ch.ExchangeDeclare(
-		r.Consumer.ExchangeName, // name
-		r.Consumer.ExchangeType, // type
-		true,                    // durable
-		false,                   // auto-deleted
-		false,                   // internal
-		false,                   // no-wait
-		nil,                     // arguments
+		r.exchangeName, // name
+		r.exchangeType, // type
+		true,           // durable
+		false,          // auto-deleted
+		false,          // internal
+		false,          // no-wait
+		nil,            // arguments
 	)
 	if err != nil {
 		panic(err)
 	}
 	q, err := ch.QueueDeclare(
-		r.Consumer.QueueName,    // name
-		r.Consumer.QueueDurable, // durable
-		r.Consumer.QueueDelete,  // delete when unused
-		false,                   // exclusive
-		false,                   // no-wait
+		r.queueName,    // name
+		r.queueDurable, // durable
+		r.queueDelete,  // delete when unused
+		false,          // exclusive
+		false,          // no-wait
 		amqp.Table{
-			"x-max-length": r.Consumer.QueueMax,
+			"x-max-length": r.queueMax,
 		}, // arguments
 	)
 	if err != nil {
-		ch.QueueDelete(r.Consumer.ExchangeName, false, false, true)
+		ch.QueueDelete(r.exchangeName, false, false, true)
 		panic(err)
 	}
-	for _, v := range r.Consumer.RoutingKeys {
+	for _, v := range r.routingKeys {
 		err = ch.QueueBind(q.Name, // queue name
-			v,                       // routing key
-			r.Consumer.ExchangeName, // exchange
+			v,              // routing key
+			r.exchangeName, // exchange
 			false,
 			nil)
 		if err != nil {
@@ -249,19 +234,115 @@ func (r *RabbitMQ) handleConsumer(conn *amqp.Connection) {
 		select {
 		case msg := <-chanMsgs:
 			r.chanRecv <- &msg
-		case <-r.chanCloseConsumer:
+		case <-r.chanClose:
 			closeme = true
 		}
 	}
-	// for {
-	// 	for msg := range chanMsgs {
-	// 		r.chanRecv <- &msg
-	// 	}
-	// }
+}
+
+// NewProducer 新的生产
+func NewProducer(conn, exchangeName, exchangeType string) *RMQProducer {
+	return &RMQProducer{
+		connStr:      conn,
+		exchangeName: exchangeName,
+		exchangeType: exchangeType,
+		chanSend:     make(chan *RabbitMQData, 5000),
+		chanClose:    make(chan bool, 2),
+		chanWatcher:  make(chan string, 2),
+		addr:         strings.Split(conn, "@")[1],
+	}
+}
+
+// SetLogger 设置日志
+func (r *RMQProducer) SetLogger(l *gopsu.MxLog) {
+	r.logRmq = l
+}
+
+// SetDebug 设置是否调试
+func (r *RMQProducer) SetDebug(b bool) {
+	r.verbose = b
+}
+
+// Start Start producer
+func (r *RMQProducer) Start() {
+	go r.coreWatcher()
+	r.chanWatcher <- "producer"
+}
+
+// Close 关闭消费者
+func (r *RMQProducer) Close() {
+	r.chanClose <- true
+}
+
+// String 返回ip:port
+func (r *RMQProducer) String() string {
+	return r.addr
+}
+
+func (r *RMQProducer) coreWatcher() {
+	defer func() {
+		if err := recover(); err != nil {
+			ioutil.WriteFile(fmt.Sprintf("crash-rmq-%s.log", time.Now().Format("20060102150405")), []byte(fmt.Sprintf("%v", errors.WithStack(err.(error)))), 0644)
+			time.Sleep(300 * time.Millisecond)
+		}
+	}()
+	var closeme = false
+	for {
+		if closeme == true {
+			break
+		}
+		select {
+		case n := <-r.chanWatcher:
+			time.Sleep(100 * time.Millisecond)
+			switch n {
+			case "producer":
+				for {
+					conn, err := r.initProducer()
+					if err != nil {
+						time.Sleep(15 * time.Second)
+					} else {
+						go r.handleProducer(conn)
+						break
+					}
+				}
+				closeme = false
+			case "closeproducer":
+				closeme = true
+			}
+		}
+	}
+}
+
+func (r *RMQProducer) showMessages(s string, level int) {
+	if r.logRmq != nil {
+		switch level {
+		case 10:
+			r.logRmq.Debug(s)
+		case 20:
+			r.logRmq.Info(s)
+		case 30:
+			r.logRmq.Warning(s)
+		case 40:
+			r.logRmq.Error(s)
+		case 90:
+			r.logRmq.System(s)
+		}
+	}
+	if r.verbose {
+		println(s)
+	}
+}
+
+func (r *RMQProducer) initProducer() (*amqp.Connection, error) {
+	conn, err := amqp.Dial(r.connStr)
+	if err != nil {
+		return nil, err
+	}
+	return conn, nil
 }
 
 // Send 发送数据,默认数据有效期10分钟
-func (r *RabbitMQ) Send(f string, d []byte) {
+func (r *RMQProducer) Send(f string, d []byte) {
 	r.SendCustom(&RabbitMQData{
 		RoutingKey: f,
 		Data: &amqp.Publishing{
@@ -283,7 +364,7 @@ func (r *RabbitMQ) Send(f string, d []byte) {
 // 	Timestamp:    time.Now(),
 // 	Body:         []byte("abcd"),
 // },
-func (r *RabbitMQ) SendCustom(d *RabbitMQData) {
+func (r *RMQProducer) SendCustom(d *RabbitMQData) {
 	if r.chanSend == nil {
 		return
 	}
@@ -293,34 +374,8 @@ func (r *RabbitMQ) SendCustom(d *RabbitMQData) {
 	}()
 }
 
-// CloseProducer close Producer
-func (r *RabbitMQ) CloseProducer() {
-	r.chanCloseProducer <- true
-}
-
-// StartProducer 启动生产者线程
-func (r *RabbitMQ) StartProducer() {
-	if r.Producer.ChannelCache == 0 {
-		r.Producer.ChannelCache = 2000
-	}
-	r.chanSend = make(chan *RabbitMQData, r.Producer.ChannelCache)
-	r.chanCloseProducer = make(chan bool, 2)
-
-	// conn, err := r.initProducer()
-	// if err != nil {
-	// 	return err
-	// }
-	// go r.handleProducer(conn)
-
-	if r.chanWatcher == nil {
-		r.chanWatcher = make(chan string, 2)
-		go r.coreWatcher()
-	}
-	r.chanWatcher <- "producer"
-}
-
 // 启动生产者线程
-func (r *RabbitMQ) handleProducer(conn *amqp.Connection) {
+func (r *RMQProducer) handleProducer(conn *amqp.Connection) {
 	defer func() {
 		if err := recover(); err != nil {
 			r.showMessages(fmt.Sprintf("RMQ Producer goroutine crash: %s", err.(error).Error()), 40)
@@ -338,13 +393,13 @@ func (r *RabbitMQ) handleProducer(conn *amqp.Connection) {
 	defer ch.Close()
 
 	err = ch.ExchangeDeclare(
-		r.Producer.ExchangeName, // name
-		r.Producer.ExchangeType, // type
-		true,                    // durable
-		false,                   // auto-deleted
-		false,                   // internal
-		false,                   // no-wait
-		nil,                     // arguments
+		r.exchangeName, // name
+		r.exchangeType, // type
+		true,           // durable
+		false,          // auto-deleted
+		false,          // internal
+		false,          // no-wait
+		nil,            // arguments
 	)
 	if err != nil {
 		panic(err)
@@ -359,10 +414,10 @@ func (r *RabbitMQ) handleProducer(conn *amqp.Connection) {
 		select {
 		case msg := <-r.chanSend:
 			err = ch.Publish(
-				r.Producer.ExchangeName, // exchange
-				msg.RoutingKey,          // routing key
-				false,                   // mandatory
-				false,                   // immediate
+				r.exchangeName, // exchange
+				msg.RoutingKey, // routing key
+				false,          // mandatory
+				false,          // immediate
 				*msg.Data,
 				// amqp.Publishing{
 				// 	ContentType:  "text/plain",
@@ -375,7 +430,7 @@ func (r *RabbitMQ) handleProducer(conn *amqp.Connection) {
 			if err != nil {
 				panic(err)
 			}
-		case <-r.chanCloseProducer:
+		case <-r.chanClose:
 			closeme = true
 		}
 	}
