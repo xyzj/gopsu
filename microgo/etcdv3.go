@@ -245,15 +245,7 @@ func (m *Etcdv3Client) Watcher(model ...byte) error {
 	return nil
 }
 
-// Picker 服务选择
-//
-// args:
-//  svrname: 服务名称
-//  intfc: 服务类型，协议类型
-// return:
-//  string: 服务地址
-//  error
-func (m *Etcdv3Client) Picker(svrname string, intfc ...string) (string, error) {
+func (m *Etcdv3Client) pickerList(svrname string, intfc ...string) [][]string {
 	t := time.Now().Unix()
 	listSvr := make([][]string, 0)
 	// 找到所有同名服务
@@ -298,6 +290,36 @@ func (m *Etcdv3Client) Picker(svrname string, intfc ...string) (string, error) {
 			return true
 		})
 	}
+	return listSvr
+}
+
+// PickerAll 服务选择
+//
+// args:
+//  svrname: 服务名称
+//  intfc: 服务类型，协议类型
+// return:
+//  string: 服务地址
+//  error
+func (m *Etcdv3Client) PickerAll(svrname string, intfc ...string) []string {
+	listSvr := m.pickerList(svrname, intfc...)
+	var allSvr = make([]string, 0)
+	for _, v := range listSvr {
+		allSvr = append(allSvr, v[2])
+	}
+	return allSvr
+}
+
+// Picker 服务选择
+//
+// args:
+//  svrname: 服务名称
+//  intfc: 服务类型，协议类型
+// return:
+//  string: 服务地址
+//  error
+func (m *Etcdv3Client) Picker(svrname string, intfc ...string) (string, error) {
+	listSvr := m.pickerList(svrname, intfc...)
 	if len(listSvr) > 0 {
 		// 排序，获取命中最少的服务地址
 		sortlist := &gopsu.StringSliceSort{}
