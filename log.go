@@ -74,6 +74,11 @@ func (l *MxLog) SetMaxFileLife(c int64) {
 	l.fileMaxLife = c * 24 * 60 * 60
 }
 
+// SetMaxFileCount [Discard] use SetMaxFileLife() instead
+func (l *MxLog) SetMaxFileCount(c uint16) {
+	l.SetMaxFileLife(int64(c))
+}
+
 // SetMaxFileSize set max log file size in M
 func (l *MxLog) SetMaxFileSize(c int64) {
 	l.fileMaxSize = c * 1048576
