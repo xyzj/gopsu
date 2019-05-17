@@ -286,8 +286,8 @@ func (l *MxLog) EnableGZ(b bool) {
 	l.enablegz = b
 }
 
-// IintNewLogger init logger
-func IintNewLogger(p string) *MxLog {
+// InitNewLogger [Discard] use NewLogger() instead
+func InitNewLogger(p string) *MxLog {
 	return NewLogger(filepath.Dir(p), filepath.Base(p))
 }
 
