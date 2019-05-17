@@ -44,12 +44,6 @@ type RMQProducer struct {
 	addr         string // ip:port
 }
 
-// RabbitMQData rabbit-mq data send struct
-type RabbitMQData struct {
-	RoutingKey string
-	Data       *amqp.Publishing
-}
-
 // NewConsumer 新的消费者
 func NewConsumer(conn, exchangeName, exchangeType, queueName string, routingKeys []string) *RMQConsumer {
 	return &RMQConsumer{
