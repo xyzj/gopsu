@@ -2,6 +2,7 @@ package mq
 
 import (
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -22,7 +23,8 @@ type RabbitMQData struct {
 // Session rmq session
 type Session struct {
 	name          string
-	logger        *gopsu.MxLog
+	logger        *io.Writer
+	loggerLevel   int
 	connection    *amqp.Connection
 	channel       *amqp.Channel
 	done          chan bool
@@ -40,9 +42,9 @@ type Session struct {
 }
 
 // NewConsumer 初始化消费者实例
-func NewConsumer(name, connstr, queuename string, logger *gopsu.MxLog, durable, autodel, debug bool) *Session {
+// exchangename,connstr,queuename,logger,durable,autodel,debug
+func NewConsumer(name, connstr, queuename string, durable, autodel, debug bool) *Session {
 	sessn := &Session{
-		logger:        logger,
 		name:          name,
 		connStr:       connstr,
 		debug:         debug,
@@ -59,9 +61,8 @@ func NewConsumer(name, connstr, queuename string, logger *gopsu.MxLog, durable, 
 }
 
 // NewProducer 初始化生产者实例
-func NewProducer(name, connstr string, logger *gopsu.MxLog, debug bool) *Session {
+func NewProducer(name, connstr string, debug bool) *Session {
 	sessn := &Session{
-		logger:  logger,
 		name:    name,
 		connStr: connstr,
 		debug:   debug,
@@ -72,39 +73,21 @@ func NewProducer(name, connstr string, logger *gopsu.MxLog, debug bool) *Session
 	return sessn
 }
 
-func (sessn *Session) logInfo(s string) {
-	if sessn.logger != nil {
-		sessn.logger.Info(s)
-	} else {
-		if sessn.debug {
-			fmt.Printf("%s [debug] %s\n", time.Now().Format("01-02 15:04:05"), s)
-		}
-	}
+// SetLogger SetLogger
+func (sessn *Session) SetLogger(w *io.Writer, l int) {
+	sessn.logger = w
+	sessn.loggerLevel = l
 }
-func (sessn *Session) logWarning(s string) {
-	if sessn.logger != nil {
-		sessn.logger.Warning(s)
-	} else {
+
+func (sessn *Session) writeLog(s string, l int) {
+	s = fmt.Sprintf("%v [RabbitMQ] %s", time.Now().Format(gopsu.LogTimeFormat), s)
+	if sessn.logger == nil {
 		if sessn.debug {
-			fmt.Printf("%s [debug] %s\n", time.Now().Format("01-02 15:04:05"), s)
+			println(s)
 		}
-	}
-}
-func (sessn *Session) logError(s string) {
-	if sessn.logger != nil {
-		sessn.logger.Error(s)
 	} else {
-		if sessn.debug {
-			fmt.Printf("%s [debug] %s\n", time.Now().Format("01-02 15:04:05"), s)
-		}
-	}
-}
-func (sessn *Session) logSystem(s string) {
-	if sessn.logger != nil {
-		sessn.logger.System(s)
-	} else {
-		if sessn.debug {
-			fmt.Printf("%s [debug] %s\n", time.Now().Format("01-02 15:04:05"), s)
+		if l >= sessn.loggerLevel {
+			fmt.Fprintln(*sessn.logger, s)
 		}
 	}
 }
@@ -150,18 +133,18 @@ func (sessn *Session) handleReconnect(t string) {
 // connect 建立连接
 func (sessn *Session) connect() bool {
 	sessn.isReady = false
-	sessn.logInfo("Attempting to connect to " + sessn.addr)
+	sessn.writeLog("Attempting to connect to "+sessn.addr, 20)
 	conn, err := amqp.Dial(sessn.connStr)
 
 	if err != nil {
-		sessn.logError("Failed to connnect to " + sessn.addr)
+		sessn.writeLog("Failed to connnect to "+sessn.addr, 40)
 		return false
 	}
 	sessn.connection = conn
 
 	ch, err := conn.Channel()
 	if err != nil {
-		sessn.logError("Failed to open channel: " + err.Error())
+		sessn.writeLog("Failed to open channel: "+err.Error(), 40)
 		return false
 	}
 	sessn.channel = ch
@@ -176,11 +159,11 @@ func (sessn *Session) connect() bool {
 		nil,        // arguments
 	)
 	if err != nil {
-		sessn.logError("Failed to declare exchange: " + err.Error())
+		sessn.writeLog("Failed to declare exchange: "+err.Error(), 40)
 		return false
 	}
 
-	sessn.logInfo("Success to connect to " + sessn.addr)
+	sessn.writeLog("Success to connect to "+sessn.addr, 20)
 
 	sessn.isReady = true
 	return true
@@ -235,7 +218,7 @@ func (sessn *Session) initConsumer() {
 		}, // arguments
 	)
 	if err != nil {
-		sessn.logError("Failed to create queue " + sessn.queueName + ": " + err.Error())
+		sessn.writeLog("Failed to create queue "+sessn.queueName+": "+err.Error(), 40)
 		sessn.isReady = false
 		return
 	}
@@ -352,7 +335,7 @@ func (sessn *Session) SendCustom(d *RabbitMQData) {
 			// }
 		)
 		if err != nil {
-			sessn.logError("Failed to send to " + sessn.addr + ": " + err.Error())
+			sessn.writeLog("Failed to send to "+sessn.addr+": "+err.Error(), 40)
 		}
 	}()
 }

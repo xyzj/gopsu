@@ -14,15 +14,13 @@ import (
 )
 
 const (
-	logDebug           = 10
-	logInfo            = 20
-	logWarning         = 30
-	logError           = 40
-	logSystem          = 90
-	maxFileLife        = 30 * 24 * 60 * 60
-	maxFileSize        = 1048576000   // 1G
-	fileTimeFromat     = "060102"     // 日志文件命名格式
-	fileTimeFromatLong = "0601021504" // 日志文件命名格式
+	logDebug    = 10
+	logInfo     = 20
+	logWarning  = 30
+	logError    = 40
+	logSystem   = 90
+	maxFileLife = 30 * 24 * 60 * 60
+	maxFileSize = 1048576000 // 1G
 )
 
 var (
@@ -31,28 +29,29 @@ var (
 
 // MxLog mx log
 type MxLog struct {
-	fileFullPath string
-	fileSize     int64
-	fileMaxLife  int64
-	fileMaxSize  int64
-	fileLogger   *log.Logger
-	fileName     string
-	fileNameNow  string
-	fileNameOld  string
-	fileIndex    byte
-	fileDir      string
-	logFile      *os.File
-	logLevel     byte
-	conLevel     byte
-	conLogger    *log.Logger
-	enablegz     bool
-	err          error
-	fileLock     sync.RWMutex
-	chanWrite    chan *logMessage
-	chanClose    chan bool
-	writeAsync   bool
-	asyncLock    sync.WaitGroup
-	chanWatcher  chan string
+	fileFullPath  string
+	fileSize      int64
+	fileMaxLife   int64
+	fileMaxSize   int64
+	fileLogger    *log.Logger
+	fileName      string
+	fileNameNow   string
+	fileNameOld   string
+	fileIndex     byte
+	fileDir       string
+	fno           *os.File
+	logLevel      byte
+	conLevel      byte
+	conLogger     *log.Logger
+	enablegz      bool
+	err           error
+	fileLock      sync.RWMutex
+	chanWrite     chan *logMessage
+	chanClose     chan bool
+	writeAsync    bool
+	asyncLock     sync.WaitGroup
+	chanWatcher   chan string
+	DefaultWriter io.Writer
 }
 
 type logMessage struct {
@@ -175,7 +174,9 @@ func (l *MxLog) writeLog(msg string, level byte, lock bool) {
 	} else {
 		l.rollingFileNoLock()
 	}
+
 	if level >= l.logLevel {
+		// fmt.Fprintln(l.DefaultWriter, msg)
 		l.fileLogger.Println(msg)
 		l.fileSize += int64(len(msg) + 17)
 	}
@@ -272,13 +273,13 @@ func (l *MxLog) CurrentFileSize() int64 {
 
 // Close close logger
 func (l *MxLog) Close() error {
-	// defer l.logFile.Close()
+	// defer l.fno.Close()
 	// l.fileLogger = nil
 	// l.conLogger = nil
 	if l.writeAsync {
 		l.chanClose <- true
 	}
-	return l.logFile.Close()
+	return l.fno.Close()
 }
 
 // EnableGZ EnableGZ
@@ -310,13 +311,13 @@ func NewLogger(d, f string) *MxLog {
 	}
 
 	for i := byte(0); i < 255; i++ {
-		if IsExist(filepath.Join(mylog.fileDir, fmt.Sprintf("%s.%v.%d.log", mylog.fileName, t.Format(fileTimeFromat), i))) {
+		if IsExist(filepath.Join(mylog.fileDir, fmt.Sprintf("%s.%v.%d.log", mylog.fileName, t.Format(FileTimeFromat), i))) {
 			mylog.fileIndex = i
 		} else {
 			break
 		}
 	}
-	mylog.fileNameNow = fmt.Sprintf("%s.%v.%d.log", mylog.fileName, t.Format(fileTimeFromat), mylog.fileIndex)
+	mylog.fileNameNow = fmt.Sprintf("%s.%v.%d.log", mylog.fileName, t.Format(FileTimeFromat), mylog.fileIndex)
 	mylog.fileFullPath = filepath.Join(d, mylog.fileNameNow)
 	mylog.newFile()
 	return mylog
@@ -327,7 +328,7 @@ func (l *MxLog) rollingFileNoLock() bool {
 	if l.fileSize > l.fileMaxSize {
 		l.fileIndex++
 	}
-	l.fileNameNow = fmt.Sprintf("%s.%v.%d.log", l.fileName, t.Format(fileTimeFromat), l.fileIndex)
+	l.fileNameNow = fmt.Sprintf("%s.%v.%d.log", l.fileName, t.Format(FileTimeFromat), l.fileIndex)
 	// 比对文件名，若不同则重新设置io
 	if l.fileNameNow == l.fileNameOld {
 		return false
@@ -335,7 +336,7 @@ func (l *MxLog) rollingFileNoLock() bool {
 
 	l.fileFullPath = filepath.Join(l.fileDir, l.fileNameNow)
 	// 关闭旧fno
-	l.logFile.Close()
+	l.fno.Close()
 	// 创建新日志
 	l.newFile()
 	// 清理旧日志
@@ -442,11 +443,12 @@ func (l *MxLog) newFile() {
 
 	// 直接写入当日日志
 	// 打开文件
-	l.logFile, l.err = os.OpenFile(l.fileFullPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
+	l.fno, l.err = os.OpenFile(l.fileFullPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
 	if l.err != nil {
 		println("Log file open error: " + l.err.Error())
 	}
-	l.fileLogger = log.New(l.logFile, "", log.Lmicroseconds)
+	l.DefaultWriter = io.MultiWriter(l.fno, os.Stdout)
+	l.fileLogger = log.New(l.fno, "", log.Lmicroseconds)
 	l.fileSize = l.getFileSize()
 
 	// 判断是否压缩旧日志

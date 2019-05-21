@@ -33,11 +33,6 @@ type ginLogger struct {
 	debug    bool         // 是否调试模式
 }
 
-const (
-	fileTimeFromat = "2006-01-02"              // 日志文件命名格式
-	logTimeFormat  = "2006/01/02 15:04:05.000" // 日志内容时间戳格式
-)
-
 // LoggerWithRolling 滚动日志
 func LoggerWithRolling(logdir, filename string, maxdays int64, enablegz, debug bool) gin.HandlerFunc {
 	t := time.Now()
@@ -49,9 +44,9 @@ func LoggerWithRolling(logdir, filename string, maxdays int64, enablegz, debug b
 		fexpired: maxdays * 24 * 60 * 60,
 		maxDays:  maxdays,
 		nameLink: fmt.Sprintf("%s.current.log", filename),
-		nameNow:  fmt.Sprintf("%s.%v.log", filename, t.Format(fileTimeFromat)),
+		nameNow:  fmt.Sprintf("%s.%v.log", filename, t.Format(gopsu.FileTimeFromat)),
 		pathLink: filepath.Join(logdir, fmt.Sprintf("%s.current.log", filename)),
-		pathNow:  filepath.Join(logdir, fmt.Sprintf("%s.%v.log", filename, t.Format(fileTimeFromat))),
+		pathNow:  filepath.Join(logdir, fmt.Sprintf("%s.%v.log", filename, t.Format(gopsu.FileTimeFromat))),
 		enablegz: enablegz,
 		debug:    debug,
 	}
@@ -91,7 +86,7 @@ func LoggerWithRolling(logdir, filename string, maxdays int64, enablegz, debug b
 		}
 		param.Path = path
 		fmt.Fprint(gin.DefaultWriter, fmt.Sprintf("%v |%3d| %13v | %15s |%-7s %s\n%s",
-			param.TimeStamp.Format(logTimeFormat),
+			param.TimeStamp.Format(gopsu.LogTimeFormat),
 			param.StatusCode,
 			param.Latency,
 			param.ClientIP,
@@ -108,7 +103,7 @@ func (f *ginLogger) rollingFile() bool {
 	defer f.flock.Unlock()
 
 	t := time.Now()
-	f.nameNow = fmt.Sprintf("%s.%v.log", f.fname, t.Format(fileTimeFromat))
+	f.nameNow = fmt.Sprintf("%s.%v.log", f.fname, t.Format(gopsu.FileTimeFromat))
 	// 比对文件名，若不同则重新设置io
 	if f.nameNow == f.nameOld {
 		return false

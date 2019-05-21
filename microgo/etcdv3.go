@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"math/rand"
 	"sort"
 	"strings"
@@ -25,13 +26,14 @@ const (
 
 // Etcdv3Client 微服务结构体
 type Etcdv3Client struct {
-	etcdLog    *gopsu.MxLog     // 日志
-	etcdRoot   string           // etcd注册根路经
-	etcdAddr   []string         // etcd服务地址
-	etcdClient *clientv3.Client // 连接实例
-	svrName    string           // 服务名称
-	svrPool    sync.Map         // 线程安全服务信息字典
-	svrDetail  string           // 服务信息
+	etcdLog      *io.Writer       // 日志
+	etcdLogLevel int              // 日志等级
+	etcdRoot     string           // etcd注册根路经
+	etcdAddr     []string         // etcd服务地址
+	etcdClient   *clientv3.Client // 连接实例
+	svrName      string           // 服务名称
+	svrPool      sync.Map         // 线程安全服务信息字典
+	svrDetail    string           // 服务信息
 }
 
 // RegisteredServer 获取到的服务注册信息
@@ -83,21 +85,25 @@ func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile string) (*E
 }
 
 func (m *Etcdv3Client) writeLog(s string, level int) {
+	s = fmt.Sprintf("%v [ETCD] %s", time.Now().Format(gopsu.LogTimeFormat), s)
 	if m.etcdLog == nil {
 		println(s)
 	} else {
-		switch level {
-		case 10:
-			m.etcdLog.Debug(s)
-		case 20:
-			m.etcdLog.Info(s)
-		case 30:
-			m.etcdLog.Warning(s)
-		case 40:
-			m.etcdLog.Error(s)
-		case 90:
-			m.etcdLog.System(s)
+		if level >= m.etcdLogLevel {
+			fmt.Fprintln(*m.etcdLog, s)
 		}
+		// switch level {
+		// case 10:
+		// 	m.etcdLog.Debug(s)
+		// case 20:
+		// 	m.etcdLog.Info(s)
+		// case 30:
+		// 	m.etcdLog.Warning(s)
+		// case 40:
+		// 	m.etcdLog.Error(s)
+		// case 90:
+		// 	m.etcdLog.System(s)
+		// }
 	}
 }
 
@@ -157,11 +163,11 @@ func (m *Etcdv3Client) etcdRegister() (*clientv3.LeaseID, bool) {
 	lresp, err := m.etcdClient.Grant(ctx, leaseTimeout)
 	defer cancel()
 	if err != nil {
-		m.writeLog(fmt.Sprintf("ETCD registration to %v failed: %s", m.etcdAddr, err.Error()), 40)
+		m.writeLog(fmt.Sprintf("Registration to %s failed: %v", m.etcdAddr, err.Error()), 40)
 		return nil, false
 	}
 	m.etcdClient.Put(ctx, fmt.Sprintf("/%s/%s/%s_%s", m.etcdRoot, m.svrName, m.svrName, gopsu.GetUUID1()), m.svrDetail, clientv3.WithLease(lresp.ID))
-	m.writeLog(fmt.Sprintf("ETCD registration to %v success.", m.etcdAddr), 90)
+	m.writeLog(fmt.Sprintf("Registration to %v success.", m.etcdAddr), 90)
 	return &lresp.ID, true
 }
 
@@ -174,8 +180,9 @@ func (m *Etcdv3Client) SetRoot(root string) {
 }
 
 // SetLogger 设置日志记录器
-func (m *Etcdv3Client) SetLogger(l *gopsu.MxLog) {
+func (m *Etcdv3Client) SetLogger(l *io.Writer, level int) {
 	m.etcdLog = l
+	m.etcdLogLevel = level
 }
 
 // Register 服务注册

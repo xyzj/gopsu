@@ -46,6 +46,10 @@ const (
 	OSNAME = runtime.GOOS
 	// OSARCH from runtime
 	OSARCH = runtime.GOARCH
+	// LogTimeFormat 日志内容时间戳格式
+	LogTimeFormat = "2006/01/02 15:04:05.000"
+	// FileTimeFromat 日志文件命名格式
+	FileTimeFromat = "060102" // 日志文件命名格式
 )
 const (
 	CryptoMD5 = iota
