@@ -53,6 +53,29 @@ func (c *ConfData) SetItem(key, value, remark string) bool {
 	return true
 }
 
+// GetItemDefault 获取配置项的value
+func (c *ConfData) GetItemDefault(key, value string, remark ...string) string {
+	found := false
+	var x string
+	for _, v := range c.items {
+		if v.key == strings.TrimSpace(key) {
+			x = v.value
+			found = true
+			break
+		}
+	}
+	if found == false {
+		if len(remark) > 0 {
+			c.SetItem(key, value, remark[0])
+		} else {
+			c.SetItem(key, value, "")
+		}
+		c.Save()
+		return value
+	}
+	return x
+}
+
 // GetItem 获取配置项的value
 func (c *ConfData) GetItem(key string) (string, error) {
 	found := false
@@ -65,10 +88,9 @@ func (c *ConfData) GetItem(key string) (string, error) {
 		}
 	}
 	if found == false {
-		return "", errors.New("Key does not exist.")
-	} else {
-		return x, nil
+		return "", errors.New("Key does not exist")
 	}
+	return x, nil
 }
 
 // GetKeys 获取所有配置项的key
@@ -112,7 +134,7 @@ func (c *ConfData) GetAll() string {
 	return fmt.Sprintf("{%s}", strings.Join(s, ","))
 }
 
-// GetCount 获取配置数量
+// Len 获取配置数量
 func (c *ConfData) Len() int {
 	return len(c.items)
 }
@@ -159,8 +181,7 @@ func LoadConfig(fullpath string) (*ConfData, error) {
 			}
 		}
 		return c, nil
-	} else {
-		ex := c.Save()
-		return c, ex
 	}
+	ex := c.Save()
+	return c, ex
 }
