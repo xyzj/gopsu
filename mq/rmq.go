@@ -39,12 +39,14 @@ type Session struct {
 	queueDurable  bool               // 队列是否持久化
 	queueDelete   bool               // 队列在不用时是否删除
 	queueDelivery chan amqp.Delivery // 消息
+	sessnType     string             // consumer or producer
 }
 
 // NewConsumer 初始化消费者实例
 // exchangename,connstr,queuename,logger,durable,autodel,debug
 func NewConsumer(name, connstr, queuename string, durable, autodel, debug bool) *Session {
 	sessn := &Session{
+		sessnType:     "consumer",
 		name:          name,
 		connStr:       connstr,
 		debug:         debug,
@@ -56,21 +58,27 @@ func NewConsumer(name, connstr, queuename string, durable, autodel, debug bool) 
 		closeMe:       false,
 	}
 	sessn.addr = strings.Split(connstr, "@")[1]
-	go sessn.handleReconnect("consumer")
+	// go sessn.handleReconnect("consumer")
 	return sessn
 }
 
 // NewProducer 初始化生产者实例
 func NewProducer(name, connstr string, debug bool) *Session {
 	sessn := &Session{
-		name:    name,
-		connStr: connstr,
-		debug:   debug,
-		done:    make(chan bool),
+		sessnType: "producer",
+		name:      name,
+		connStr:   connstr,
+		debug:     debug,
+		done:      make(chan bool),
 	}
 	sessn.addr = strings.Split(connstr, "@")[1]
-	go sessn.handleReconnect("producer")
+	// go sessn.handleReconnect("producer")
 	return sessn
+}
+
+// Start Start
+func (sessn *Session) Start() {
+	sessn.handleReconnect(sessn.sessnType)
 }
 
 // SetLogger SetLogger
@@ -94,6 +102,11 @@ func (sessn *Session) writeLog(s string, l int) {
 
 // handleReconnect 维护连接
 func (sessn *Session) handleReconnect(t string) {
+	defer func() {
+		if err := recover(); err != nil {
+			sessn.writeLog(err.(error).Error(), 40)
+		}
+	}()
 	if sessn.connect() {
 		switch t {
 		case "consumer":

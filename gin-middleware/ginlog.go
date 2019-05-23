@@ -26,6 +26,7 @@ type ginLogger struct {
 	pathLink string       // 写入用日志路径
 	pathNow  string       // 当前日志路径
 	logDir   string       // 日志文件夹
+	logLevel int          // 日志等级
 	maxDays  int64        // 文件有效时间
 	out      io.Writer    // io写入
 	err      error        // 错误信息
@@ -34,11 +35,12 @@ type ginLogger struct {
 }
 
 // LoggerWithRolling 滚动日志
-func LoggerWithRolling(logdir, filename string, maxdays int64, enablegz, debug bool) gin.HandlerFunc {
+func LoggerWithRolling(logdir, filename string, maxdays int64, loglevel int, enablegz, debug bool) gin.HandlerFunc {
 	t := time.Now()
 	// 初始化
 	f := &ginLogger{
-		logDir: logdir,
+		logDir:   logdir,
+		logLevel: loglevel,
 		// flock:    new(sync.Mutex),
 		fname:    filename,
 		fexpired: maxdays * 24 * 60 * 60,
@@ -73,6 +75,7 @@ func LoggerWithRolling(logdir, filename string, maxdays int64, enablegz, debug b
 			Request: c.Request,
 			Keys:    c.Keys,
 		}
+
 		// Stop timer
 		param.TimeStamp = time.Now()
 		param.Latency = param.TimeStamp.Sub(start)
@@ -84,9 +87,18 @@ func LoggerWithRolling(logdir, filename string, maxdays int64, enablegz, debug b
 		if raw != "" {
 			path = path + "?" + raw
 		}
+		if len(c.Params) > 0 {
+			path += "?"
+			for k, v := range c.Params {
+				if k > 0 {
+					path = path + "&" + v.Key + "=" + v.Value
+				} else {
+					path = path + v.Key + "=" + v.Value
+				}
+			}
+		}
 		param.Path = path
-
-		fmt.Fprint(gin.DefaultWriter, fmt.Sprintf("%v |%3d| %-10s | %-15s|%-4s %s|%+v\n%s",
+		fmt.Fprint(gin.DefaultWriter, fmt.Sprintf("%v |%3d| %-10s | %-15s|%-4s %s|%v\n%s",
 			param.TimeStamp.Format(gopsu.LogTimeFormat),
 			param.StatusCode,
 			param.Latency,
@@ -218,7 +230,11 @@ func (f *ginLogger) newFile() {
 	if f.err != nil {
 		println("Log file open error: " + f.err.Error())
 	}
-	f.out = io.MultiWriter(f.fno, os.Stdout)
+	if f.logLevel <= 10 {
+		f.out = io.MultiWriter(f.fno, os.Stdout)
+	} else {
+		f.out = io.MultiWriter(f.fno)
+	}
 	// 判断是否压缩旧日志
 	if f.enablegz {
 		f.zipFile(f.nameOld)
