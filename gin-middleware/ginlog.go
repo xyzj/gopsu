@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -67,7 +68,7 @@ func LoggerWithRolling(logdir, filename string, maxdays int64, loglevel int, ena
 
 		start := time.Now()
 		path := c.Request.URL.Path
-		raw := c.Request.URL.RawQuery
+		// raw := c.Request.URL.RawQuery
 
 		c.Next()
 
@@ -84,18 +85,15 @@ func LoggerWithRolling(logdir, filename string, maxdays int64, loglevel int, ena
 		param.StatusCode = c.Writer.Status()
 		param.ErrorMessage = c.Errors.ByType(gin.ErrorTypePrivate).String()
 		param.BodySize = c.Writer.Size()
-		if raw != "" {
-			path = path + "?" + raw
-		}
+		// if raw != "" {
+		// 	path = path + "?" + raw
+		// }
 		if len(c.Params) > 0 {
-			path += "?"
-			for k, v := range c.Params {
-				if k > 0 {
-					path = path + "&" + v.Key + "=" + v.Value
-				} else {
-					path = path + v.Key + "=" + v.Value
-				}
+			var raw = url.Values{}
+			for _, v := range c.Params {
+				raw.Add(v.Key, v.Value)
 			}
+			path += "?" + raw.Encode()
 		}
 		param.Path = path
 		if len(param.Keys) == 0 {
@@ -202,7 +200,7 @@ func (f *ginLogger) clearFile() {
 	// 遍历文件夹
 	lstfno, ex := ioutil.ReadDir(f.logDir)
 	if ex != nil {
-		println(fmt.Sprintf("clear log files error: %s", ex.Error()))
+		ioutil.WriteFile("ginlogerr.log", []byte(fmt.Sprintf("clear log files error: %s", ex.Error())), 0644)
 	}
 	t := time.Now()
 	for _, fno := range lstfno {
@@ -236,20 +234,25 @@ func (f *ginLogger) newFile() {
 
 	// 直接写入当日日志
 	f.pathLink = f.pathNow
-
-	// 打开文件
-	f.fno, f.err = os.OpenFile(f.pathLink, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
-	if f.err != nil {
-		println("Log file open error: " + f.err.Error())
-	}
-	if f.logLevel <= 10 {
-		f.out = io.MultiWriter(f.fno, os.Stdout)
+	if f.fname == "" {
+		f.out = os.Stdout
 	} else {
-		f.out = io.MultiWriter(f.fno)
-	}
-	// 判断是否压缩旧日志
-	if f.enablegz {
-		f.zipFile(f.nameOld)
+		// 打开文件
+		f.fno, f.err = os.OpenFile(f.pathLink, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
+		if f.err != nil {
+			ioutil.WriteFile("ginlogerr.log", []byte("Log file open error: "+f.err.Error()), 0644)
+			f.out = io.MultiWriter(os.Stdout)
+		} else {
+			if f.logLevel <= 10 {
+				f.out = io.MultiWriter(f.fno, os.Stdout)
+			} else {
+				f.out = io.MultiWriter(f.fno)
+			}
+			// 判断是否压缩旧日志
+			if f.enablegz {
+				f.zipFile(f.nameOld)
+			}
+		}
 	}
 	f.nameOld = f.nameNow
 }
