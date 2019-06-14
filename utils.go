@@ -624,6 +624,17 @@ func (mq *Queue) Get() interface{} {
 	return nil
 }
 
+// GetNoDel get data from front
+func (mq *Queue) GetNoDel() interface{} {
+	if mq.q.Len() == 0 {
+		return nil
+	}
+	mq.locker.Lock()
+	defer mq.locker.Unlock()
+	e := mq.q.Front()
+	return e.Value
+}
+
 // Len get queue len
 func (mq *Queue) Len() int64 {
 	return int64(mq.q.Len())
