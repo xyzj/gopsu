@@ -55,6 +55,9 @@ func (c *ConfData) SetItem(key, value, remark string) bool {
 
 // GetItemDefault 获取配置项的value
 func (c *ConfData) GetItemDefault(key, value string, remark ...string) string {
+	if c.items == nil {
+		return ""
+	}
 	found := false
 	var x string
 	for _, v := range c.items {
@@ -78,6 +81,9 @@ func (c *ConfData) GetItemDefault(key, value string, remark ...string) string {
 
 // GetItem 获取配置项的value
 func (c *ConfData) GetItem(key string) (string, error) {
+	if c.items == nil {
+		return "", fmt.Errorf("config data error")
+	}
 	found := false
 	var x string
 	for _, v := range c.items {
@@ -155,7 +161,7 @@ func LoadConfig(fullpath string) (*ConfData, error) {
 			if ex := recover(); ex != nil {
 				file.Close()
 			}
-			return nil, errors.New("file format error.")
+			return nil, fmt.Errorf("file format error")
 		}()
 		var remarkbuf bytes.Buffer
 		buf := bufio.NewReader(file)
@@ -169,7 +175,7 @@ func LoadConfig(fullpath string) (*ConfData, error) {
 				remarkbuf.WriteString("\r\n")
 				continue
 			}
-			if strings.HasPrefix(line, "#") {
+			if strings.Index(line, "#") > -1 && strings.Index(line, "#") < 5 {
 				remarkbuf.WriteString(line)
 				continue
 			} else {

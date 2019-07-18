@@ -2,7 +2,6 @@ package ginmiddleware
 
 import (
 	"archive/zip"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,8 +13,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/xyzj/gopsu"
 )
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 type ginLogger struct {
 	fno      *os.File     // 文件日志
