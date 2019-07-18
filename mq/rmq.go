@@ -146,7 +146,7 @@ func (sessn *Session) handleReconnect(t string) {
 // connect 建立连接
 func (sessn *Session) connect() bool {
 	sessn.isReady = false
-	sessn.writeLog("Attempting to connect to "+sessn.addr, 20)
+	sessn.writeLog("Attempting to connect to "+sessn.addr, 30)
 	conn, err := amqp.Dial(sessn.connStr)
 
 	if err != nil {
@@ -176,7 +176,7 @@ func (sessn *Session) connect() bool {
 		return false
 	}
 
-	sessn.writeLog("Success to connect to "+sessn.addr, 20)
+	sessn.writeLog("Success to connect to "+sessn.addr, 90)
 
 	sessn.isReady = true
 	return true

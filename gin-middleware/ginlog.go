@@ -2,6 +2,7 @@ package ginmiddleware
 
 import (
 	"archive/zip"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -107,14 +108,15 @@ func LoggerWithRolling(logdir, filename string, maxdays int64, loglevel int, ena
 				param.ErrorMessage,
 			))
 		} else {
-			fmt.Fprint(gin.DefaultWriter, fmt.Sprintf("%v |%3d| %-10s | %-15s|%-4s %s|%v\n%s",
+			jsn, _ := json.Marshal(param.Keys)
+			fmt.Fprint(gin.DefaultWriter, fmt.Sprintf("%v |%3d| %-10s | %-15s|%-4s %s|%s\n%s",
 				param.TimeStamp.Format(gopsu.LogTimeFormat),
 				param.StatusCode,
 				param.Latency,
 				param.ClientIP,
 				param.Method,
 				param.Path,
-				param.Keys,
+				jsn,
 				param.ErrorMessage,
 			))
 		}
