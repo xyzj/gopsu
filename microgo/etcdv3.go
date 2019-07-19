@@ -92,6 +92,9 @@ func (m *Etcdv3Client) writeLog(s string, level int) {
 		if level >= m.etcdLogLevel {
 			fmt.Fprintln(*m.etcdLog, s)
 		}
+		if level == 90 {
+			println(s)
+		}
 		// switch level {
 		// case 10:
 		// 	m.etcdLog.Debug(s)
