@@ -54,7 +54,7 @@ var (
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
-  <title>Hi, you are in</title>
+  <title>E komo mai</title>
   <style>
         body {margin: 0; padding: 20px; text-align:center; font-family:Arial, Helvetica, sans-serif; font-size:26px; background-color:#272822;}
         </style>
