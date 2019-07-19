@@ -89,24 +89,11 @@ func (m *Etcdv3Client) writeLog(s string, level int) {
 	if m.etcdLog == nil {
 		println(s)
 	} else {
-		if level >= m.etcdLogLevel {
+		if level >= m.etcdLogLevel && level < 90 {
 			fmt.Fprintln(*m.etcdLog, s)
-		}
-		if level == 90 {
+		} else if level == 90 {
 			println(s)
 		}
-		// switch level {
-		// case 10:
-		// 	m.etcdLog.Debug(s)
-		// case 20:
-		// 	m.etcdLog.Info(s)
-		// case 30:
-		// 	m.etcdLog.Warning(s)
-		// case 40:
-		// 	m.etcdLog.Error(s)
-		// case 90:
-		// 	m.etcdLog.System(s)
-		// }
 	}
 }
 
