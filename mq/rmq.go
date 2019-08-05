@@ -94,8 +94,10 @@ func (sessn *Session) writeLog(s string, l int) {
 			println(s)
 		}
 	} else {
-		if l >= sessn.loggerLevel {
+		if l >= sessn.loggerLevel && l < 90 {
 			fmt.Fprintln(*sessn.logger, s)
+		} else if l == 90 {
+			println(s)
 		}
 	}
 }

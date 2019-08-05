@@ -690,6 +690,10 @@ func CheckIP(ip string) bool {
 		if a, ex := regexp.Match(regipwithport, []byte(ip)); ex != nil {
 			return false
 		} else {
+			s := strings.Split(ip, ":")[1]
+			if p, err := strconv.Atoi(s); err != nil || p > 65535 {
+				return false
+			}
 			return a
 		}
 	} else {
