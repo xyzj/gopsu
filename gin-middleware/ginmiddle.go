@@ -7,6 +7,21 @@ import (
 	"github.com/tidwall/gjson"
 )
 
+// CheckRequired 检查必填参数
+func CheckRequired(params ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		for _, v := range params {
+			if c.Param(v) == "" {
+				c.Set("status", 0)
+				c.Set("detail", "Incomplete parameters: "+v)
+				c.AbortWithStatusJSON(200, c.Keys)
+				return
+			}
+		}
+		c.Next()
+	}
+}
+
 // ReadParams 读取请求的参数，保存到c.Params
 func ReadParams() gin.HandlerFunc {
 	return func(c *gin.Context) {
