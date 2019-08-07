@@ -31,7 +31,7 @@ type ginLogger struct {
 	pathNow  string       // 当前日志路径
 	logDir   string       // 日志文件夹
 	logLevel int          // 日志等级
-	maxDays  int64        // 文件有效时间
+	maxDays  int          // 文件有效时间
 	out      io.Writer    // io写入
 	err      error        // 错误信息
 	enablegz bool         // 是否允许gzip压缩旧日志文件
@@ -39,7 +39,7 @@ type ginLogger struct {
 }
 
 // LoggerWithRolling 滚动日志
-func LoggerWithRolling(logdir, filename string, maxdays int64, loglevel int, enablegz, debug bool) gin.HandlerFunc {
+func LoggerWithRolling(logdir, filename string, maxdays, loglevel int, enablegz, debug bool) gin.HandlerFunc {
 	t := time.Now()
 	// 初始化
 	f := &ginLogger{
@@ -47,7 +47,7 @@ func LoggerWithRolling(logdir, filename string, maxdays int64, loglevel int, ena
 		logLevel: loglevel,
 		// flock:    new(sync.Mutex),
 		fname:    filename,
-		fexpired: maxdays * 24 * 60 * 60,
+		fexpired: int64(maxdays) * 24 * 60 * 60,
 		maxDays:  maxdays,
 		nameLink: fmt.Sprintf("%s.current.log", filename),
 		nameNow:  fmt.Sprintf("%s.%v.log", filename, t.Format(gopsu.FileTimeFromat)),

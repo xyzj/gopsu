@@ -3,9 +3,40 @@ package ginmiddleware
 import (
 	"net/url"
 
+	gingzip "github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 )
+
+// NewGinEngine 返回一个新的gin路由
+// logName：日志文件名
+// logDays：日志保留天数
+// logLevel：日志等级
+// logGZ：是否压缩归档日志
+// debug：是否使用调试模式
+func NewGinEngine(logDir, logName string, logDays, logLevel int, logGZ, debug bool) *gin.Engine {
+	r := gin.New()
+	// 中间件
+	// 日志
+	r.Use(LoggerWithRolling(logDir, logName, logDays, logLevel, logGZ, debug))
+	// 错误恢复
+	r.Use(gin.Recovery())
+	// 读取请求参数
+	r.Use(ReadParams())
+	// 数据压缩
+	r.Use(gingzip.Gzip(9))
+	// 渲染模板
+	// r.HTMLRender = multiRender()
+	// 基础路由
+	// 404,405
+	r.NoMethod(Page405)
+	r.NoRoute(Page404)
+	r.GET("/", PageDefault)
+	r.POST("/", PageDefault)
+	r.GET("/health", PageDefault)
+
+	return r
+}
 
 // CheckRequired 检查必填参数
 func CheckRequired(params ...string) gin.HandlerFunc {
