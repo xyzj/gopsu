@@ -112,7 +112,7 @@ func LoggerWithRolling(logdir, filename string, maxdays, loglevel int, enablegz,
 		}
 		param.Path = path
 		if len(param.Keys) == 0 {
-			fmt.Fprint(gin.DefaultWriter, fmt.Sprintf("%v |%3d| %-10s | %-15s|%-4s %s\n%s",
+			fmt.Fprint(f.out, fmt.Sprintf("%v |%3d| %-10s | %-15s|%-4s %s\n%s",
 				param.TimeStamp.Format(gopsu.LogTimeFormat),
 				param.StatusCode,
 				param.Latency,
@@ -123,7 +123,7 @@ func LoggerWithRolling(logdir, filename string, maxdays, loglevel int, enablegz,
 			))
 		} else {
 			jsn, _ := json.Marshal(param.Keys)
-			fmt.Fprint(gin.DefaultWriter, fmt.Sprintf("%v |%3d| %-10s | %-15s|%-4s %s|%s\n%s",
+			fmt.Fprint(f.out, fmt.Sprintf("%v |%3d| %-10s | %-15s|%-4s %s|%s\n%s",
 				param.TimeStamp.Format(gopsu.LogTimeFormat),
 				param.StatusCode,
 				param.Latency,

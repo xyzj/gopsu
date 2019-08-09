@@ -293,6 +293,8 @@ func InitNewLogger(p string) *MxLog {
 }
 
 // NewLogger init logger
+//   d: log file path
+//   f: log file name
 func NewLogger(d, f string) *MxLog {
 	t := time.Now()
 	mylog := &MxLog{
