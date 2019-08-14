@@ -1,11 +1,15 @@
 package ginmiddleware
 
 import (
+	"fmt"
+	"net/http"
 	"net/url"
+	"time"
 
 	gingzip "github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
+	"github.com/xyzj/gopsu"
 )
 
 // NewGinEngine 返回一个新的gin路由
@@ -36,6 +40,41 @@ func NewGinEngine(logDir, logName string, logDays, logLevel int, logGZ, debug bo
 	r.GET("/health", PageDefault)
 
 	return r
+}
+
+// ListenAndServe 启用监听
+// port：端口号
+// timeout：读写超时
+// h： http.hander, like gin.New()
+func ListenAndServe(port, timeout int, h http.Handler) error {
+	s := &http.Server{
+		Addr:         fmt.Sprintf(":%d", port),
+		Handler:      h,
+		ReadTimeout:  time.Duration(timeout) * time.Second,
+		WriteTimeout: time.Duration(timeout) * time.Second,
+		IdleTimeout:  time.Duration(timeout) * time.Second,
+	}
+	return s.ListenAndServe()
+}
+
+// ListenAndServeTLS 启用TLS监听
+// port：端口号
+// timeout：读写超时
+// h： http.hander, like gin.New()
+// certfile： cert file path
+// keyfile： key file path
+func ListenAndServeTLS(port, timeout int, h http.Handler, certfile, keyfile string) error {
+	if !gopsu.IsExist(certfile) || !gopsu.IsExist(keyfile) {
+		return ListenAndServe(port, timeout, h)
+	}
+	s := &http.Server{
+		Addr:         fmt.Sprintf(":%d", port),
+		Handler:      h,
+		ReadTimeout:  time.Duration(timeout) * time.Second,
+		WriteTimeout: time.Duration(timeout) * time.Second,
+		IdleTimeout:  time.Duration(timeout) * time.Second,
+	}
+	return s.ListenAndServeTLS(certfile, keyfile)
 }
 
 // CheckRequired 检查必填参数
