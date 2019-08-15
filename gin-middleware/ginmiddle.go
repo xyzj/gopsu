@@ -11,6 +11,7 @@ import (
 
 	gingzip "github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/render"
 	"github.com/tidwall/gjson"
 	"github.com/xyzj/gopsu"
 )
@@ -68,7 +69,19 @@ func getSocketTimeout() time.Duration {
 // port：端口号
 // timeout：读写超时
 // h： http.hander, like gin.New()
-func ListenAndServe(port int, h http.Handler, startMsg ...string) error {
+func ListenAndServe(port int, h *gin.Engine, startMsg ...string) error {
+	var sss string
+	for _, v := range h.Routes() {
+		if v.Path == "/" || v.Method == "HEAD" || strings.ContainsAny(v.Path, "*") {
+			continue
+		}
+		sss += fmt.Sprintf(`<a>%s: %s</a><br><br>`, v.Method, v.Path)
+	}
+	h.GET("/showroutes", func(c *gin.Context) {
+		c.Header("Content-Type", "text/html")
+		c.Status(http.StatusOK)
+		render.WriteString(c.Writer, sss, nil)
+	})
 	s := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
 		Handler:      h,
@@ -90,10 +103,22 @@ func ListenAndServe(port int, h http.Handler, startMsg ...string) error {
 // h： http.hander, like gin.New()
 // certfile： cert file path
 // keyfile： key file path
-func ListenAndServeTLS(port int, h http.Handler, certfile, keyfile string, startMsg ...string) error {
+func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, startMsg ...string) error {
 	if !gopsu.IsExist(certfile) || !gopsu.IsExist(keyfile) {
 		return fmt.Errorf("no cert or key file found")
 	}
+	var sss string
+	for _, v := range h.Routes() {
+		if v.Path == "/" || v.Method == "HEAD" || strings.ContainsAny(v.Path, "*") {
+			continue
+		}
+		sss += fmt.Sprintf(`<a>%s: %s</a><br><br>`, v.Method, v.Path)
+	}
+	h.GET("/showroutes", func(c *gin.Context) {
+		c.Header("Content-Type", "text/html")
+		c.Status(http.StatusOK)
+		render.WriteString(c.Writer, sss, nil)
+	})
 	s := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
 		Handler:      h,
