@@ -2,6 +2,7 @@ package ginmiddleware
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -49,17 +50,31 @@ func NewGinEngine(logDir, logName string, logDays, logLevel int, logGZ, debug bo
 	return r
 }
 
+func getSocketTimeout() time.Duration {
+	var t = 60
+	if gopsu.IsExist(".sockettimeout") {
+		b, err := ioutil.ReadFile(".sockettimeout")
+		if err == nil {
+			t = gopsu.String2Int(string(b), 10)
+		}
+	}
+	if t < 60 {
+		t = 60
+	}
+	return time.Second * time.Duration(t)
+}
+
 // ListenAndServe 启用监听
 // port：端口号
 // timeout：读写超时
 // h： http.hander, like gin.New()
-func ListenAndServe(port, timeout int, h http.Handler, startMsg ...string) error {
+func ListenAndServe(port int, h http.Handler, startMsg ...string) error {
 	s := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
 		Handler:      h,
-		ReadTimeout:  time.Duration(timeout) * time.Second,
-		WriteTimeout: time.Duration(timeout) * time.Second,
-		IdleTimeout:  time.Duration(timeout) * time.Second,
+		ReadTimeout:  getSocketTimeout(),
+		WriteTimeout: getSocketTimeout(),
+		IdleTimeout:  getSocketTimeout(),
 	}
 	if len(startMsg) > 0 {
 		fmt.Fprintf(gin.DefaultWriter, "%s [%s] %s\n", time.Now().Format(LogTimeFormat), "HTTP", strings.Join(startMsg, " "))
@@ -75,21 +90,16 @@ func ListenAndServe(port, timeout int, h http.Handler, startMsg ...string) error
 // h： http.hander, like gin.New()
 // certfile： cert file path
 // keyfile： key file path
-// forceTLS：强制TLS，若cert或key文件不存在，则退出，否则使用http启动
-func ListenAndServeTLS(port, timeout int, h http.Handler, certfile, keyfile string, forceTLS bool, startMsg ...string) error {
+func ListenAndServeTLS(port int, h http.Handler, certfile, keyfile string, startMsg ...string) error {
 	if !gopsu.IsExist(certfile) || !gopsu.IsExist(keyfile) {
-		if forceTLS {
-			return fmt.Errorf("no cert or key file found")
-		}
-		fmt.Fprintf(gin.DefaultWriter, "%s [%s] %s\n", time.Now().Format(LogTimeFormat), "HTTP", "no cert or key file found, use HTTP instead")
-		return ListenAndServe(port, timeout, h, startMsg...)
+		return fmt.Errorf("no cert or key file found")
 	}
 	s := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
 		Handler:      h,
-		ReadTimeout:  time.Duration(timeout) * time.Second,
-		WriteTimeout: time.Duration(timeout) * time.Second,
-		IdleTimeout:  time.Duration(timeout) * time.Second,
+		ReadTimeout:  getSocketTimeout(),
+		WriteTimeout: getSocketTimeout(),
+		IdleTimeout:  getSocketTimeout(),
 	}
 	if len(startMsg) > 0 {
 		fmt.Fprintf(gin.DefaultWriter, "%s [%s] %s\n", time.Now().Format(LogTimeFormat), "HTTP", strings.Join(startMsg, " "))
