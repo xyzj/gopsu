@@ -104,8 +104,8 @@ func ListenAndServe(port int, h *gin.Engine, startMsg ...string) error {
 // certfile： cert file path
 // keyfile： key file path
 func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, startMsg ...string) error {
-	if !gopsu.IsExist(certfile) || !gopsu.IsExist(keyfile) {
-		return fmt.Errorf("no cert or key file found")
+	if gopsu.IsExist(".forcehttp") {
+		return ListenAndServe(port, h)
 	}
 	var sss string
 	for _, v := range h.Routes() {
