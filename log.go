@@ -39,9 +39,10 @@ type MxLog struct {
 	fileNameOld   string
 	fileIndex     byte
 	fileDir       string
+	fileDay       int
 	fno           *os.File
-	logLevel      byte
-	conLevel      byte
+	logLevel      int
+	conLevel      int
 	conLogger     *log.Logger
 	enablegz      bool
 	err           error
@@ -56,7 +57,7 @@ type MxLog struct {
 
 type logMessage struct {
 	msg   string
-	level byte
+	level int
 }
 
 func (l *MxLog) getFileSize() int64 {
@@ -84,29 +85,17 @@ func (l *MxLog) SetMaxFileSize(c int64) {
 }
 
 // SetLogLevel set file & console log level
-func (l *MxLog) SetLogLevel(loglevel byte, conlevel byte) {
+func (l *MxLog) SetLogLevel(loglevel int, conlevel ...int) {
 	l.logLevel = loglevel
-	l.conLevel = conlevel
+	l.conLevel = loglevel
 }
 
 // SetAsync 设置异步写入参数
 func (l *MxLog) SetAsync(c int) {
 	if c <= 0 {
-		l.chanClose <- true
 		l.writeAsync = false
 	}
-	if c < 1000 {
-		c = 1000
-	}
-	if c > 10000 {
-		c = 10000
-	}
-	l.chanWrite = make(chan *logMessage, c)
 	l.writeAsync = true
-
-	go l.coreWatcher()
-	go l.writeLogAsync()
-
 }
 
 func (l *MxLog) coreWatcher() {
@@ -121,9 +110,6 @@ func (l *MxLog) coreWatcher() {
 			switch n {
 			case "mxlog":
 				go l.writeLogAsync()
-			case "close":
-				closeme = true
-				break
 			}
 		}
 	}
@@ -136,30 +122,26 @@ func (l *MxLog) writeLogAsync() {
 			if err := recover(); err != nil {
 				ioutil.WriteFile(fmt.Sprintf("crash-log-%s.log", time.Now().Format("20060102150405")), []byte(fmt.Sprintf("%v", err.(error))), 0644)
 				time.Sleep(300 * time.Millisecond)
-				l.chanWatcher <- "mxlog"
-			} else {
-				l.chanWatcher <- "close"
 			}
+			l.chanWatcher <- "mxlog"
 		}()
 		closeme := false
+		t := time.NewTicker(time.Hour)
 		for {
 			if closeme {
 				break
 			}
 			select {
 			case msg := <-l.chanWrite:
-				l.writeLog(msg.msg, msg.level, false)
-			case <-l.chanClose:
-				if !closeme {
-					closeme = true
-					close(l.chanWrite)
-					if len(l.chanWrite) > 0 {
-						for {
-							msg, ok := <-l.chanWrite
-							if !ok {
-								break
-							}
-							l.writeLog(msg.msg, msg.level, false)
+				l.writeLog(msg.msg, msg.level)
+			case <-t.C:
+				fs, ex := os.Stat(l.fileFullPath)
+				if ex == nil {
+					if fs.Size() > 1048576000 {
+						if l.fileIndex >= 255 {
+							l.fileIndex = 0
+						} else {
+							l.fileIndex++
 						}
 					}
 				}
@@ -168,40 +150,44 @@ func (l *MxLog) writeLogAsync() {
 	}()
 }
 
-func (l *MxLog) writeLog(msg string, level byte, lock bool) {
-	if lock {
+// WriteLog 写日志
+func (l *MxLog) WriteLog(msg string, level int) {
+	l.writeLog(msg, level)
+}
+
+func (l *MxLog) writeLog(msg string, level int, lock ...bool) {
+	if l.writeAsync {
 		l.rollingFile()
 	} else {
 		l.rollingFileNoLock()
 	}
 
 	if level >= l.logLevel {
-		// fmt.Fprintln(l.DefaultWriter, msg)
-		l.fileLogger.Println(msg)
-		l.fileSize += int64(len(msg) + 17)
+		fmt.Fprintln(l.DefaultWriter, fmt.Sprintf("%s [%02d] %s", time.Now().Format(ShortTimeFormat), level, msg))
+		// l.fileLogger.Println(msg)
+		// l.fileSize += int64(len(msg) + 17)
 	}
 
-	if level >= l.conLevel {
-		switch level {
-		case logDebug:
-			l.conLogger.Println(GreenText(msg))
-		case logInfo:
-			l.conLogger.Println(msg)
-		case logWarning:
-			l.conLogger.Println(YellowText(msg))
-		case logError:
-			l.conLogger.Println(RedText(msg))
-		case logSystem:
-			l.conLogger.Println(ColorText(FColorCyan, BColorBlack, TextHighlight, msg))
-		default:
-			l.conLogger.Println(msg)
-		}
-	}
+	// if level >= l.conLevel {
+	// 	switch level {
+	// 	case logDebug:
+	// 		l.conLogger.Println(GreenText(msg))
+	// 	case logInfo:
+	// 		l.conLogger.Println(msg)
+	// 	case logWarning:
+	// 		l.conLogger.Println(YellowText(msg))
+	// 	case logError:
+	// 		l.conLogger.Println(RedText(msg))
+	// 	case logSystem:
+	// 		l.conLogger.Println(ColorText(FColorCyan, BColorBlack, TextHighlight, msg))
+	// 	default:
+	// 		l.conLogger.Println(msg)
+	// 	}
+	// }
 }
 
 // Debug writelog with level 10
 func (l *MxLog) Debug(msg string) {
-	msg = fmt.Sprintf("[10] %s", msg)
 	if l.writeAsync {
 		l.chanWrite <- &logMessage{
 			msg:   msg,
@@ -214,7 +200,6 @@ func (l *MxLog) Debug(msg string) {
 
 // Info writelog with level 20
 func (l *MxLog) Info(msg string) {
-	msg = fmt.Sprintf("[20] %s", msg)
 	if l.writeAsync {
 		l.chanWrite <- &logMessage{
 			msg:   msg,
@@ -227,7 +212,6 @@ func (l *MxLog) Info(msg string) {
 
 // Warning writelog with level 30
 func (l *MxLog) Warning(msg string) {
-	msg = fmt.Sprintf("[30] %s", msg)
 	if l.writeAsync {
 		l.chanWrite <- &logMessage{
 			msg:   msg,
@@ -240,7 +224,6 @@ func (l *MxLog) Warning(msg string) {
 
 // Error writelog with level 40
 func (l *MxLog) Error(msg string) {
-	msg = fmt.Sprintf("[40] %s", msg)
 	if l.writeAsync {
 		l.chanWrite <- &logMessage{
 			msg:   msg,
@@ -255,7 +238,6 @@ func (l *MxLog) Error(msg string) {
 
 // System writelog with level 90
 func (l *MxLog) System(msg string) {
-	msg = fmt.Sprintf("[90] %s", msg)
 	if l.writeAsync {
 		l.chanWrite <- &logMessage{
 			msg:   msg,
@@ -302,11 +284,10 @@ func NewLogger(d, f string) *MxLog {
 		fileMaxSize: maxFileSize,
 		fileName:    f,
 		fileIndex:   0,
+		fileDay:     t.Day(),
 		fileDir:     d,
 		logLevel:    logDebug,
-		conLevel:    logWarning,
-		conLogger:   log.New(os.Stdout, "", log.Lmicroseconds),
-		chanWrite:   make(chan *logMessage, 1000),
+		chanWrite:   make(chan *logMessage, 5000),
 		chanClose:   make(chan bool, 2),
 		chanWatcher: make(chan string, 2),
 		writeAsync:  false,
@@ -320,24 +301,24 @@ func NewLogger(d, f string) *MxLog {
 			break
 		}
 	}
-	mylog.fileNameNow = fmt.Sprintf("%s.%v.%d.log", mylog.fileName, t.Format(FileTimeFromat), mylog.fileIndex)
-	mylog.fileFullPath = filepath.Join(d, mylog.fileNameNow)
+
+	go mylog.coreWatcher()
+	go mylog.writeLogAsync()
 	mylog.newFile()
+
 	return mylog
 }
 
 func (l *MxLog) rollingFileNoLock() bool {
 	t := time.Now()
-	if l.fileSize > l.fileMaxSize {
-		l.fileIndex++
-	}
+	// if l.fileSize > l.fileMaxSize {
+	// 	l.fileIndex++
+	// }
 	l.fileNameNow = fmt.Sprintf("%s.%v.%d.log", l.fileName, t.Format(FileTimeFromat), l.fileIndex)
 	// 比对文件名，若不同则重新设置io
 	if l.fileNameNow == l.fileNameOld {
 		return false
 	}
-
-	l.fileFullPath = filepath.Join(l.fileDir, l.fileNameNow)
 	// 关闭旧fno
 	l.fno.Close()
 	// 创建新日志
@@ -443,16 +424,24 @@ func (l *MxLog) newFile() {
 	// if l.err != nil {
 	// 	println("Symlink log file error: " + l.err.Error())
 	// }
-
+	if l.fileDay != time.Now().Day() {
+		l.fileIndex = 0
+	}
+	l.fileNameNow = fmt.Sprintf("%s.%v.%d.log", l.fileName, time.Now().Format(FileTimeFromat), l.fileIndex)
+	l.fileFullPath = filepath.Join(l.fileDir, l.fileNameNow)
 	// 直接写入当日日志
 	// 打开文件
 	l.fno, l.err = os.OpenFile(l.fileFullPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
 	if l.err != nil {
 		println("Log file open error: " + l.err.Error())
 	}
-	l.DefaultWriter = io.MultiWriter(l.fno, os.Stdout)
-	l.fileLogger = log.New(l.fno, "", log.Lmicroseconds)
-	l.fileSize = l.getFileSize()
+	if l.logLevel <= 10 {
+		l.DefaultWriter = io.MultiWriter(l.fno, os.Stdout)
+	} else {
+		l.DefaultWriter = io.MultiWriter(l.fno)
+	}
+	// l.fileLogger = log.New(l.fno, "", log.Lmicroseconds)
+	// l.fileSize = l.getFileSize()
 
 	// 判断是否压缩旧日志
 	if l.enablegz {

@@ -19,11 +19,6 @@ import (
 	"github.com/xyzj/gopsu/db"
 )
 
-const (
-	// LogTimeFormat 日志内容时间戳格式
-	LogTimeFormat = "2006/01/02 15:04:05.000"
-)
-
 // NewGinEngine 返回一个新的gin路由
 // logName：日志文件名
 // logDays：日志保留天数
@@ -72,7 +67,7 @@ func getSocketTimeout() time.Duration {
 // port：端口号
 // timeout：读写超时
 // h： http.hander, like gin.New()
-func ListenAndServe(port int, h *gin.Engine, startMsg ...string) error {
+func ListenAndServe(port int, h *gin.Engine) error {
 	var sss string
 	for _, v := range h.Routes() {
 		if v.Path == "/" || v.Method == "HEAD" || strings.ContainsAny(v.Path, "*") {
@@ -92,11 +87,7 @@ func ListenAndServe(port int, h *gin.Engine, startMsg ...string) error {
 		WriteTimeout: getSocketTimeout(),
 		IdleTimeout:  getSocketTimeout(),
 	}
-	if len(startMsg) > 0 {
-		fmt.Fprintf(gin.DefaultWriter, "%s [%s] %s\n", time.Now().Format(LogTimeFormat), "HTTP", strings.Join(startMsg, " "))
-	} else {
-		fmt.Fprintf(gin.DefaultWriter, "%s [%s] %s\n", time.Now().Format(LogTimeFormat), "HTTP", "Success start HTTP server at :"+strconv.Itoa(port))
-	}
+	fmt.Fprintf(gin.DefaultWriter, "%s [90] [%s] %s\n", time.Now().Format(gopsu.LogTimeFormat), "HTTP", "Success start HTTP server at :"+strconv.Itoa(port))
 	return s.ListenAndServe()
 }
 
@@ -142,7 +133,7 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 		TLSConfig:    tc,
 	}
 
-	fmt.Fprintf(gin.DefaultWriter, "%s [%s] %s\n", time.Now().Format(LogTimeFormat), "HTTP", "Success start HTTPS server at :"+strconv.Itoa(port))
+	fmt.Fprintf(gin.DefaultWriter, "%s [90] [%s] %s\n", time.Now().Format(gopsu.LogTimeFormat), "HTTP", "Success start HTTPS server at :"+strconv.Itoa(port))
 	return s.ListenAndServeTLS(certfile, keyfile)
 }
 

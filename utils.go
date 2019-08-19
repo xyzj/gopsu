@@ -46,8 +46,12 @@ const (
 	OSNAME = runtime.GOOS
 	// OSARCH from runtime
 	OSARCH = runtime.GOARCH
+	// LongTimeFormat 日志内容时间戳格式
+	LongTimeFormat = "2006/01/02 15:04:05.000"
+	// ShortTimeFormat 日志内容时间戳格式
+	ShortTimeFormat = "15:04:05.000"
 	// LogTimeFormat 日志内容时间戳格式
-	LogTimeFormat = "2006/01/02 15:04:05.000"
+	LogTimeFormat = "15:04:05.000"
 	// FileTimeFromat 日志文件命名格式
 	FileTimeFromat = "060102" // 日志文件命名格式
 )
