@@ -310,6 +310,7 @@ func NewLogger(d, f string) *MxLog {
 		chanClose:   make(chan bool, 2),
 		chanWatcher: make(chan string, 2),
 		writeAsync:  false,
+		enablegz:    true,
 	}
 
 	for i := byte(0); i < 255; i++ {

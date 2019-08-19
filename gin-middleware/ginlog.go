@@ -37,11 +37,10 @@ type ginLogger struct {
 	out         io.Writer    // io写入
 	err         error        // 错误信息
 	enablegz    bool         // 是否允许gzip压缩旧日志文件
-	debug       bool         // 是否调试模式
 }
 
 // LoggerWithRolling 滚动日志
-func LoggerWithRolling(logdir, filename string, maxdays, loglevel int, enablegz, debug bool) gin.HandlerFunc {
+func LoggerWithRolling(logdir, filename string, maxdays, loglevel int) gin.HandlerFunc {
 	t := time.Now()
 	// 初始化
 	f := &ginLogger{
@@ -56,8 +55,7 @@ func LoggerWithRolling(logdir, filename string, maxdays, loglevel int, enablegz,
 		// nameNow:  fmt.Sprintf("%s.%v.log", filename, t.Format(gopsu.FileTimeFromat)),
 		pathLink: filepath.Join(logdir, fmt.Sprintf("%s.current.log", filename)),
 		// pathNow:  filepath.Join(logdir, fmt.Sprintf("%s.%v.log", filename, t.Format(gopsu.FileTimeFromat))),
-		enablegz: enablegz,
-		debug:    debug,
+		enablegz: true,
 	}
 	// 搜索最后一个文件名
 	for i := 0; i < 255; i++ {

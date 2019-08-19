@@ -1,6 +1,8 @@
 package ginmiddleware
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -14,6 +16,7 @@ import (
 	"github.com/gin-gonic/gin/render"
 	"github.com/tidwall/gjson"
 	"github.com/xyzj/gopsu"
+	"github.com/xyzj/gopsu/db"
 )
 
 const (
@@ -27,11 +30,11 @@ const (
 // logLevel：日志等级
 // logGZ：是否压缩归档日志
 // debug：是否使用调试模式
-func NewGinEngine(logDir, logName string, logDays, logLevel int, logGZ, debug bool) *gin.Engine {
+func NewGinEngine(logDir, logName string, logDays, logLevel int) *gin.Engine {
 	r := gin.New()
 	// 中间件
 	// 日志
-	r.Use(LoggerWithRolling(logDir, logName, logDays, logLevel, logGZ, debug))
+	r.Use(LoggerWithRolling(logDir, logName, logDays, logLevel))
 	// 错误恢复
 	r.Use(gin.Recovery())
 	// 读取请求参数
@@ -103,7 +106,8 @@ func ListenAndServe(port int, h *gin.Engine, startMsg ...string) error {
 // h： http.hander, like gin.New()
 // certfile： cert file path
 // keyfile： key file path
-func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, startMsg ...string) error {
+// clientca: 客户端根证书用于验证客户端合法性
+func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, clientca ...string) error {
 	if gopsu.IsExist(".forcehttp") {
 		return ListenAndServe(port, h)
 	}
@@ -119,18 +123,26 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, startM
 		c.Status(http.StatusOK)
 		render.WriteString(c.Writer, sss, nil)
 	})
+	var tc = &tls.Config{}
+	if len(clientca) > 0 {
+		pool := x509.NewCertPool()
+		caCrt, err := ioutil.ReadFile(clientca[0])
+		if err == nil {
+			pool.AppendCertsFromPEM(caCrt)
+			tc.ClientCAs = pool
+			tc.ClientAuth = tls.RequireAndVerifyClientCert
+		}
+	}
 	s := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
 		Handler:      h,
 		ReadTimeout:  getSocketTimeout(),
 		WriteTimeout: getSocketTimeout(),
 		IdleTimeout:  getSocketTimeout(),
+		TLSConfig:    tc,
 	}
-	if len(startMsg) > 0 {
-		fmt.Fprintf(gin.DefaultWriter, "%s [%s] %s\n", time.Now().Format(LogTimeFormat), "HTTP", strings.Join(startMsg, " "))
-	} else {
-		fmt.Fprintf(gin.DefaultWriter, "%s [%s] %s\n", time.Now().Format(LogTimeFormat), "HTTP", "Success start HTTPS server at :"+strconv.Itoa(port))
-	}
+
+	fmt.Fprintf(gin.DefaultWriter, "%s [%s] %s\n", time.Now().Format(LogTimeFormat), "HTTP", "Success start HTTPS server at :"+strconv.Itoa(port))
 	return s.ListenAndServeTLS(certfile, keyfile)
 }
 
@@ -175,6 +187,53 @@ func ReadParams() gin.HandlerFunc {
 					Key:   k,
 					Value: x.Get(k),
 				})
+			}
+		}
+		c.Next()
+	}
+}
+
+// ReadCacheJSON 读取数据库缓存
+func ReadCacheJSON(mydb *db.MySQL) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if mydb != nil {
+			cachetag := c.Param("cachetag")
+			if cachetag != "" {
+				if gopsu.IsExist(cachetag) {
+					cachestart := gopsu.String2Int(c.Param("cachestart"), 10)
+					cacherows := gopsu.String2Int(c.Param("cachesrows"), 10)
+					ans := mydb.QueryCacheJSON(cachetag, cachestart, cacherows)
+					if gjson.Parse(ans).Get("total").Int() > 0 {
+						c.Params = append(c.Params, gin.Param{
+							Key:   "cacheData",
+							Value: ans,
+						})
+					}
+				}
+			}
+		}
+		c.Next()
+	}
+}
+
+// ReadCachePB2 读取数据库缓存
+func ReadCachePB2(mydb *db.MySQL) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if mydb != nil {
+			cachetag := c.Param("cachetag")
+			if cachetag != "" {
+				if gopsu.IsExist(cachetag) {
+					cachestart := gopsu.String2Int(c.Param("cachestart"), 10)
+					cacherows := gopsu.String2Int(c.Param("cachesrows"), 10)
+					ans := mydb.QueryCachePB2(cachetag, cachestart, cacherows)
+					if ans.Total > 0 {
+						b, _ := ans.Marshal()
+						c.Params = append(c.Params, gin.Param{
+							Key:   "cacheData",
+							Value: string(b),
+						})
+					}
+				}
 			}
 		}
 		c.Next()
