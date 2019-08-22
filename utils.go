@@ -77,6 +77,19 @@ type CryptoWorker struct {
 	cryptoCFBDecrypter cipher.Stream
 }
 
+var (
+	// DefaultLogDir 默认日志文件夹
+	DefaultLogDir string
+	// DefaultCacheDir 默认缓存文件夹
+	DefaultCacheDir string
+	// DefaultConfDir 默认配置文件夹
+	DefaultConfDir string
+)
+
+func init() {
+	DefaultConfDir, DefaultLogDir, DefaultCacheDir = MakeRuntimeDirs(".")
+}
+
 // GetNewCryptoWorker 获取新的序列化或加密管理器
 func GetNewCryptoWorker(cryptoType byte) *CryptoWorker {
 	h := &CryptoWorker{
@@ -710,10 +723,10 @@ func CheckIP(ip string) bool {
 }
 
 // MakeRuntimeDirs make conf,log,cache dirs
-//  Args：
-//	rootpath： 输入路径
-//  return：
-// 	conf，log，cache三个文件夹的完整路径
+// Args：
+// rootpath： 输入路径
+// return：
+// conf，log，cache三个文件夹的完整路径
 func MakeRuntimeDirs(rootpath string) (string, string, string) {
 	var basepath string
 	if strings.Compare(rootpath, ".") == 0 {
