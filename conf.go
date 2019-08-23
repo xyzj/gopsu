@@ -18,11 +18,24 @@ type confItem struct {
 	remark string
 }
 
-// 配置文件结构体
+// ConfData 配置文件结构体
 type ConfData struct {
 	items        []*confItem
 	fileFullPath string
 	fileName     string
+}
+
+// UpdateItem 更新配置项
+func (c *ConfData) UpdateItem(key, value string) bool {
+	key = strings.TrimSpace(key)
+	value = strings.TrimSpace(value)
+	for _, v := range c.items {
+		if v.key == key {
+			v.value = value
+			return true
+		}
+	}
+	return false
 }
 
 // SetItem 设置配置项

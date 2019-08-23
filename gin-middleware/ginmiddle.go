@@ -143,7 +143,7 @@ func CheckRequired(params ...string) gin.HandlerFunc {
 		for _, v := range params {
 			if c.Param(v) == "" {
 				c.Set("status", 0)
-				c.Set("detail", "Incomplete parameters: "+v)
+				c.Set("detail", "Missing parameters: "+v)
 				c.AbortWithStatusJSON(200, c.Keys)
 				return
 			}
