@@ -159,6 +159,9 @@ func ReadParams() gin.HandlerFunc {
 		m := gjson.ParseBytes(b)
 		if m.Exists() {
 			m.ForEach(func(key, value gjson.Result) bool {
+				if strings.HasPrefix(key.String(), "_") {
+					return true
+				}
 				c.Params = append(c.Params, gin.Param{
 					Key:   key.String(),
 					Value: value.String(),
@@ -174,6 +177,9 @@ func ReadParams() gin.HandlerFunc {
 				x, _ = url.ParseQuery(string(b))
 			}
 			for k := range x {
+				if strings.HasPrefix(k, "_") {
+					continue
+				}
 				c.Params = append(c.Params, gin.Param{
 					Key:   k,
 					Value: x.Get(k),
@@ -196,7 +202,7 @@ func ReadCacheJSON(mydb *db.MySQL) gin.HandlerFunc {
 					ans := mydb.QueryCacheJSON(cachetag, cachestart, cacherows)
 					if gjson.Parse(ans).Get("total").Int() > 0 {
 						c.Params = append(c.Params, gin.Param{
-							Key:   "cacheData",
+							Key:   "_cacheData",
 							Value: ans,
 						})
 					}
@@ -220,7 +226,7 @@ func ReadCachePB2(mydb *db.MySQL) gin.HandlerFunc {
 					if ans.Total > 0 {
 						b, _ := ans.Marshal()
 						c.Params = append(c.Params, gin.Param{
-							Key:   "cacheData",
+							Key:   "_cacheData",
 							Value: string(b),
 						})
 					}

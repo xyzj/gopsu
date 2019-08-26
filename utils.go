@@ -1112,9 +1112,8 @@ func DecodeString(s string) string {
 			}
 		}
 		return ns.String()
-	} else {
-		return ""
 	}
+	return ""
 }
 
 // DecodeStringOld 解码混淆字符串，兼容python算法
