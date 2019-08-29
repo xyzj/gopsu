@@ -63,23 +63,33 @@ func getSocketTimeout() time.Duration {
 	return time.Second * time.Duration(t)
 }
 
+func getRoutes(h *gin.Engine) string {
+	var sss string
+	for _, v := range h.Routes() {
+		if strings.ContainsAny(v.Path, "*") && !strings.HasSuffix(v.Path, "filepath") {
+			return ""
+		}
+		if v.Path == "/" || v.Method == "HEAD" || strings.HasSuffix(v.Path, "*filepath") {
+			continue
+		}
+		sss += fmt.Sprintf(`<a>%s: %s</a><br><br>`, v.Method, v.Path)
+	}
+	return sss
+}
+
 // ListenAndServe 启用监听
 // port：端口号
 // timeout：读写超时
 // h： http.hander, like gin.New()
 func ListenAndServe(port int, h *gin.Engine) error {
-	var sss string
-	for _, v := range h.Routes() {
-		if v.Path == "/" || v.Method == "HEAD" || strings.ContainsAny(v.Path, "*") {
-			continue
-		}
-		sss += fmt.Sprintf(`<a>%s: %s</a><br><br>`, v.Method, v.Path)
+	sss := getRoutes(h)
+	if sss != "" {
+		h.GET("/showroutes", func(c *gin.Context) {
+			c.Header("Content-Type", "text/html")
+			c.Status(http.StatusOK)
+			render.WriteString(c.Writer, sss, nil)
+		})
 	}
-	h.GET("/showroutes", func(c *gin.Context) {
-		c.Header("Content-Type", "text/html")
-		c.Status(http.StatusOK)
-		render.WriteString(c.Writer, sss, nil)
-	})
 	s := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
 		Handler:      h,
@@ -102,18 +112,14 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 	if gopsu.IsExist(".forcehttp") {
 		return ListenAndServe(port, h)
 	}
-	var sss string
-	for _, v := range h.Routes() {
-		if v.Path == "/" || v.Method == "HEAD" || strings.ContainsAny(v.Path, "*") {
-			continue
-		}
-		sss += fmt.Sprintf(`<a>%s: %s</a><br><br>`, v.Method, v.Path)
+	sss := getRoutes(h)
+	if sss != "" {
+		h.GET("/showroutes", func(c *gin.Context) {
+			c.Header("Content-Type", "text/html")
+			c.Status(http.StatusOK)
+			render.WriteString(c.Writer, sss, nil)
+		})
 	}
-	h.GET("/showroutes", func(c *gin.Context) {
-		c.Header("Content-Type", "text/html")
-		c.Status(http.StatusOK)
-		render.WriteString(c.Writer, sss, nil)
-	})
 	var tc = &tls.Config{}
 	if len(clientca) > 0 {
 		pool := x509.NewCertPool()
