@@ -85,7 +85,7 @@ func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile string) (*E
 }
 
 func (m *Etcdv3Client) writeLog(s string, level int) {
-	s = fmt.Sprintf("%v [ETCD] %s", time.Now().Format(gopsu.LogTimeFormat), s)
+	s = fmt.Sprintf("%v [%02d] [ETCD] %s", time.Now().Format(gopsu.LogTimeFormat), level, s)
 	if m.etcdLog == nil {
 		println(s)
 	} else {

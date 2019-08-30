@@ -42,7 +42,6 @@ type MxLog struct {
 	fileDay       int
 	fno           *os.File
 	logLevel      int
-	conLevel      int
 	conLogger     *log.Logger
 	enablegz      bool
 	err           error
@@ -87,7 +86,12 @@ func (l *MxLog) SetMaxFileSize(c int64) {
 // SetLogLevel set file & console log level
 func (l *MxLog) SetLogLevel(loglevel int, conlevel ...int) {
 	l.logLevel = loglevel
-	l.conLevel = loglevel
+
+	if l.logLevel <= 10 {
+		l.DefaultWriter = io.MultiWriter(l.fno, os.Stdout)
+	} else {
+		l.DefaultWriter = io.MultiWriter(l.fno)
+	}
 }
 
 // SetAsync 设置异步写入参数
@@ -167,23 +171,6 @@ func (l *MxLog) writeLog(msg string, level int, lock ...bool) {
 		// l.fileLogger.Println(msg)
 		// l.fileSize += int64(len(msg) + 17)
 	}
-
-	// if level >= l.conLevel {
-	// 	switch level {
-	// 	case logDebug:
-	// 		l.conLogger.Println(GreenText(msg))
-	// 	case logInfo:
-	// 		l.conLogger.Println(msg)
-	// 	case logWarning:
-	// 		l.conLogger.Println(YellowText(msg))
-	// 	case logError:
-	// 		l.conLogger.Println(RedText(msg))
-	// 	case logSystem:
-	// 		l.conLogger.Println(ColorText(FColorCyan, BColorBlack, TextHighlight, msg))
-	// 	default:
-	// 		l.conLogger.Println(msg)
-	// 	}
-	// }
 }
 
 // Debug writelog with level 10

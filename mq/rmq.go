@@ -88,7 +88,7 @@ func (sessn *Session) SetLogger(w *io.Writer, l int) {
 }
 
 func (sessn *Session) writeLog(s string, l int) {
-	s = fmt.Sprintf("%v [MQ] %s", time.Now().Format(gopsu.LogTimeFormat), s)
+	s = fmt.Sprintf("%v [%02d] [MQ] %s", time.Now().Format(gopsu.LogTimeFormat), l, s)
 	if sessn.logger == nil {
 		if sessn.debug {
 			println(s)
@@ -351,6 +351,10 @@ func (sessn *Session) SendCustom(d *RabbitMQData) {
 		)
 		if err != nil {
 			sessn.writeLog("Failed to send to "+sessn.addr+": "+err.Error(), 40)
+		} else {
+			if sessn.loggerLevel <= 10 {
+				sessn.writeLog("S:"+sessn.addr+"|"+d.RoutingKey, 10)
+			}
 		}
 	}()
 }
