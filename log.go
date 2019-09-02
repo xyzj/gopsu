@@ -19,7 +19,7 @@ const (
 	logWarning  = 30
 	logError    = 40
 	logSystem   = 90
-	maxFileLife = 30 * 24 * 60 * 60
+	maxFileLife = 15*24*60*60 - 1
 	maxFileSize = 1048576000 // 1G
 )
 
@@ -40,6 +40,7 @@ type MxLog struct {
 	fileIndex     byte
 	fileDir       string
 	fileDay       int
+	fileHour      int
 	fno           *os.File
 	logLevel      int
 	conLogger     *log.Logger
@@ -70,7 +71,7 @@ func (l *MxLog) getFileSize() int64 {
 
 // SetMaxFileLife set max day log file keep
 func (l *MxLog) SetMaxFileLife(c int64) {
-	l.fileMaxLife = c * 24 * 60 * 60
+	l.fileMaxLife = c*24*60*60 - 1
 }
 
 // SetMaxFileCount [Discard] use SetMaxFileLife() instead
@@ -80,7 +81,7 @@ func (l *MxLog) SetMaxFileCount(c uint16) {
 
 // SetMaxFileSize set max log file size in M
 func (l *MxLog) SetMaxFileSize(c int64) {
-	l.fileMaxSize = c * 1048576
+	l.fileMaxSize = c * 1024000
 }
 
 // SetLogLevel set file & console log level
@@ -272,6 +273,7 @@ func NewLogger(d, f string) *MxLog {
 		fileName:    f,
 		fileIndex:   0,
 		fileDay:     t.Day(),
+		fileHour:    t.Hour(),
 		fileDir:     d,
 		logLevel:    logDebug,
 		chanWrite:   make(chan *logMessage, 5000),
@@ -296,11 +298,32 @@ func NewLogger(d, f string) *MxLog {
 	return mylog
 }
 
+// 检查文件大小,返回是否需要切分文件
+func (l *MxLog) rolledWithFileSize() bool {
+	if l.fileHour == time.Now().Hour() {
+		return false
+	}
+	l.fileHour = time.Now().Hour()
+	fs, ex := os.Stat(l.fileFullPath)
+	if ex == nil {
+		if fs.Size() > l.fileMaxSize {
+			if l.fileIndex >= 255 {
+				l.fileIndex = 0
+			} else {
+				l.fileIndex++
+			}
+			return true
+		}
+	}
+	return false
+}
+
 func (l *MxLog) rollingFileNoLock() bool {
 	t := time.Now()
 	// if l.fileSize > l.fileMaxSize {
 	// 	l.fileIndex++
 	// }
+	l.rolledWithFileSize()
 	l.fileNameNow = fmt.Sprintf("%s.%v.%d.log", l.fileName, t.Format(FileTimeFromat), l.fileIndex)
 	// 比对文件名，若不同则重新设置io
 	if l.fileNameNow == l.fileNameOld {
@@ -388,7 +411,7 @@ func (l *MxLog) clearFile() {
 			continue
 		}
 		// 比对文件生存期
-		if t.Unix()-fno.ModTime().Unix() > l.fileMaxLife {
+		if t.Unix()-fno.ModTime().Unix() >= l.fileMaxLife {
 			os.Remove(filepath.Join(l.fileDir, fno.Name()))
 		}
 	}
@@ -411,10 +434,12 @@ func (l *MxLog) newFile() {
 	// if l.err != nil {
 	// 	println("Symlink log file error: " + l.err.Error())
 	// }
-	if l.fileDay != time.Now().Day() {
+	t := time.Now()
+	if l.fileDay != t.Day() {
+		l.fileDay = t.Day()
 		l.fileIndex = 0
 	}
-	l.fileNameNow = fmt.Sprintf("%s.%v.%d.log", l.fileName, time.Now().Format(FileTimeFromat), l.fileIndex)
+	l.fileNameNow = fmt.Sprintf("%s.%v.%d.log", l.fileName, t.Format(FileTimeFromat), l.fileIndex)
 	l.fileFullPath = filepath.Join(l.fileDir, l.fileNameNow)
 	// 直接写入当日日志
 	// 打开文件

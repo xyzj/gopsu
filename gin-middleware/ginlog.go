@@ -20,23 +20,24 @@ import (
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 type ginLogger struct {
-	fno         *os.File     // 文件日志
-	fname       string       // 日志文件名
-	fileIndex   int          // 文件索引号
-	fexpired    int64        // 日志文件过期时长
-	flock       sync.RWMutex // 同步锁
-	nameLink    string       // 写入用日志文件名
-	nameOld     string       // 旧日志文件名
-	nameNow     string       // 当前日志文件名
-	oldTimeHour int          // 旧时间戳
-	pathLink    string       // 写入用日志路径
-	pathNow     string       // 当前日志路径
-	logDir      string       // 日志文件夹
-	logLevel    int          // 日志等级
-	maxDays     int          // 文件有效时间
-	out         io.Writer    // io写入
-	err         error        // 错误信息
-	enablegz    bool         // 是否允许gzip压缩旧日志文件
+	fno       *os.File     // 文件日志
+	fname     string       // 日志文件名
+	fileIndex int          // 文件索引号
+	fexpired  int64        // 日志文件过期时长
+	flock     sync.RWMutex // 同步锁
+	nameLink  string       // 写入用日志文件名
+	nameOld   string       // 旧日志文件名
+	nameNow   string       // 当前日志文件名
+	fileHour  int          // 旧时间戳
+	fileDay   int          // 日期戳
+	pathLink  string       // 写入用日志路径
+	pathNow   string       // 当前日志路径
+	logDir    string       // 日志文件夹
+	logLevel  int          // 日志等级
+	maxDays   int          // 文件有效时间
+	out       io.Writer    // io写入
+	err       error        // 错误信息
+	enablegz  bool         // 是否允许gzip压缩旧日志文件
 }
 
 // LoggerWithRolling 滚动日志
@@ -47,11 +48,12 @@ func LoggerWithRolling(logdir, filename string, maxdays, loglevel int) gin.Handl
 		logDir:   logdir,
 		logLevel: loglevel,
 		// flock:    new(sync.Mutex),
-		fname:       filename,
-		fexpired:    int64(maxdays) * 24 * 60 * 60,
-		maxDays:     maxdays,
-		oldTimeHour: time.Now().Hour(),
-		nameLink:    fmt.Sprintf("%s.current.log", filename),
+		fname:    filename,
+		fexpired: int64(maxdays)*24*60*60 - 1,
+		maxDays:  maxdays,
+		fileHour: t.Hour(),
+		fileDay:  t.Day(),
+		nameLink: fmt.Sprintf("%s.current.log", filename),
 		// nameNow:  fmt.Sprintf("%s.%v.log", filename, t.Format(gopsu.FileTimeFromat)),
 		pathLink: filepath.Join(logdir, fmt.Sprintf("%s.current.log", filename)),
 		// pathNow:  filepath.Join(logdir, fmt.Sprintf("%s.%v.log", filename, t.Format(gopsu.FileTimeFromat))),
@@ -137,10 +139,10 @@ func LoggerWithRolling(logdir, filename string, maxdays, loglevel int) gin.Handl
 
 // 检查文件大小,返回是否需要切分文件
 func (f *ginLogger) rolledWithFileSize() bool {
-	if f.oldTimeHour == time.Now().Hour() {
+	if f.fileHour == time.Now().Hour() {
 		return false
 	}
-	f.oldTimeHour = time.Now().Hour()
+	f.fileHour = time.Now().Hour()
 	fs, ex := os.Stat(f.pathNow)
 	if ex == nil {
 		if fs.Size() > 1048576000 {
@@ -161,13 +163,11 @@ func (f *ginLogger) rollingFile() bool {
 	defer f.flock.Unlock()
 
 	t := time.Now()
+	f.rolledWithFileSize()
 	f.nameNow = fmt.Sprintf("%s.%v.%d.log", f.fname, t.Format(gopsu.FileTimeFromat), f.fileIndex)
 	// 比对文件名，若不同则重新设置io
-	if f.nameNow == f.nameOld && !f.rolledWithFileSize() {
+	if f.nameNow == f.nameOld {
 		return false
-	}
-	if f.nameNow != f.nameOld {
-		f.fileIndex = 0
 	}
 	// 关闭旧fno
 	f.fno.Close()
@@ -243,7 +243,7 @@ func (f *ginLogger) clearFile() {
 			continue
 		}
 		// 比对文件生存期
-		if t.Unix()-fno.ModTime().Unix() > f.fexpired {
+		if t.Unix()-fno.ModTime().Unix() >= f.fexpired {
 			os.Remove(filepath.Join(f.logDir, fno.Name()))
 		}
 	}
@@ -266,9 +266,13 @@ func (f *ginLogger) newFile() {
 	// if f.err != nil {
 	// 	println("Symlink log file error: " + f.err.Error())
 	// }
-
+	t := time.Now()
+	if f.fileDay != t.Day() {
+		f.fileDay = t.Day()
+		f.fileIndex = 0
+	}
 	// 直接写入当日日志
-	f.nameNow = fmt.Sprintf("%s.%v.%d.log", f.fname, time.Now().Format(gopsu.FileTimeFromat), f.fileIndex)
+	f.nameNow = fmt.Sprintf("%s.%v.%d.log", f.fname, t.Format(gopsu.FileTimeFromat), f.fileIndex)
 	f.pathNow = filepath.Join(f.logDir, f.nameNow)
 	f.pathLink = f.pathNow
 	if f.fname == "" {
