@@ -188,7 +188,7 @@ func (m *Etcdv3Client) SetLogger(l *io.Writer, level int) {
 func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string) {
 	m.svrName = svrname
 	if svrip == "" {
-		svrip, _ = gopsu.RealIP("")
+		svrip, _ = gopsu.ExternalIP()
 	}
 	js, _ := sjson.Set("", "ip", svrip)
 	js, _ = sjson.Set(js, "port", svrport)
