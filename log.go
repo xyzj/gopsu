@@ -19,7 +19,7 @@ const (
 	logWarning  = 30
 	logError    = 40
 	logSystem   = 90
-	maxFileLife = 15*24*60*60 - 1
+	maxFileLife = 15*24*60*60 - 10
 	maxFileSize = 1048576000 // 1G
 )
 
@@ -71,7 +71,7 @@ func (l *MxLog) getFileSize() int64 {
 
 // SetMaxFileLife set max day log file keep
 func (l *MxLog) SetMaxFileLife(c int64) {
-	l.fileMaxLife = c*24*60*60 - 1
+	l.fileMaxLife = c*24*60*60 - 10
 }
 
 // SetMaxFileCount [Discard] use SetMaxFileLife() instead
@@ -140,16 +140,16 @@ func (l *MxLog) writeLogAsync() {
 			case msg := <-l.chanWrite:
 				l.writeLog(msg.msg, msg.level)
 			case <-t.C:
-				fs, ex := os.Stat(l.fileFullPath)
-				if ex == nil {
-					if fs.Size() > 1048576000 {
-						if l.fileIndex >= 255 {
-							l.fileIndex = 0
-						} else {
-							l.fileIndex++
-						}
-					}
-				}
+				// fs, ex := os.Stat(l.fileFullPath)
+				// if ex == nil {
+				// 	if fs.Size() > 1048576000 {
+				// 		if l.fileIndex >= 255 {
+				// 			l.fileIndex = 0
+				// 		} else {
+				// 			l.fileIndex++
+				// 		}
+				// 	}
+				// }
 			}
 		}
 	}()
@@ -379,7 +379,6 @@ func (l *MxLog) zipFile(s string) {
 		if err != nil {
 			return
 		}
-		header.Name = s
 		header.Method = zip.Deflate
 
 		writer, err := zipWriter.CreateHeader(header)

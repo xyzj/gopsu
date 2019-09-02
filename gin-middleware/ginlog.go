@@ -49,7 +49,7 @@ func LoggerWithRolling(logdir, filename string, maxdays, loglevel int) gin.Handl
 		logLevel: loglevel,
 		// flock:    new(sync.Mutex),
 		fname:    filename,
-		fexpired: int64(maxdays)*24*60*60 - 1,
+		fexpired: int64(maxdays)*24*60*60 - 10,
 		maxDays:  maxdays,
 		fileHour: t.Hour(),
 		fileDay:  t.Day(),
@@ -211,7 +211,6 @@ func (f *ginLogger) zipFile(s string) {
 		if err != nil {
 			return
 		}
-		header.Name = s
 		header.Method = zip.Deflate
 
 		writer, err := zipWriter.CreateHeader(header)
