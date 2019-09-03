@@ -106,6 +106,9 @@ func LoggerWithRolling(logdir, filename string, maxdays, loglevel int) gin.Handl
 		if len(c.Params) > 0 {
 			var raw = url.Values{}
 			for _, v := range c.Params {
+				if strings.HasPrefix(v.Key, "_") {
+					continue
+				}
 				raw.Add(v.Key, v.Value)
 			}
 			path += "?" + raw.Encode()
