@@ -1,6 +1,7 @@
 package mq
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"strings"
@@ -302,8 +303,8 @@ func (sessn *Session) UnBindKey(k string) error {
 	}
 	return fmt.Errorf("Failed to Unbind key, channel not ready")
 }
-func (sessn *Session) initProducer() {
 
+func (sessn *Session) initProducer() {
 }
 
 // Send 发送数据,默认数据有效期10分钟
@@ -350,11 +351,23 @@ func (sessn *Session) SendCustom(d *RabbitMQData) {
 			// }
 		)
 		if err != nil {
-			sessn.writeLog("Failed to send to "+sessn.addr+": "+err.Error(), 40)
+			sessn.writeLog("SndErr:"+sessn.addr+"|"+err.Error()+"|"+d.RoutingKey, 40)
 		} else {
 			if sessn.loggerLevel <= 10 {
-				sessn.writeLog("S:"+sessn.addr+"|"+d.RoutingKey, 10)
+				sessn.writeLog("S:"+sessn.addr+"|"+d.RoutingKey+"|"+FormatMQBody(d.Data.Body), 10)
 			}
 		}
 	}()
+}
+
+// FormatMQBody 格式化日志输出
+func FormatMQBody(d []byte) string {
+	var body = string(d)
+	for _, v := range d {
+		if v > 126 || v < 32 {
+			body = base64.StdEncoding.EncodeToString(d)
+			break
+		}
+	}
+	return body
 }
