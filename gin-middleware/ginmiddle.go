@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang/protobuf/proto"
+
 	gingzip "github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
@@ -230,7 +232,7 @@ func ReadCachePB2(mydb *db.MySQL) gin.HandlerFunc {
 					cacherows := gopsu.String2Int(c.Param("cachesrows"), 10)
 					ans := mydb.QueryCachePB2(cachetag, cachestart, cacherows)
 					if ans.Total > 0 {
-						b, _ := ans.Marshal()
+						b, _ := proto.Marshal(ans)
 						c.Params = append(c.Params, gin.Param{
 							Key:   "_cacheData",
 							Value: string(b),
