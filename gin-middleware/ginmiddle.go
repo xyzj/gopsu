@@ -52,15 +52,15 @@ func NewGinEngine(logDir, logName string, logDays, logLevel int) *gin.Engine {
 }
 
 func getSocketTimeout() time.Duration {
-	var t = 60
+	var t = 120
 	if gopsu.IsExist(".sockettimeout") {
 		b, err := ioutil.ReadFile(".sockettimeout")
 		if err == nil {
 			t = gopsu.String2Int(string(b), 10)
 		}
 	}
-	if t < 60 {
-		t = 60
+	if t < 120 {
+		t = 120
 	}
 	return time.Second * time.Duration(t)
 }
@@ -81,7 +81,6 @@ func getRoutes(h *gin.Engine) string {
 
 // ListenAndServe 启用监听
 // port：端口号
-// timeout：读写超时
 // h： http.hander, like gin.New()
 func ListenAndServe(port int, h *gin.Engine) error {
 	sss := getRoutes(h)
@@ -105,7 +104,6 @@ func ListenAndServe(port int, h *gin.Engine) error {
 
 // ListenAndServeTLS 启用TLS监听
 // port：端口号
-// timeout：读写超时
 // h： http.hander, like gin.New()
 // certfile： cert file path
 // keyfile： key file path
