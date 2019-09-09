@@ -1,3 +1,0 @@
-[submodule "uuid"]
-	path = uuid
-	url = https://github.com/satori/go.uuid.git
