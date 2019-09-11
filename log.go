@@ -168,7 +168,11 @@ func (l *MxLog) writeLog(msg string, level int, lock ...bool) {
 	}
 
 	if level >= l.logLevel {
-		fmt.Fprintln(l.DefaultWriter, fmt.Sprintf("%s [%02d] %s", time.Now().Format(ShortTimeFormat), level, msg))
+		s := fmt.Sprintf("%s [%02d] %s", time.Now().Format(ShortTimeFormat), level, msg)
+		fmt.Fprintln(l.DefaultWriter, s)
+		if level >= 40 && l.logLevel >= 20 {
+			println(s)
+		}
 		// l.fileLogger.Println(msg)
 		// l.fileSize += int64(len(msg) + 17)
 	}

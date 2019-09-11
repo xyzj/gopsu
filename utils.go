@@ -1485,43 +1485,51 @@ func Bytes2Int64(b []byte, bigorder bool) int64 {
 }
 
 // GetServerTLSConfig 获取https配置
-func GetServerTLSConfig(certfile, keyfile, cafile string) (*tls.Config, error) {
-	pool := x509.NewCertPool()
-
-	caCrt, err := ioutil.ReadFile(cafile)
-	if err != nil {
-		return nil, err
-	}
-	pool.AppendCertsFromPEM(caCrt)
-
+// certfile: 服务端证书
+// keyfile: 服务端key
+// clientca: 双向验证时客户端根证书
+func GetServerTLSConfig(certfile, keyfile, clientca string) (*tls.Config, error) {
+	tc := &tls.Config{}
 	cliCrt, err := tls.LoadX509KeyPair(certfile, keyfile)
 	if err != nil {
 		return nil, err
 	}
-	return &tls.Config{
-		ClientCAs:    pool,
-		ClientAuth:   tls.RequireAndVerifyClientCert,
-		Certificates: []tls.Certificate{cliCrt},
-	}, nil
+	tc.Certificates = []tls.Certificate{cliCrt}
+	caCrt, err := ioutil.ReadFile(clientca)
+	if err != nil {
+		return nil, err
+	}
+	pool := x509.NewCertPool()
+	if pool.AppendCertsFromPEM(caCrt) {
+		tc.ClientCAs = pool
+		tc.ClientAuth = tls.RequireAndVerifyClientCert
+	}
+	return tc, nil
 }
 
 // GetClientTLSConfig 获取https配置
-func GetClientTLSConfig(certfile, keyfile, cafile string) (*tls.Config, error) {
-	pool := x509.NewCertPool()
-
-	caCrt, err := ioutil.ReadFile(cafile)
+// certfile: 双向验证时客户端证书
+// keyfile: 双向验证时客户端key
+// rootca: 服务端根证书
+func GetClientTLSConfig(certfile, keyfile, rootca string) (*tls.Config, error) {
+	tc := &tls.Config{}
+	var err error
+	caCrt, err := ioutil.ReadFile(rootca)
 	if err != nil {
 		return nil, err
 	}
-	pool.AppendCertsFromPEM(caCrt)
+	pool := x509.NewCertPool()
+	if pool.AppendCertsFromPEM(caCrt) {
+		tc.RootCAs = pool
+		tc.InsecureSkipVerify = false
+	} else {
+		tc.InsecureSkipVerify = true
+	}
 
 	cliCrt, err := tls.LoadX509KeyPair(certfile, keyfile)
 	if err != nil {
-		return nil, err
+		return tc, nil
 	}
-	return &tls.Config{
-		RootCAs:            pool,
-		InsecureSkipVerify: false,
-		Certificates:       []tls.Certificate{cliCrt},
-	}, nil
+	tc.Certificates = []tls.Certificate{cliCrt}
+	return tc, nil
 }

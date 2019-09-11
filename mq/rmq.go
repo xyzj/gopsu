@@ -1,6 +1,7 @@
 package mq
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -41,6 +42,7 @@ type Session struct {
 	queueDelete   bool               // 队列在不用时是否删除
 	queueDelivery chan amqp.Delivery // 消息
 	sessnType     string             // consumer or producer
+	tlsConf       *tls.Config        // tls配置
 }
 
 // NewConsumer 初始化消费者实例
@@ -82,6 +84,12 @@ func (sessn *Session) Start() {
 	sessn.handleReconnect(sessn.sessnType)
 }
 
+// StartTLS 使用ssl连接
+func (sessn *Session) StartTLS(t *tls.Config) {
+	sessn.tlsConf = t
+	sessn.Start()
+}
+
 // SetLogger SetLogger
 func (sessn *Session) SetLogger(w *io.Writer, l int) {
 	sessn.logger = w
@@ -95,10 +103,11 @@ func (sessn *Session) writeLog(s string, l int) {
 			println(s)
 		}
 	} else {
-		if l >= sessn.loggerLevel && l < 90 {
+		if l >= sessn.loggerLevel {
 			fmt.Fprintln(*sessn.logger, s)
-		} else if l == 90 {
-			println(s)
+			if l >= 40 && sessn.loggerLevel >= 20 {
+				println(s)
+			}
 		}
 	}
 }
@@ -150,10 +159,16 @@ func (sessn *Session) handleReconnect(t string) {
 func (sessn *Session) connect() bool {
 	sessn.isReady = false
 	sessn.writeLog("Attempting to connect to "+sessn.addr, 30)
-	conn, err := amqp.Dial(sessn.connStr)
+	var err error
+	var conn *amqp.Connection
+	if sessn.tlsConf == nil {
+		conn, err = amqp.Dial(sessn.connStr)
+	} else {
+		conn, err = amqp.DialTLS(sessn.connStr, sessn.tlsConf)
+	}
 
 	if err != nil {
-		sessn.writeLog("Failed to connnect to "+sessn.addr, 40)
+		sessn.writeLog("Failed to connnect to "+sessn.addr+"|"+err.Error(), 40)
 		return false
 	}
 	sessn.connection = conn
