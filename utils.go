@@ -33,6 +33,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf16"
 
 	"github.com/google/uuid"
 
@@ -1532,4 +1533,14 @@ func GetClientTLSConfig(certfile, keyfile, rootca string) (*tls.Config, error) {
 	}
 	tc.Certificates = []tls.Certificate{cliCrt}
 	return tc, nil
+}
+
+// EncodeUTF16BE 将字符串编码成utf16be的格式，用于cdma短信发送
+func EncodeUTF16BE(s string) []byte {
+	a := utf16.Encode([]rune(s))
+	var b bytes.Buffer
+	for _, v := range a {
+		b.Write([]byte{byte(v >> 8), byte(v)})
+	}
+	return b.Bytes()
 }
