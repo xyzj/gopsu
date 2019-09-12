@@ -57,10 +57,15 @@ const (
 	FileTimeFromat = "060102" // 日志文件命名格式
 )
 const (
+	// CryptoMD5 md5算法
 	CryptoMD5 = iota
+	// CryptoSHA256 sha256算法
 	CryptoSHA256
+	// CryptoSHA512 sha512算法
 	CryptoSHA512
+	// CryptoAES128CBC aes128cbc算法
 	CryptoAES128CBC
+	// CryptoAES128CFB aes128cfb算法
 	CryptoAES128CFB
 )
 
@@ -554,43 +559,38 @@ type StringSliceSort struct {
 func (arr *StringSliceSort) Len() int {
 	if len(arr.OneDimensional) > 0 {
 		return len(arr.OneDimensional)
-	} else {
-		return len(arr.TwoDimensional)
 	}
+	return len(arr.TwoDimensional)
 }
 
 func (arr *StringSliceSort) Swap(i, j int) {
 	if len(arr.OneDimensional) > 0 {
 		arr.OneDimensional[i], arr.OneDimensional[j] = arr.OneDimensional[j], arr.OneDimensional[i]
-	} else {
-		arr.TwoDimensional[i], arr.TwoDimensional[j] = arr.TwoDimensional[j], arr.TwoDimensional[i]
 	}
+	arr.TwoDimensional[i], arr.TwoDimensional[j] = arr.TwoDimensional[j], arr.TwoDimensional[i]
 }
 
 func (arr *StringSliceSort) Less(i, j int) bool {
 	if arr.Order == "desc" {
 		if len(arr.OneDimensional) > 0 {
 			return arr.OneDimensional[i] > arr.OneDimensional[j]
-		} else {
-			arr1 := arr.TwoDimensional[i]
-			arr2 := arr.TwoDimensional[j]
-			if arr.Idx > len(arr.TwoDimensional[0]) {
-				arr.Idx = 0
-			}
-			return arr1[arr.Idx] > arr2[arr.Idx]
 		}
-	} else {
-		if len(arr.OneDimensional) > 0 {
-			return arr.OneDimensional[i] < arr.OneDimensional[j]
-		} else {
-			arr1 := arr.TwoDimensional[i]
-			arr2 := arr.TwoDimensional[j]
-			if arr.Idx > len(arr.TwoDimensional[0]) {
-				arr.Idx = 0
-			}
-			return arr1[arr.Idx] < arr2[arr.Idx]
+		arr1 := arr.TwoDimensional[i]
+		arr2 := arr.TwoDimensional[j]
+		if arr.Idx > len(arr.TwoDimensional[0]) {
+			arr.Idx = 0
 		}
+		return arr1[arr.Idx] > arr2[arr.Idx]
 	}
+	if len(arr.OneDimensional) > 0 {
+		return arr.OneDimensional[i] < arr.OneDimensional[j]
+	}
+	arr1 := arr.TwoDimensional[i]
+	arr2 := arr.TwoDimensional[j]
+	if arr.Idx > len(arr.TwoDimensional[0]) {
+		arr.Idx = 0
+	}
+	return arr1[arr.Idx] < arr2[arr.Idx]
 }
 
 // Queue queue for go
@@ -686,11 +686,11 @@ func GetAddrFromString(straddr string) ([]int64, error) {
 				lstAddr = append(lstAddr, i)
 			}
 		} else {
-			if y, ex := strconv.ParseInt(strings.TrimSpace(v), 10, 0); ex != nil {
+			y, ex := strconv.ParseInt(strings.TrimSpace(v), 10, 0)
+			if ex != nil {
 				return nil, ex
-			} else {
-				lstAddr = append(lstAddr, y)
 			}
+			lstAddr = append(lstAddr, y)
 		}
 	}
 	return lstAddr, nil
@@ -705,22 +705,21 @@ func CheckIP(ip string) bool {
 	regip := `^(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|[1-9])\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)$`
 	regipwithport := `^(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|[1-9])\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d):\d{1,5}$`
 	if strings.Contains(ip, ":") {
-		if a, ex := regexp.Match(regipwithport, []byte(ip)); ex != nil {
+		a, ex := regexp.Match(regipwithport, []byte(ip))
+		if ex != nil {
 			return false
-		} else {
-			s := strings.Split(ip, ":")[1]
-			if p, err := strconv.Atoi(s); err != nil || p > 65535 {
-				return false
-			}
-			return a
 		}
-	} else {
-		if a, ex := regexp.Match(regip, []byte(ip)); ex != nil {
+		s := strings.Split(ip, ":")[1]
+		if p, err := strconv.Atoi(s); err != nil || p > 65535 {
 			return false
-		} else {
-			return a
 		}
+		return a
 	}
+	a, ex := regexp.Match(regip, []byte(ip))
+	if ex != nil {
+		return false
+	}
+	return a
 }
 
 // MakeRuntimeDirs make conf,log,cache dirs
@@ -1142,9 +1141,8 @@ func DecodeStringOld(s string) string {
 			}
 		}
 		return ReverseString(string(DoZlibUnCompress(ns.Bytes())))
-	} else {
-		return ""
 	}
+	return ""
 }
 
 // DoZlibUnCompress zlib uncompress
@@ -1278,8 +1276,8 @@ func PB2Json(pb interface{}) []byte {
 	return jsonBytes
 }
 
-// Json2PB json字符串转pb2格式
-func Json2PB(js string, pb interface{}) error {
+// JSON2PB json字符串转pb2格式
+func JSON2PB(js string, pb interface{}) error {
 	err := json.Unmarshal([]byte(js), &pb)
 	return err
 }
@@ -1295,7 +1293,7 @@ func Uint642Bytes(i uint64, bigOrder bool) []byte {
 	return buf
 }
 
-// UInt642Bytes 无符号长整形转换字节数组（8位），bigOrder==true，高位在前
+// Int642Bytes 无符号长整形转换字节数组（8位），bigOrder==true，高位在前
 func Int642Bytes(i int64, bigOrder bool) []byte {
 	bytesBuffer := bytes.NewBuffer([]byte{})
 	if bigOrder {
