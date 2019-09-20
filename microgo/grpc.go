@@ -124,24 +124,30 @@ func GetGRPCSecureConfig(cafiles ...string) (*credentials.TransportCredentials, 
 			if err != nil {
 				return nil, err
 			}
+			if gopsu.IsExist(caroot) {
+				// Create a certificate pool from the certificate authority
+				certPool := x509.NewCertPool()
+				ca, err := ioutil.ReadFile(caroot)
+				if err != nil {
+					return nil, err
+				}
 
-			// Create a certificate pool from the certificate authority
-			certPool := x509.NewCertPool()
-			ca, err := ioutil.ReadFile(caroot)
+				// Append the certificates from the CA
+				if ok := certPool.AppendCertsFromPEM(ca); !ok {
+					return nil, errors.New("failed to append ca certs")
+				}
+
+				creds := credentials.NewTLS(&tls.Config{
+					ServerName:   svrip, // NOTE: this is required!
+					Certificates: []tls.Certificate{certificate},
+					RootCAs:      certPool,
+				})
+				return &creds, nil
+			}
+			creds, err := credentials.NewServerTLSFromFile(certfile, keyfile)
 			if err != nil {
 				return nil, err
 			}
-
-			// Append the certificates from the CA
-			if ok := certPool.AppendCertsFromPEM(ca); !ok {
-				return nil, errors.New("failed to append ca certs")
-			}
-
-			creds := credentials.NewTLS(&tls.Config{
-				ServerName:   svrip, // NOTE: this is required!
-				Certificates: []tls.Certificate{certificate},
-				RootCAs:      certPool,
-			})
 			return &creds, nil
 		}
 		return nil, fmt.Errorf("no cert,key,caroot files found")
