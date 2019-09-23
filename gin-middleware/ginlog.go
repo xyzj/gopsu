@@ -17,7 +17,7 @@ import (
 	"github.com/xyzj/gopsu"
 )
 
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
+var json = jsoniter.Config{}.Froze()
 
 type ginLogger struct {
 	fno       *os.File     // 文件日志

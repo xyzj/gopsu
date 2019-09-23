@@ -16,7 +16,6 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"hash"
@@ -35,11 +34,10 @@ import (
 	"time"
 	"unicode/utf16"
 
-	"github.com/google/uuid"
-
 	"github.com/golang/snappy"
+	"github.com/google/uuid"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/pierrec/lz4"
-	// _ "github.com/go-sql-driver/mysql"
 )
 
 const (
@@ -91,6 +89,8 @@ var (
 	// DefaultConfDir 默认配置文件夹
 	DefaultConfDir string
 )
+
+var json = jsoniter.Config{}.Froze()
 
 func init() {
 	DefaultConfDir, DefaultLogDir, DefaultCacheDir = MakeRuntimeDirs(".")
@@ -1267,13 +1267,22 @@ func CheckSQLInject(s string) bool {
 	return re.MatchString(s)
 }
 
-// PB2Json pb2格式转换为json字符串
+// PB2Json pb2格式转换为json []byte格式
 func PB2Json(pb interface{}) []byte {
 	jsonBytes, err := json.Marshal(pb)
 	if err != nil {
 		return nil
 	}
 	return jsonBytes
+}
+
+// PB2String pb2格式转换为json 字符串格式
+func PB2String(pb interface{}) string {
+	jsonStr, err := json.MarshalToString(pb)
+	if err != nil {
+		return ""
+	}
+	return jsonStr
 }
 
 // JSON2PB json字符串转pb2格式
