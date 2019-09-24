@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tidwall/sjson"
+
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/xyzj/gopsu"
@@ -104,18 +106,41 @@ func LoggerWithRolling(logdir, filename string, maxdays, loglevel int) gin.Handl
 		// 	path = path + "?" + raw
 		// }
 		if len(c.Params) > 0 {
-			var raw = url.Values{}
-			for _, v := range c.Params {
-				if strings.HasPrefix(v.Key, "_") {
-					continue
+			switch c.Request.Header.Get("Content-Type") {
+			case "application/x-www-form-urlencoded":
+				var raw = url.Values{}
+				for _, v := range c.Params {
+					if strings.HasPrefix(v.Key, "_") {
+						continue
+					}
+					raw.Add(v.Key, v.Value)
 				}
-				raw.Add(v.Key, v.Value)
+				path += "?" + raw.Encode()
+			default:
+				var s string
+				for _, v := range c.Params {
+					if strings.HasPrefix(v.Key, "_") {
+						continue
+					}
+					s, _ = sjson.Set(s, v.Key, v.Value)
+				}
+				path += "?" + s
 			}
-			path += "?" + raw.Encode()
 		}
 		param.Path = path
+
 		var s string
 		if len(param.Keys) == 0 {
+			s = fmt.Sprintf("%v |%3d| %-10s | %-15s|%-4s %s",
+				param.TimeStamp.Format(gopsu.ShortTimeFormat),
+				param.StatusCode,
+				param.Latency,
+				param.ClientIP,
+				param.Method,
+				param.Path,
+			)
+		} else {
+			jsn, _ := json.Marshal(param.Keys)
 			s = fmt.Sprintf("%v |%3d| %-10s | %-15s|%-4s %s|%s",
 				param.TimeStamp.Format(gopsu.ShortTimeFormat),
 				param.StatusCode,
@@ -123,20 +148,11 @@ func LoggerWithRolling(logdir, filename string, maxdays, loglevel int) gin.Handl
 				param.ClientIP,
 				param.Method,
 				param.Path,
-				param.ErrorMessage,
-			)
-		} else {
-			jsn, _ := json.Marshal(param.Keys)
-			s = fmt.Sprintf("%v |%3d| %-10s | %-15s|%-4s %s|%s|%s",
-				param.TimeStamp.Format(gopsu.ShortTimeFormat),
-				param.StatusCode,
-				param.Latency,
-				param.ClientIP,
-				param.Method,
-				param.Path,
 				jsn,
-				param.ErrorMessage,
 			)
+		}
+		if param.ErrorMessage != "" {
+			s += " |>" + param.ErrorMessage
 		}
 		fmt.Fprintln(f.out, s)
 	}
