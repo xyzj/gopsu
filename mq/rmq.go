@@ -97,7 +97,7 @@ func (sessn *Session) SetLogger(w *io.Writer, l int) {
 }
 
 func (sessn *Session) writeLog(s string, l int) {
-	s = fmt.Sprintf("%v [%02d] [MQ] %s", time.Now().Format(gopsu.LogTimeFormat), l, s)
+	s = fmt.Sprintf("%v [%02d] [MQ] %s", time.Now().Format(gopsu.ShortTimeFormat), l, s)
 	if sessn.logger == nil {
 		if sessn.debug {
 			println(s)

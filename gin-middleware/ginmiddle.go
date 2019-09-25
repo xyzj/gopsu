@@ -99,7 +99,7 @@ func ListenAndServe(port int, h *gin.Engine) error {
 		WriteTimeout: getSocketTimeout(),
 		IdleTimeout:  getSocketTimeout(),
 	}
-	fmt.Fprintf(gin.DefaultWriter, "%s [90] [%s] %s\n", time.Now().Format(gopsu.LogTimeFormat), "HTTP", "Success start HTTP server at :"+strconv.Itoa(port))
+	fmt.Fprintf(gin.DefaultWriter, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTP server at :"+strconv.Itoa(port))
 	return s.ListenAndServe()
 }
 
@@ -140,7 +140,7 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 		TLSConfig:    tc,
 	}
 
-	fmt.Fprintf(gin.DefaultWriter, "%s [90] [%s] %s\n", time.Now().Format(gopsu.LogTimeFormat), "HTTP", "Success start HTTPS server at :"+strconv.Itoa(port))
+	fmt.Fprintf(gin.DefaultWriter, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTPS server at :"+strconv.Itoa(port))
 	return s.ListenAndServeTLS(certfile, keyfile)
 }
 
