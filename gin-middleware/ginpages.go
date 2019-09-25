@@ -2,7 +2,10 @@ package ginmiddleware
 
 import (
 	"html/template"
+	"io/ioutil"
 	"net/http"
+	"path"
+	"runtime"
 	"strings"
 	"time"
 
@@ -221,6 +224,15 @@ func PageDefault(c *gin.Context) {
 
 // PageRuntime 启动信息显示
 func PageRuntime(c *gin.Context) {
+	if len(runtimeInfo["ver"].([]string)) == 0 {
+		_, fn, _, ok := runtime.Caller(0)
+		if ok {
+			b, err := ioutil.ReadFile(path.Base(fn) + ".ver")
+			if err == nil {
+				runtimeInfo["ver"] = strings.Split(string(b), "\n")
+			}
+		}
+	}
 	// c.Header("Content-Type", "text/html")
 	// c.Status(http.StatusOK)
 	// render.WriteString(c.Writer, templateRuntime, nil)
