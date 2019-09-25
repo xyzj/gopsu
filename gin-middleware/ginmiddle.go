@@ -47,6 +47,7 @@ func NewGinEngine(logDir, logName string, logDays, logLevel int) *gin.Engine {
 	r.GET("/", PageDefault)
 	r.POST("/", PageDefault)
 	r.GET("/health", PageDefault)
+	r.GET("/runtime", PageRuntime)
 
 	return r
 }
