@@ -106,8 +106,7 @@ func LoggerWithRolling(logdir, filename string, maxdays, loglevel int) gin.Handl
 		// 	path = path + "?" + raw
 		// }
 		if len(c.Params) > 0 {
-			switch c.Request.Header.Get("Content-Type") {
-			case "application/x-www-form-urlencoded":
+			if c.Request.Method == "GET" || c.GetHeader("Content-Type") == "application/x-www-form-urlencoded" {
 				var raw = url.Values{}
 				for _, v := range c.Params {
 					if strings.HasPrefix(v.Key, "_") {
@@ -116,7 +115,7 @@ func LoggerWithRolling(logdir, filename string, maxdays, loglevel int) gin.Handl
 					raw.Add(v.Key, v.Value)
 				}
 				path += "?" + raw.Encode()
-			default:
+			} else {
 				var s string
 				for _, v := range c.Params {
 					if strings.HasPrefix(v.Key, "_") {
