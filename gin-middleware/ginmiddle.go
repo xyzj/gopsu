@@ -243,3 +243,28 @@ func ReadCachePB2(mydb *db.MySQL) gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// CheckSecurityCode 校验安全码
+// codeType: 安全码更新周期，h: 每小时更新，m: 每分钟更新
+// codeRange: 安全码容错范围（分钟）
+func CheckSecurityCode(codeType string, codeRange int) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sc := c.GetHeader("Legal-High")
+		found := false
+		if len(sc) == 32 {
+			for _, v := range gopsu.CalculateSecurityCode(codeType, time.Now().Month().String(), codeRange) {
+				if v == sc {
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			c.Set("status", 0)
+			c.Set("detail", "Illegal Security-Code")
+			c.AbortWithStatusJSON(200, c.Keys)
+			return
+		}
+		c.Next()
+	}
+}
