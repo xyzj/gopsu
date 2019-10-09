@@ -67,7 +67,7 @@ func (p *SunrisesetParams) Calculation() bool {
 	feb, ok := p.SunResult.Load("0228")
 	if ok {
 		var feb29 = &SunrisesetResult{
-			Month:   feb.(*SunrisesetResult).Month,
+			Month:   2,
 			Day:     29,
 			Sunrise: feb.(*SunrisesetResult).Sunrise,
 			Sunset:  feb.(*SunrisesetResult).Sunset,

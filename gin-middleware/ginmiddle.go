@@ -162,35 +162,38 @@ func CheckRequired(params ...string) gin.HandlerFunc {
 // ReadParams 读取请求的参数，保存到c.Params
 func ReadParams() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		b, _ := c.GetRawData()
-		m := gjson.ParseBytes(b)
-		if m.Exists() {
-			m.ForEach(func(key, value gjson.Result) bool {
-				if strings.HasPrefix(key.String(), "_") {
+		switch strings.Split(c.GetHeader("Content-Type"), ";")[0] {
+		case "application/json", "application/x-www-form-urlencode": // 传参类，进行解析
+			b, _ := c.GetRawData()
+			m := gjson.ParseBytes(b)
+			if m.Exists() {
+				m.ForEach(func(key, value gjson.Result) bool {
+					if strings.HasPrefix(key.String(), "_") {
+						return true
+					}
+					c.Params = append(c.Params, gin.Param{
+						Key:   key.String(),
+						Value: value.String(),
+					})
 					return true
-				}
-				c.Params = append(c.Params, gin.Param{
-					Key:   key.String(),
-					Value: value.String(),
 				})
-				return true
-			})
-		} else {
-			var x url.Values
-			switch c.Request.Method {
-			case "GET":
-				x, _ = url.ParseQuery(c.Request.URL.RawQuery)
-			case "POST":
-				x, _ = url.ParseQuery(string(b))
-			}
-			for k := range x {
-				if strings.HasPrefix(k, "_") {
-					continue
+			} else {
+				var x url.Values
+				switch c.Request.Method {
+				case "GET":
+					x, _ = url.ParseQuery(c.Request.URL.RawQuery)
+				case "POST":
+					x, _ = url.ParseQuery(string(b))
 				}
-				c.Params = append(c.Params, gin.Param{
-					Key:   k,
-					Value: x.Get(k),
-				})
+				for k := range x {
+					if strings.HasPrefix(k, "_") {
+						continue
+					}
+					c.Params = append(c.Params, gin.Param{
+						Key:   k,
+						Value: x.Get(k),
+					})
+				}
 			}
 		}
 		c.Next()
