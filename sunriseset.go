@@ -40,29 +40,28 @@ func (p *SunrisesetParams) Calculation() bool {
 	}
 	var lock sync.WaitGroup
 	var faultCount int32
-	mm := []time.Month{time.January, time.February, time.March, time.April, time.May, time.June, time.July, time.August, time.September, time.October, time.November, time.December}
-	for m := 1; m <= 12; m++ {
-		for d := 1; d <= 31; d++ {
-			tt := time.Date(p.Year, mm[m-1], d, 0, 0, 0, 0, time.UTC)
-			go func() {
-				lock.Add(1)
-				defer lock.Done()
-				rise, set, err := GetSunriseSunset(p.Latitude, p.Longitude, p.UtcOffset, tt)
-				if err != nil {
-					atomic.AddInt32(&faultCount, 1)
-					return
-				}
-				p.SunResult.Store(fmt.Sprintf("%02d%02d", tt.Month(), tt.Day()), &SunrisesetResult{
-					Month:   int(tt.Month()),
-					Day:     tt.Day(),
-					Sunrise: rise.Hour()*60 + rise.Minute(),
-					Sunset:  set.Hour()*60 + set.Minute(),
-				})
-			}()
-		}
+	var days int32
+	for i := 1; i <= 366; i++ {
+		go func() {
+			lock.Add(1)
+			defer lock.Done()
+			dd := int(atomic.AddInt32(&days, 1))
+			tt := time.Date(p.Year, time.January, dd, 0, 0, 0, 0, time.UTC)
+			rise, set, err := GetSunriseSunset(p.Latitude, p.Longitude, p.UtcOffset, tt)
+			if err != nil {
+				atomic.AddInt32(&faultCount, 1)
+				return
+			}
+			p.SunResult.Store(fmt.Sprintf("%02d%02d", tt.Month(), tt.Day()), &SunrisesetResult{
+				Month:   int(tt.Month()),
+				Day:     tt.Day(),
+				Sunrise: rise.Hour()*60 + rise.Minute(),
+				Sunset:  set.Hour()*60 + set.Minute(),
+			})
+		}()
 	}
 	lock.Wait()
-	if faultCount > 8 {
+	if faultCount > 1 {
 		return false
 	}
 	feb, ok := p.SunResult.Load("0228")
