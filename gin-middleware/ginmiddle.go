@@ -11,11 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/proto"
-
 	gingzip "github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
+	"github.com/gogo/protobuf/proto"
 	"github.com/tidwall/gjson"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/db"
@@ -162,38 +161,33 @@ func CheckRequired(params ...string) gin.HandlerFunc {
 // ReadParams 读取请求的参数，保存到c.Params
 func ReadParams() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		switch strings.Split(c.GetHeader("Content-Type"), ";")[0] {
-		case "application/json", "application/x-www-form-urlencode": // 传参类，进行解析
-			b, _ := c.GetRawData()
-			m := gjson.ParseBytes(b)
-			if m.Exists() {
-				m.ForEach(func(key, value gjson.Result) bool {
-					if strings.HasPrefix(key.String(), "_") {
-						return true
-					}
-					c.Params = append(c.Params, gin.Param{
-						Key:   key.String(),
-						Value: value.String(),
-					})
-					return true
-				})
-			} else {
-				var x url.Values
-				switch c.Request.Method {
-				case "GET":
-					x, _ = url.ParseQuery(c.Request.URL.RawQuery)
-				case "POST":
+		var ct = strings.Split(c.GetHeader("Content-Type"), ";")[0]
+		switch ct {
+		case "", "application/json", "application/x-www-form-urlencoded": // 传参类，进行解析
+			var x = url.Values{}
+			switch c.Request.Method {
+			case "GET": // get请求忽略body内容
+				x, _ = url.ParseQuery(c.Request.URL.RawQuery)
+			default: // post，put，delete等请求只认body
+				b, _ := ioutil.ReadAll(c.Request.Body)
+				switch ct {
+				case "", "application/x-www-form-urlencoded":
 					x, _ = url.ParseQuery(string(b))
-				}
-				for k := range x {
-					if strings.HasPrefix(k, "_") {
-						continue
-					}
-					c.Params = append(c.Params, gin.Param{
-						Key:   k,
-						Value: x.Get(k),
+				default:
+					gjson.ParseBytes(b).ForEach(func(key, value gjson.Result) bool {
+						x.Add(key.String(), value.String())
+						return true
 					})
 				}
+			}
+			for k := range x {
+				if strings.HasPrefix(k, "_") {
+					continue
+				}
+				c.Params = append(c.Params, gin.Param{
+					Key:   k,
+					Value: x.Get(k),
+				})
 			}
 		}
 		c.Next()
