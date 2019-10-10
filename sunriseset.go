@@ -46,8 +46,8 @@ func (p *SunrisesetParams) Calculation() bool {
 			lock.Add(1)
 			defer lock.Done()
 			dd := int(atomic.AddInt32(&days, 1))
-			tt := time.Date(p.Year, time.January, dd, 0, 0, 0, 0, time.UTC)
-			rise, set, err := GetSunriseSunset(p.Latitude, p.Longitude, p.UtcOffset, tt)
+			tt := time.Date(p.Year, time.January, dd, 0, 0, 0, 0, time.Local)
+			rise, set, err := GetSunriseSunset(p.Latitude, p.Longitude, 0, tt)
 			if err != nil {
 				atomic.AddInt32(&faultCount, 1)
 				return
