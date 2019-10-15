@@ -331,6 +331,32 @@ func (m *Etcdv3Client) Picker(svrname string, intfc ...string) (string, error) {
 	return "", fmt.Errorf(`No matching server was found with the name %s`, svrname)
 }
 
+// PickerDetail 服务选择,如果是http服务，同时返回协议头如http(s)://ip:port
+//
+// args:
+//  svrname: 服务名称
+//  intfc: 服务类型，协议类型
+// return:
+//  string: 服务地址
+//  error
+func (m *Etcdv3Client) PickerDetail(svrname string, intfc ...string) (string, error) {
+	listSvr := m.pickerList(svrname, intfc...)
+	if len(listSvr) > 0 {
+		// 排序，获取命中最少的服务地址
+		sortlist := &gopsu.StringSliceSort{}
+		sortlist.TwoDimensional = listSvr
+		sort.Sort(sortlist)
+		isvr, _ := m.svrPool.Load(listSvr[0][2])
+		svr := isvr.(*registeredServer)
+		m.addPickTimes(listSvr[0][2], svr)
+		if strings.HasPrefix(svr.svrInterface, "http") {
+			return svr.svrInterface + "://" + svr.svrAddr, nil
+		}
+		return svr.svrAddr, nil
+	}
+	return "", fmt.Errorf(`No matching server was found with the name %s`, svrname)
+}
+
 // ReportDeadServer 报告无法访问的服务，从缓存中删除
 func (m *Etcdv3Client) ReportDeadServer(addr string) {
 	m.svrPool.Range(func(k, v interface{}) bool {
