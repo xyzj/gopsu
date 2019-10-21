@@ -91,6 +91,15 @@ var (
 var json = jsoniter.Config{}.Froze()
 
 func init() {
+	if _, err := os.Stat(".init"); err == nil {
+		if b, err := ioutil.ReadFile(".init"); err == nil {
+			if string(b) == "nil" {
+				return
+			}
+			DefaultConfDir, DefaultLogDir, DefaultCacheDir = MakeRuntimeDirs(string(b))
+			return
+		}
+	}
 	DefaultConfDir, DefaultLogDir, DefaultCacheDir = MakeRuntimeDirs(".")
 }
 
