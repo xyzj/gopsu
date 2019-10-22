@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	gingzip "github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
@@ -29,6 +30,15 @@ import (
 func NewGinEngine(logDir, logName string, logDays, logLevel int) *gin.Engine {
 	r := gin.New()
 	// 中间件
+	//cors
+	r.Use(cors.New(cors.Config{
+		MaxAge:           time.Hour * 24,
+		AllowAllOrigins:  true,
+		AllowCredentials: true,
+		AllowWildcard:    true,
+		AllowMethods:     []string{"*"},
+		AllowHeaders:     []string{"*"},
+	}))
 	// 日志
 	r.Use(LoggerWithRolling(logDir, logName, logDays, logLevel))
 	// 错误恢复
