@@ -178,12 +178,24 @@ func ReadParams() gin.HandlerFunc {
 			switch c.Request.Method {
 			case "GET": // get请求忽略body内容
 				x, _ = url.ParseQuery(c.Request.URL.RawQuery)
+				c.Params = append(c.Params, gin.Param{
+					Key:   "_raw",
+					Value: x.Encode(),
+				})
 			default: // post，put，delete等请求只认body
 				b, _ := ioutil.ReadAll(c.Request.Body)
 				switch ct {
 				case "", "application/x-www-form-urlencoded":
 					x, _ = url.ParseQuery(string(b))
+					c.Params = append(c.Params, gin.Param{
+						Key:   "_raw",
+						Value: x.Encode(),
+					})
 				default:
+					c.Params = append(c.Params, gin.Param{
+						Key:   "_raw",
+						Value: string(b),
+					})
 					gjson.ParseBytes(b).ForEach(func(key, value gjson.Result) bool {
 						x.Add(key.String(), value.String())
 						return true

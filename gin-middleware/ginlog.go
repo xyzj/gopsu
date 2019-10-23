@@ -5,14 +5,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/tidwall/sjson"
 
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
@@ -105,27 +102,32 @@ func LoggerWithRolling(logdir, filename string, maxdays, loglevel int) gin.Handl
 		// if raw != "" {
 		// 	path = path + "?" + raw
 		// }
-		if len(c.Params) > 0 {
-			if c.Request.Method == "GET" || c.GetHeader("Content-Type") == "application/x-www-form-urlencoded" {
-				var raw = url.Values{}
-				for _, v := range c.Params {
-					if strings.HasPrefix(v.Key, "_") {
-						continue
-					}
-					raw.Add(v.Key, v.Value)
-				}
-				path += "?" + raw.Encode()
-			} else {
-				var s string
-				for _, v := range c.Params {
-					if strings.HasPrefix(v.Key, "_") {
-						continue
-					}
-					s, _ = sjson.Set(s, v.Key, v.Value)
-				}
-				path += "?" + s
-			}
+		raw, ok := c.Params.Get("_raw")
+		if !ok {
+			raw = c.Request.URL.RawQuery
 		}
+		path += "?" + raw
+		// if len(c.Params) > 0 {
+		// 	if c.Request.Method == "GET" || c.GetHeader("Content-Type") == "application/x-www-form-urlencoded" {
+		// 		var raw = url.Values{}
+		// 		for _, v := range c.Params {
+		// 			if strings.HasPrefix(v.Key, "_") {
+		// 				continue
+		// 			}
+		// 			raw.Add(v.Key, v.Value)
+		// 		}
+		// 		path += "?" + raw.Encode()
+		// 	} else {
+		// 		var s string
+		// 		for _, v := range c.Params {
+		// 			if strings.HasPrefix(v.Key, "_") {
+		// 				continue
+		// 			}
+		// 			s, _ = sjson.Set(s, v.Key, gjson.Parse(v.Value).Value())
+		// 		}
+		// 		path += "?" + s
+		// 	}
+		// }
 		param.Path = path
 
 		var s string
