@@ -172,36 +172,38 @@ func CheckRequired(params ...string) gin.HandlerFunc {
 func ReadParams() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ct = strings.Split(c.GetHeader("Content-Type"), ";")[0]
+		var x = url.Values{}
 		switch ct {
+		case "multipart/form-data": // 文件上传
+			x, _ = url.ParseQuery(c.Request.URL.RawQuery)
 		case "", "application/json", "application/x-www-form-urlencoded": // 传参类，进行解析
-			var x = url.Values{}
 			switch c.Request.Method {
 			case "GET": // get请求忽略body内容
 				x, _ = url.ParseQuery(c.Request.URL.RawQuery)
-				c.Params = append(c.Params, gin.Param{
-					Key:   "_raw",
-					Value: x.Encode(),
-				})
 			default: // post，put，delete等请求只认body
 				b, _ := ioutil.ReadAll(c.Request.Body)
-				switch ct {
-				case "", "application/x-www-form-urlencoded":
-					x, _ = url.ParseQuery(string(b))
-					c.Params = append(c.Params, gin.Param{
-						Key:   "_raw",
-						Value: x.Encode(),
-					})
-				default:
-					c.Params = append(c.Params, gin.Param{
-						Key:   "_raw",
-						Value: string(b),
-					})
-					gjson.ParseBytes(b).ForEach(func(key, value gjson.Result) bool {
-						x.Add(key.String(), value.String())
-						return true
-					})
+				if len(b) > 0 {
+					switch ct {
+					case "", "application/x-www-form-urlencoded":
+						x, _ = url.ParseQuery(string(b))
+					default:
+						c.Params = append(c.Params, gin.Param{
+							Key:   "_raw",
+							Value: string(b),
+						})
+						gjson.ParseBytes(b).ForEach(func(key, value gjson.Result) bool {
+							x.Add(key.String(), value.String())
+							return true
+						})
+					}
 				}
 			}
+		}
+		if len(x.Encode()) > 0 {
+			c.Params = append(c.Params, gin.Param{
+				Key:   "_raw",
+				Value: x.Encode(),
+			})
 			for k := range x {
 				if strings.HasPrefix(k, "_") {
 					continue
