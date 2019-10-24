@@ -168,13 +168,13 @@ func LoadConfig(fullpath string) (*ConfData, error) {
 	if IsExist(fullpath) {
 		file, ex := os.Open(fullpath)
 		if ex != nil {
-			return nil, ex
+			return c, ex
 		}
 		defer func() (*ConfData, error) {
 			if ex := recover(); ex != nil {
 				file.Close()
 			}
-			return nil, fmt.Errorf("file format error")
+			return c, fmt.Errorf("file format error")
 		}()
 		var remarkbuf bytes.Buffer
 		buf := bufio.NewReader(file)
