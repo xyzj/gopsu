@@ -94,14 +94,16 @@ func init() {
 	if _, err := os.Stat(".init"); err == nil {
 		if b, err := ioutil.ReadFile(".init"); err == nil {
 			r := strings.NewReplacer("\r", "", "\n", "")
-			if r.Replace(string(b)) == "nil" {
+			s := r.Replace(string(b))
+			if s == "" {
+				s = "."
+			}
+			if s == "nil" {
 				return
 			}
-			DefaultConfDir, DefaultLogDir, DefaultCacheDir = MakeRuntimeDirs(string(b))
-			return
+			DefaultConfDir, DefaultLogDir, DefaultCacheDir = MakeRuntimeDirs(s)
 		}
 	}
-	DefaultConfDir, DefaultLogDir, DefaultCacheDir = MakeRuntimeDirs(".")
 }
 
 // GetNewCryptoWorker 获取新的序列化或加密管理器
