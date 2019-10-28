@@ -90,22 +90,6 @@ var (
 
 var json = jsoniter.Config{}.Froze()
 
-func init() {
-	if _, err := os.Stat(".init"); err == nil {
-		if b, err := ioutil.ReadFile(".init"); err == nil {
-			r := strings.NewReplacer("\r", "", "\n", "")
-			s := r.Replace(string(b))
-			if s == "" {
-				s = "."
-			}
-			if s == "nil" {
-				return
-			}
-			DefaultConfDir, DefaultLogDir, DefaultCacheDir = MakeRuntimeDirs(s)
-		}
-	}
-}
-
 // GetNewCryptoWorker 获取新的序列化或加密管理器
 func GetNewCryptoWorker(cryptoType byte) *CryptoWorker {
 	h := &CryptoWorker{
