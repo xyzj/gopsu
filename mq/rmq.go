@@ -210,13 +210,14 @@ func (sessn *Session) WaitReady(second int) bool {
 	if second == 0 {
 		second = 5
 	}
+	tc := time.NewTicker(time.Second * time.Duration(second))
 	for {
 		select {
 		case <-time.After(time.Millisecond * 10):
 			if sessn.isReady {
 				return true
 			}
-		case <-time.Tick(time.Duration(second) * time.Second):
+		case <-tc.C:
 			if sessn.isReady {
 				return true
 			}
