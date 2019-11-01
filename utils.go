@@ -25,7 +25,6 @@ import (
 	"math/rand"
 	"net"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -82,11 +81,11 @@ type CryptoWorker struct {
 
 var (
 	// DefaultLogDir 默认日志文件夹
-	DefaultLogDir = path.Join(GetExecDir(), "..", "log")
+	DefaultLogDir = filepath.Join(GetExecDir(), "..", "log")
 	// DefaultCacheDir 默认缓存文件夹
-	DefaultCacheDir = path.Join(GetExecDir(), "..", "cache")
+	DefaultCacheDir = filepath.Join(GetExecDir(), "..", "cache")
 	// DefaultConfDir 默认配置文件夹
-	DefaultConfDir = path.Join(GetExecDir(), "..", "conf")
+	DefaultConfDir = filepath.Join(GetExecDir(), "..", "conf")
 )
 
 var json = jsoniter.Config{}.Froze()
