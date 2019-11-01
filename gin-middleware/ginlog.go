@@ -32,7 +32,6 @@ type ginLogger struct {
 	pathLink  string       // 写入用日志路径
 	pathNow   string       // 当前日志路径
 	logDir    string       // 日志文件夹
-	logLevel  int          // 日志等级
 	maxDays   int          // 文件有效时间
 	out       io.Writer    // io写入
 	err       error        // 错误信息
@@ -40,12 +39,15 @@ type ginLogger struct {
 }
 
 // LoggerWithRolling 滚动日志
-func LoggerWithRolling(logdir, filename string, maxdays, loglevel int) gin.HandlerFunc {
+// logdir: 日志存放目录。
+// filename：日志文件名。
+// maxdays：日志文件最大保存天数。
+func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 	t := time.Now()
+	println("gin mode", gin.Mode())
 	// 初始化
 	f := &ginLogger{
-		logDir:   logdir,
-		logLevel: loglevel,
+		logDir: logdir,
 		// flock:    new(sync.Mutex),
 		fname:    filename,
 		fexpired: int64(maxdays)*24*60*60 - 10,
@@ -305,7 +307,7 @@ func (f *ginLogger) newFile() {
 			ioutil.WriteFile("ginlogerr.log", []byte("Log file open error: "+f.err.Error()), 0644)
 			f.out = io.MultiWriter(os.Stdout)
 		} else {
-			if f.logLevel <= 10 {
+			if gin.Mode() == "debug" {
 				f.out = io.MultiWriter(f.fno, os.Stdout)
 			} else {
 				f.out = io.MultiWriter(f.fno)

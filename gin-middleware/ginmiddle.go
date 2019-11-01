@@ -24,10 +24,8 @@ import (
 // NewGinEngine 返回一个新的gin路由
 // logName：日志文件名
 // logDays：日志保留天数
-// logLevel：日志等级
-// logGZ：是否压缩归档日志
-// debug：是否使用调试模式
-func NewGinEngine(logDir, logName string, logDays, logLevel int) *gin.Engine {
+// logLevel：日志等级（已废弃）
+func NewGinEngine(logDir, logName string, logDays int, logLevel ...int) *gin.Engine {
 	r := gin.New()
 	// 中间件
 	//cors
@@ -40,7 +38,7 @@ func NewGinEngine(logDir, logName string, logDays, logLevel int) *gin.Engine {
 		AllowHeaders:     []string{"*"},
 	}))
 	// 日志
-	r.Use(LoggerWithRolling(logDir, logName, logDays, logLevel))
+	r.Use(LoggerWithRolling(logDir, logName, logDays))
 	// 错误恢复
 	r.Use(gin.Recovery())
 	// 数据压缩
