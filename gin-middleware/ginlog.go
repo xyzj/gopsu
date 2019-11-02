@@ -44,7 +44,6 @@ type ginLogger struct {
 // maxdays：日志文件最大保存天数。
 func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 	t := time.Now()
-	println("gin mode", gin.Mode())
 	// 初始化
 	f := &ginLogger{
 		logDir: logdir,
