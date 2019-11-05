@@ -26,14 +26,12 @@ func isPrivateIP(ipAddr string) bool {
 	}
 	return false
 }
+func ExternalIP() (string, error) {
+	return RealIP()
+}
 
 // RealIP returns a real ip
-func RealIP(addr string) (string, error) {
-	// if addr specified then its returned
-	if len(addr) > 0 && (addr != "0.0.0.0" && addr != "[::]") {
-		return addr, nil
-	}
-
+func RealIP() (string, error) {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		return "", fmt.Errorf("Failed to get interface addresses! Err: %v", err)

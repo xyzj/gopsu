@@ -16,14 +16,12 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"hash"
 	"io"
 	"io/ioutil"
 	"math"
 	"math/rand"
-	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -37,7 +35,6 @@ import (
 	"github.com/golang/snappy"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/pierrec/lz4"
 )
 
 const (
@@ -243,10 +240,6 @@ const (
 	ArchiveZlib = iota
 	// ArchiveGZip gzip压缩/解压缩
 	ArchiveGZip
-	// ArchiveLZ4 lz4压缩/解压缩
-	ArchiveLZ4
-	// ArchiveLZ4HC lz4hc压缩/解压缩
-	ArchiveLZ4HC
 	// ArchiveSnappy snappy压缩/解压缩
 	ArchiveSnappy
 )
@@ -261,8 +254,6 @@ type ArchiveWorker struct {
 	gzipWriter       *gzip.Writer
 	zlibReader       io.ReadCloser
 	zlibWriter       *zlib.Writer
-	lz4Reader        *lz4.Reader
-	lz4Writer        *lz4.Writer
 	snappyReader     *snappy.Reader
 	snappyWriter     *snappy.Writer
 	compressLocker   sync.Mutex
@@ -279,16 +270,6 @@ func GetNewArchiveWorker(archiveType byte) *ArchiveWorker {
 	case ArchiveGZip:
 		a.gzipReader, _ = gzip.NewReader(a.in)
 		a.gzipWriter = gzip.NewWriter(&a.code)
-	case ArchiveLZ4:
-		a.lz4Reader = lz4.NewReader(a.in)
-		a.lz4Writer = lz4.NewWriter(&a.code)
-		a.lz4Reader.Header = lz4.Header{
-			CompressionLevel: 6,
-		}
-		a.lz4Writer.Header = lz4.Header{
-			CompressionLevel: 6,
-		}
-	case ArchiveLZ4HC:
 	case ArchiveSnappy:
 		a.snappyReader = snappy.NewReader(a.in)
 		a.snappyWriter = snappy.NewWriter(&a.code)
@@ -309,16 +290,6 @@ func (a *ArchiveWorker) Compress(src []byte) []byte {
 		a.gzipWriter.Reset(&a.code)
 		a.gzipWriter.Write(src)
 		a.gzipWriter.Close()
-	case ArchiveLZ4HC:
-		var b = make([]byte, len(src))
-		di, err := lz4.CompressBlockHC(src, b, 0)
-		if err == nil {
-			a.code.Write(b[:di])
-		}
-	case ArchiveLZ4:
-		a.lz4Writer.Reset(&a.code)
-		a.lz4Writer.Write(src)
-		a.lz4Writer.Close()
 	case ArchiveSnappy:
 		a.code.Write(snappy.Encode(nil, src))
 	default: // zlib
@@ -339,39 +310,6 @@ func (a *ArchiveWorker) Uncompress(src []byte) []byte {
 		b := bytes.NewReader(src)
 		r, _ := gzip.NewReader(b)
 		io.Copy(&a.decode, r)
-	case ArchiveLZ4HC:
-		var dst []byte
-		var count = 300
-		for {
-			dst = make([]byte, len(src)*count)
-			di, err := lz4.UncompressBlock(src, dst)
-			if err == nil {
-				a.decode.Write(dst[:di])
-				break
-			} else {
-				if err == lz4.ErrInvalidSourceShortBuffer {
-					count += 10
-				} else {
-					break
-				}
-			}
-		}
-	case ArchiveLZ4:
-		a.in.Reset(src)
-		a.lz4Reader = lz4.NewReader(a.in)
-		a.lz4Reader.Header = lz4.Header{
-			CompressionLevel: 6,
-		}
-		buf := make([]byte, len(src)*300)
-		for {
-			n, err := a.lz4Reader.Read(buf)
-			if err != nil || err == io.EOF || n == 0 {
-				break
-			}
-			if n > 0 {
-				a.decode.Write(buf[:n])
-			}
-		}
 	case ArchiveSnappy:
 		b, err := snappy.Decode(nil, src)
 		if err == nil {
@@ -385,26 +323,12 @@ func (a *ArchiveWorker) Uncompress(src []byte) []byte {
 	return a.decode.Bytes()
 }
 
-// CompressData 使用gzip，zlib，lz4压缩数据
-// lz4hc 目前无法跨语言使用
+// CompressData 使用gzip，zlib压缩数据
 func CompressData(src []byte, t byte) []byte {
 	var in bytes.Buffer
 	switch t {
 	case ArchiveGZip:
 		w := gzip.NewWriter(&in)
-		w.Write(src)
-		w.Close()
-	case ArchiveLZ4HC:
-		var b = make([]byte, len(src))
-		di, err := lz4.CompressBlockHC(src, b, 0)
-		if err == nil {
-			in.Write(b[:di])
-		}
-	case ArchiveLZ4:
-		w := lz4.NewWriter(&in)
-		w.Header = lz4.Header{
-			CompressionLevel: 6,
-		}
 		w.Write(src)
 		w.Close()
 	case ArchiveSnappy:
@@ -417,7 +341,7 @@ func CompressData(src []byte, t byte) []byte {
 	return in.Bytes()
 }
 
-// UncompressData 使用gzip，zlib，lz4解压缩数据
+// UncompressData 使用gzip，zlib解压缩数据
 func UncompressData(src []byte, t byte, dstlen ...interface{}) []byte {
 	var out bytes.Buffer
 	switch t {
@@ -425,45 +349,6 @@ func UncompressData(src []byte, t byte, dstlen ...interface{}) []byte {
 		b := bytes.NewReader(src)
 		r, _ := gzip.NewReader(b)
 		io.Copy(&out, r)
-	case ArchiveLZ4:
-		b := bytes.NewReader(src)
-		r := lz4.NewReader(b)
-		r.Header = lz4.Header{
-			CompressionLevel: 6,
-		}
-		buf := make([]byte, len(src)*300)
-		for {
-			n, err := r.Read(buf)
-			if err != nil || err == io.EOF || n == 0 {
-				break
-			}
-			if n > 0 {
-				out.Write(buf[:n])
-			}
-		}
-	case ArchiveLZ4HC:
-		var dst []byte
-		var count = 500
-		if len(dstlen) > 0 {
-			if value, ok := dstlen[0].(int); ok == true {
-				count = value/len(src) + 1
-			}
-		}
-		// RETRY:
-		for {
-			dst = make([]byte, len(src)*count)
-			di, err := lz4.UncompressBlock(src, dst)
-			if err == nil {
-				out.Write(dst[:di])
-				break
-			} else {
-				if err == lz4.ErrInvalidSourceShortBuffer {
-					count += 10
-				} else {
-					break
-				}
-			}
-		}
 	case ArchiveSnappy:
 		b, err := snappy.Decode(nil, src)
 		if err == nil {
@@ -475,44 +360,6 @@ func UncompressData(src []byte, t byte, dstlen ...interface{}) []byte {
 		io.Copy(&out, r)
 	}
 	return out.Bytes()
-}
-
-// ExternalIP 获取ip
-func ExternalIP() (string, error) {
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return "", err
-	}
-	for _, iface := range ifaces {
-		if iface.Flags&net.FlagUp == 0 {
-			continue // interface down
-		}
-		if iface.Flags&net.FlagLoopback != 0 {
-			continue // loopback interface
-		}
-		addrs, err := iface.Addrs()
-		if err != nil {
-			return "", err
-		}
-		for _, addr := range addrs {
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
-			if ip == nil || ip.IsLoopback() {
-				continue
-			}
-			ip = ip.To4()
-			if ip == nil {
-				continue // not an ipv4 address
-			}
-			return ip.String(), nil
-		}
-	}
-	return "", errors.New("are you connected to the network?")
 }
 
 // GetUUID1 GetUUID1
