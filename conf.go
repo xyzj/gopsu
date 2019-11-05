@@ -25,6 +25,15 @@ type ConfData struct {
 	fileName     string
 }
 
+func (c *ConfData) Reload() error {
+	var err error
+	c, err = LoadConfig(c.fileFullPath)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // UpdateItem 更新配置项
 func (c *ConfData) UpdateItem(key, value string) bool {
 	key = strings.TrimSpace(key)
