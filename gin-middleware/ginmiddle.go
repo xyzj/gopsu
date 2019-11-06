@@ -37,6 +37,8 @@ func NewGinEngine(logDir, logName string, logDays int, logLevel ...int) *gin.Eng
 		AllowMethods:     []string{"*"},
 		AllowHeaders:     []string{"*"},
 	}))
+	// 性能延迟
+	r.Use(Delay())
 	// 日志
 	r.Use(LoggerWithRolling(logDir, logName, logDays))
 	// 错误恢复
@@ -285,5 +287,20 @@ func CheckSecurityCode(codeType string, codeRange int) gin.HandlerFunc {
 			return
 		}
 		c.Next()
+	}
+}
+
+// Delay 性能延迟
+func Delay() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Next()
+		if gopsu.IsExist(".performance") {
+			b, _ := ioutil.ReadFile(".performance")
+			t, _ := strconv.Atoi(gopsu.TrimString(string(b)))
+			if t > 5 || t < 0 {
+				t = 5
+			}
+			time.Sleep(time.Second * time.Duration(t))
+		}
 	}
 }

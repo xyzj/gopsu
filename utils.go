@@ -1392,3 +1392,9 @@ func EncodeUTF16BE(s string) []byte {
 	}
 	return b.Bytes()
 }
+
+// TrimString 去除字符串末尾的空格，\r\n
+func TrimString(s string) string {
+	r := strings.NewReplacer("\r", "", "\n", "")
+	return r.Replace(strings.TrimSpace(s))
+}
