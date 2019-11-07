@@ -292,8 +292,8 @@ func CheckSecurityCode(codeType string, codeRange int) gin.HandlerFunc {
 func Delay() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
-		if gopsu.IsExist(".performance") {
-			b, _ := ioutil.ReadFile(".performance")
+		b, err := ioutil.ReadFile(".performance")
+		if err == nil {
 			t, _ := strconv.Atoi(gopsu.TrimString(string(b)))
 			if t > 5000 || t < 0 {
 				t = 5000
