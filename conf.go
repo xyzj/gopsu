@@ -34,6 +34,7 @@ func (c *ConfData) Reload() error {
 		if ex != nil {
 			return ex
 		}
+		defer file.Close()
 		c.Clean()
 		var remarkbuf bytes.Buffer
 		buf := bufio.NewReader(file)
