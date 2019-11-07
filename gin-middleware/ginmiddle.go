@@ -155,14 +155,15 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 func CheckRequired(params ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		for _, v := range params {
+			if gopsu.TrimString(v) == "" {
+				continue
+			}
 			if c.Param(v) == "" {
 				c.Set("status", 0)
 				c.Set("detail", "Missing parameters: "+v)
 				c.AbortWithStatusJSON(200, c.Keys)
-				return
 			}
 		}
-		c.Next()
 	}
 }
 
@@ -212,7 +213,6 @@ func ReadParams() gin.HandlerFunc {
 				})
 			}
 		}
-		c.Next()
 	}
 }
 
@@ -235,7 +235,6 @@ func ReadCacheJSON(mydb *db.MySQL) gin.HandlerFunc {
 				}
 			}
 		}
-		c.Next()
 	}
 }
 
@@ -259,7 +258,6 @@ func ReadCachePB2(mydb *db.MySQL) gin.HandlerFunc {
 				}
 			}
 		}
-		c.Next()
 	}
 }
 
@@ -282,9 +280,7 @@ func CheckSecurityCode(codeType string, codeRange int) gin.HandlerFunc {
 			c.Set("status", 0)
 			c.Set("detail", "Illegal Security-Code")
 			c.AbortWithStatusJSON(200, c.Keys)
-			return
 		}
-		c.Next()
 	}
 }
 
