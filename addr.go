@@ -26,6 +26,8 @@ func isPrivateIP(ipAddr string) bool {
 	}
 	return false
 }
+
+// ExternalIP same as RealIP
 func ExternalIP() (string, error) {
 	return RealIP()
 }
