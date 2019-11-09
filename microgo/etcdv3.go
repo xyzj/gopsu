@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"io"
 	"math/rand"
 	"sort"
 	"strings"
@@ -26,7 +25,7 @@ const (
 
 // Etcdv3Client 微服务结构体
 type Etcdv3Client struct {
-	etcdLog      *io.Writer       // 日志
+	// etcdLog      *io.Writer       // 日志
 	etcdLogLevel int              // 日志等级
 	etcdRoot     string           // etcd注册根路经
 	etcdAddr     []string         // etcd服务地址
@@ -34,6 +33,7 @@ type Etcdv3Client struct {
 	svrName      string           // 服务名称
 	svrPool      sync.Map         // 线程安全服务信息字典
 	svrDetail    string           // 服务信息
+	logger       gopsu.Logger     //  日志接口
 }
 
 // RegisteredServer 获取到的服务注册信息
@@ -56,15 +56,16 @@ func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile string) (*E
 	m := &Etcdv3Client{
 		etcdRoot: "wlst-micro",
 		etcdAddr: etcdaddr,
+		logger:   &gopsu.NilLogger{},
 	}
 	var tlsconf *tls.Config
+	var err error
 	if gopsu.IsExist(certfile) && gopsu.IsExist(keyfile) && gopsu.IsExist(cafile) {
 		tlsinfo := transport.TLSInfo{
 			CertFile:      certfile,
 			KeyFile:       keyfile,
 			TrustedCAFile: cafile,
 		}
-		var err error
 		tlsconf, err = tlsinfo.ClientConfig()
 		if err != nil {
 			return nil, err
@@ -72,7 +73,7 @@ func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile string) (*E
 	} else {
 		tlsconf = nil
 	}
-	cli, err := clientv3.New(clientv3.Config{
+	m.etcdClient, err = clientv3.New(clientv3.Config{
 		Endpoints:   m.etcdAddr,
 		DialTimeout: 2 * time.Second,
 		TLS:         tlsconf,
@@ -80,23 +81,22 @@ func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile string) (*E
 	if err != nil {
 		return nil, err
 	}
-	m.etcdClient = cli
 	return m, nil
 }
 
-func (m *Etcdv3Client) writeLog(s string, l int) {
-	s = fmt.Sprintf("%v [%02d] [ETCD] %s", time.Now().Format(gopsu.ShortTimeFormat), l, s)
-	if m.etcdLog == nil {
-		println(s)
-	} else {
-		if l >= m.etcdLogLevel {
-			fmt.Fprintln(*m.etcdLog, s)
-			if l >= 40 && m.etcdLogLevel >= 20 {
-				println(s)
-			}
-		}
-	}
-}
+// func (m *Etcdv3Client) writeLog(s string, l int) {
+// 	s = fmt.Sprintf("%v [%02d] [ETCD] %s", time.Now().Format(gopsu.ShortTimeFormat), l, s)
+// 	if m.etcdLog == nil {
+// 		println(s)
+// 	} else {
+// 		if l >= m.etcdLogLevel {
+// 			fmt.Fprintln(*m.etcdLog, s)
+// 			if l >= 40 && m.etcdLogLevel >= 20 {
+// 				println(s)
+// 			}
+// 		}
+// 	}
+// }
 
 // listServers 查询根路径下所有服务
 func (m *Etcdv3Client) listServers() error {
@@ -154,11 +154,11 @@ func (m *Etcdv3Client) etcdRegister() (*clientv3.LeaseID, bool) {
 	lresp, err := m.etcdClient.Grant(ctx, leaseTimeout)
 	defer cancel()
 	if err != nil {
-		m.writeLog(fmt.Sprintf("Registration to %s failed: %v", m.etcdAddr, err.Error()), 40)
+		m.logger.Error(fmt.Sprintf("Registration to %s failed: %v", m.etcdAddr, err.Error()))
 		return nil, false
 	}
 	m.etcdClient.Put(ctx, fmt.Sprintf("/%s/%s/%s_%s", m.etcdRoot, m.svrName, m.svrName, gopsu.GetUUID1()), m.svrDetail, clientv3.WithLease(lresp.ID))
-	m.writeLog(fmt.Sprintf("Registration to %v success.", m.etcdAddr), 90)
+	m.logger.System(fmt.Sprintf("Registration to %v success.", m.etcdAddr))
 	return &lresp.ID, true
 }
 
@@ -171,9 +171,10 @@ func (m *Etcdv3Client) SetRoot(root string) {
 }
 
 // SetLogger 设置日志记录器
-func (m *Etcdv3Client) SetLogger(l *io.Writer, level int) {
-	m.etcdLog = l
-	m.etcdLogLevel = level
+func (m *Etcdv3Client) SetLogger(l gopsu.Logger) {
+	m.logger = l
+	// m.etcdLog = l
+	// m.etcdLogLevel = level
 }
 
 // Register 服务注册
@@ -212,7 +213,7 @@ func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string
 				_, err := m.etcdClient.KeepAliveOnce(ctx, *leaseid)
 				cancel()
 				if err != nil {
-					m.writeLog("Lost connection with etcd server, retrying ...", 40)
+					m.logger.Error("Lost connection with etcd server, retrying ...")
 					ok = false
 				}
 			} else { // 注册失败时重新注册

@@ -27,6 +27,34 @@ var (
 	asyncCache = 1000
 )
 
+// Logger 日志接口
+type Logger interface {
+	Debug(msgs ...string)
+	Info(msgs ...string)
+	Warning(msgs ...string)
+	Error(msgs ...string)
+	System(msgs ...string)
+}
+
+// NilLogger 标准日志
+type NilLogger struct {
+}
+
+// Debug Debug
+func (l *NilLogger) Debug(msgs ...string) {}
+
+// Info Info
+func (l *NilLogger) Info(msgs ...string) {}
+
+// Warning Warning
+func (l *NilLogger) Warning(msgs ...string) {}
+
+// Error Error
+func (l *NilLogger) Error(msgs ...string) {}
+
+// System System
+func (l *NilLogger) System(msgs ...string) {}
+
 // MxLog mx log
 type MxLog struct {
 	fileFullPath  string
@@ -52,7 +80,7 @@ type MxLog struct {
 	writeAsync    bool
 	asyncLock     sync.WaitGroup
 	chanWatcher   chan string
-	DefaultWriter io.Writer
+	defaultWriter io.Writer
 }
 
 type logMessage struct {
@@ -84,14 +112,19 @@ func (l *MxLog) SetMaxFileSize(c int64) {
 	l.fileMaxSize = c * 1024000
 }
 
+// DefaultWriter DefaultWriter
+func (l *MxLog) DefaultWriter() io.Writer {
+	return l.defaultWriter
+}
+
 // SetLogLevel set file & console log level
 func (l *MxLog) SetLogLevel(loglevel int, conlevel ...int) {
 	l.logLevel = loglevel
 
 	if l.logLevel <= 10 {
-		l.DefaultWriter = io.MultiWriter(l.fno, os.Stdout)
+		l.defaultWriter = io.MultiWriter(l.fno, os.Stdout)
 	} else {
-		l.DefaultWriter = io.MultiWriter(l.fno)
+		l.defaultWriter = io.MultiWriter(l.fno)
 	}
 }
 
@@ -169,7 +202,7 @@ func (l *MxLog) writeLog(msg string, level int, lock ...bool) {
 
 	if level >= l.logLevel {
 		s := fmt.Sprintf("%s [%02d] %s", time.Now().Format(ShortTimeFormat), level, msg)
-		fmt.Fprintln(l.DefaultWriter, s)
+		fmt.Fprintln(l.defaultWriter, s)
 		if level >= 40 && l.logLevel >= 20 {
 			println(s)
 		}
@@ -179,7 +212,8 @@ func (l *MxLog) writeLog(msg string, level int, lock ...bool) {
 }
 
 // Debug writelog with level 10
-func (l *MxLog) Debug(msg string) {
+func (l *MxLog) Debug(msgs ...string) {
+	msg := strings.Join(msgs, ",")
 	if l.writeAsync {
 		l.chanWrite <- &logMessage{
 			msg:   msg,
@@ -191,7 +225,8 @@ func (l *MxLog) Debug(msg string) {
 }
 
 // Info writelog with level 20
-func (l *MxLog) Info(msg string) {
+func (l *MxLog) Info(msgs ...string) {
+	msg := strings.Join(msgs, ",")
 	if l.writeAsync {
 		l.chanWrite <- &logMessage{
 			msg:   msg,
@@ -203,7 +238,8 @@ func (l *MxLog) Info(msg string) {
 }
 
 // Warning writelog with level 30
-func (l *MxLog) Warning(msg string) {
+func (l *MxLog) Warning(msgs ...string) {
+	msg := strings.Join(msgs, ",")
 	if l.writeAsync {
 		l.chanWrite <- &logMessage{
 			msg:   msg,
@@ -215,7 +251,8 @@ func (l *MxLog) Warning(msg string) {
 }
 
 // Error writelog with level 40
-func (l *MxLog) Error(msg string) {
+func (l *MxLog) Error(msgs ...string) {
+	msg := strings.Join(msgs, ",")
 	if l.writeAsync {
 		l.chanWrite <- &logMessage{
 			msg:   msg,
@@ -229,7 +266,8 @@ func (l *MxLog) Error(msg string) {
 }
 
 // System writelog with level 90
-func (l *MxLog) System(msg string) {
+func (l *MxLog) System(msgs ...string) {
+	msg := strings.Join(msgs, ",")
 	if l.writeAsync {
 		l.chanWrite <- &logMessage{
 			msg:   msg,
@@ -451,9 +489,9 @@ func (l *MxLog) newFile() {
 		println("Log file open error: " + l.err.Error())
 	}
 	if l.logLevel <= 10 {
-		l.DefaultWriter = io.MultiWriter(l.fno, os.Stdout)
+		l.defaultWriter = io.MultiWriter(l.fno, os.Stdout)
 	} else {
-		l.DefaultWriter = io.MultiWriter(l.fno)
+		l.defaultWriter = io.MultiWriter(l.fno)
 	}
 	// l.fileLogger = log.New(l.fno, "", log.Lmicroseconds)
 	// l.fileSize = l.getFileSize()

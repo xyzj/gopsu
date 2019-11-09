@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 
@@ -25,7 +24,7 @@ type RabbitMQData struct {
 // Session rmq session
 type Session struct {
 	name          string
-	logger        *io.Writer
+	logger        gopsu.Logger
 	loggerLevel   int
 	connection    *amqp.Connection
 	channel       *amqp.Channel
@@ -59,6 +58,7 @@ func NewConsumer(name, connstr, queuename string, durable, autodel, debug bool) 
 		queueDelete:   autodel,
 		queueDelivery: make(chan amqp.Delivery),
 		closeMe:       false,
+		logger:        &gopsu.NilLogger{},
 	}
 	sessn.addr = strings.Split(connstr, "@")[1]
 	// go sessn.handleReconnect("consumer")
@@ -73,6 +73,7 @@ func NewProducer(name, connstr string, debug bool) *Session {
 		connStr:   connstr,
 		debug:     debug,
 		done:      make(chan bool),
+		logger:    &gopsu.NilLogger{},
 	}
 	sessn.addr = strings.Split(connstr, "@")[1]
 	// go sessn.handleReconnect("producer")
@@ -91,32 +92,33 @@ func (sessn *Session) StartTLS(t *tls.Config) {
 }
 
 // SetLogger SetLogger
-func (sessn *Session) SetLogger(w *io.Writer, l int) {
-	sessn.logger = w
-	sessn.loggerLevel = l
+func (sessn *Session) SetLogger(l gopsu.Logger) {
+	sessn.logger = l
+	// sessn.logger = w
+	// sessn.loggerLevel = l
 }
 
-func (sessn *Session) writeLog(s string, l int) {
-	s = fmt.Sprintf("%v [%02d] [MQ] %s", time.Now().Format(gopsu.ShortTimeFormat), l, s)
-	if sessn.logger == nil {
-		if sessn.debug {
-			println(s)
-		}
-	} else {
-		if l >= sessn.loggerLevel {
-			fmt.Fprintln(*sessn.logger, s)
-			if l >= 40 && sessn.loggerLevel >= 20 {
-				println(s)
-			}
-		}
-	}
-}
+// func (sessn *Session) writeLog(s string, l int) {
+// 	s = fmt.Sprintf("%v [%02d] [MQ] %s", time.Now().Format(gopsu.ShortTimeFormat), l, s)
+// 	if sessn.logger == nil {
+// 		if sessn.debug {
+// 			println(s)
+// 		}
+// 	} else {
+// 		if l >= sessn.loggerLevel {
+// 			fmt.Fprintln(*sessn.logger, s)
+// 			if l >= 40 && sessn.loggerLevel >= 20 {
+// 				println(s)
+// 			}
+// 		}
+// 	}
+// }
 
 // handleReconnect 维护连接
 func (sessn *Session) handleReconnect(t string) {
 	defer func() {
 		if err := recover(); err != nil {
-			sessn.writeLog(err.(error).Error(), 40)
+			sessn.logger.Error(err.(error).Error())
 		}
 	}()
 	if sessn.connect() {
@@ -158,7 +160,7 @@ func (sessn *Session) handleReconnect(t string) {
 // connect 建立连接
 func (sessn *Session) connect() bool {
 	sessn.isReady = false
-	sessn.writeLog("Attempting to connect to "+sessn.addr, 30)
+	sessn.logger.Warning("Attempting to connect to " + sessn.addr)
 	var err error
 	var conn *amqp.Connection
 	if sessn.tlsConf == nil {
@@ -168,14 +170,14 @@ func (sessn *Session) connect() bool {
 	}
 
 	if err != nil {
-		sessn.writeLog("Failed to connnect to "+sessn.addr+"|"+err.Error(), 40)
+		sessn.logger.Error("Failed to connnect to " + sessn.addr + "|" + err.Error())
 		return false
 	}
 	sessn.connection = conn
 
 	ch, err := conn.Channel()
 	if err != nil {
-		sessn.writeLog("Failed to open channel: "+err.Error(), 40)
+		sessn.logger.Error("Failed to open channel: " + err.Error())
 		return false
 	}
 	sessn.channel = ch
@@ -190,11 +192,11 @@ func (sessn *Session) connect() bool {
 		nil,        // arguments
 	)
 	if err != nil {
-		sessn.writeLog("Failed to declare exchange: "+err.Error(), 40)
+		sessn.logger.Error("Failed to declare exchange: " + err.Error())
 		return false
 	}
 
-	sessn.writeLog("Success to connect to "+sessn.addr, 90)
+	sessn.logger.System("Success to connect to " + sessn.addr)
 
 	sessn.isReady = true
 	return true
@@ -250,7 +252,7 @@ func (sessn *Session) initConsumer() {
 		}, // arguments
 	)
 	if err != nil {
-		sessn.writeLog("Failed to create queue "+sessn.queueName+": "+err.Error(), 40)
+		sessn.logger.Error("Failed to create queue " + sessn.queueName + ": " + err.Error())
 		sessn.isReady = false
 		return
 	}
@@ -367,12 +369,9 @@ func (sessn *Session) SendCustom(d *RabbitMQData) {
 			// }
 		)
 		if err != nil {
-			sessn.writeLog("SndErr:"+sessn.addr+"|"+err.Error()+"|"+d.RoutingKey, 40)
-		} else {
-			if sessn.loggerLevel <= 10 {
-				sessn.writeLog("S:"+sessn.addr+"|"+d.RoutingKey+"|"+FormatMQBody(d.Data.Body), 10)
-			}
+			sessn.logger.Error("SndErr:" + sessn.addr + "|" + err.Error() + "|" + d.RoutingKey)
 		}
+		sessn.logger.Debug("S:" + sessn.addr + "|" + d.RoutingKey + "|" + FormatMQBody(d.Data.Body))
 	}()
 }
 
