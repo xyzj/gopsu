@@ -29,31 +29,50 @@ var (
 
 // Logger 日志接口
 type Logger interface {
-	Debug(msgs ...string)
-	Info(msgs ...string)
-	Warning(msgs ...string)
-	Error(msgs ...string)
-	System(msgs ...string)
+	Debug(msgs string)
+	Info(msgs string)
+	Warning(msgs string)
+	Error(msgs string)
+	System(msgs string)
+	DebugFormat(f string, msgs ...interface{})
+	InfoFormat(f string, msgs ...interface{})
+	WarningFormat(f string, msgs ...interface{})
+	ErrorFormat(f string, msgs ...interface{})
+	SystemFormat(f string, msgs ...interface{})
 }
 
 // NilLogger 标准日志
-type NilLogger struct {
-}
+type NilLogger struct{}
 
 // Debug Debug
-func (l *NilLogger) Debug(msgs ...string) {}
+func (l *NilLogger) Debug(msgs string) {}
 
 // Info Info
-func (l *NilLogger) Info(msgs ...string) {}
+func (l *NilLogger) Info(msgs string) {}
 
 // Warning Warning
-func (l *NilLogger) Warning(msgs ...string) {}
+func (l *NilLogger) Warning(msgs string) {}
 
 // Error Error
-func (l *NilLogger) Error(msgs ...string) {}
+func (l *NilLogger) Error(msgs string) {}
 
 // System System
-func (l *NilLogger) System(msgs ...string) {}
+func (l *NilLogger) System(msgs string) {}
+
+// Debug Debug
+func (l *NilLogger) DebugFormat(f string, msg ...interface{}) {}
+
+// Info Info
+func (l *NilLogger) InfoFormat(f string, msg ...interface{}) {}
+
+// Warning Warning
+func (l *NilLogger) WarningFormat(f string, msg ...interface{}) {}
+
+// Error Error
+func (l *NilLogger) ErrorFormat(f string, msg ...interface{}) {}
+
+// System System
+func (l *NilLogger) SystemFormat(f string, msg ...interface{}) {}
 
 // MxLog mx log
 type MxLog struct {
