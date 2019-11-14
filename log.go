@@ -40,7 +40,7 @@ type Logger interface {
 	SystemFormat(f string, msgs ...interface{})
 }
 
-// NilLogger 标准日志
+// NilLogger 空日志
 type NilLogger struct{}
 
 // Debug Debug
@@ -72,6 +72,59 @@ func (l *NilLogger) ErrorFormat(f string, msg ...interface{}) {}
 
 // System System
 func (l *NilLogger) SystemFormat(f string, msg ...interface{}) {}
+
+// StdLogger 空日志
+type StdLogger struct{}
+
+// Debug Debug
+func (l *StdLogger) Debug(msgs string) {
+	println(msgs)
+}
+
+// Info Info
+func (l *StdLogger) Info(msgs string) {
+	println(msgs)
+}
+
+// Warning Warning
+func (l *StdLogger) Warning(msgs string) {
+	println(msgs)
+}
+
+// Error Error
+func (l *StdLogger) Error(msgs string) {
+	println(msgs)
+}
+
+// System System
+func (l *StdLogger) System(msgs string) {
+	println(msgs)
+}
+
+// Debug Debug
+func (l *StdLogger) DebugFormat(f string, msg ...interface{}) {
+	println(fmt.Sprintf(f, msg...))
+}
+
+// Info Info
+func (l *StdLogger) InfoFormat(f string, msg ...interface{}) {
+	println(fmt.Sprintf(f, msg...))
+}
+
+// Warning Warning
+func (l *StdLogger) WarningFormat(f string, msg ...interface{}) {
+	println(fmt.Sprintf(f, msg...))
+}
+
+// Error Error
+func (l *StdLogger) ErrorFormat(f string, msg ...interface{}) {
+	println(fmt.Sprintf(f, msg...))
+}
+
+// System System
+func (l *StdLogger) SystemFormat(f string, msg ...interface{}) {
+	println(fmt.Sprintf(f, msg...))
+}
 
 // MxLog mx log
 type MxLog struct {
