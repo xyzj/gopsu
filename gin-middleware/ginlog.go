@@ -24,12 +24,11 @@ type ginLogger struct {
 	fileIndex int          // 文件索引号
 	fexpired  int64        // 日志文件过期时长
 	flock     sync.RWMutex // 同步锁
-	nameLink  string       // 写入用日志文件名
 	nameOld   string       // 旧日志文件名
 	nameNow   string       // 当前日志文件名
 	fileHour  int          // 旧时间戳
 	fileDay   int          // 日期戳
-	pathLink  string       // 写入用日志路径
+	pathOld   string       // 写入用日志路径
 	pathNow   string       // 当前日志路径
 	logDir    string       // 日志文件夹
 	maxDays   int          // 文件有效时间
@@ -46,17 +45,13 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 	t := time.Now()
 	// 初始化
 	f := &ginLogger{
-		logDir: logdir,
-		// flock:    new(sync.Mutex),
+		logDir:   logdir,
 		fname:    filename,
 		fexpired: int64(maxdays)*24*60*60 - 10,
 		maxDays:  maxdays,
 		fileHour: t.Hour(),
 		fileDay:  t.Day(),
-		nameLink: fmt.Sprintf("%s.current.log", filename),
-		// nameNow:  fmt.Sprintf("%s.%v.log", filename, t.Format(gopsu.FileTimeFromat)),
-		pathLink: filepath.Join(logdir, fmt.Sprintf("%s.current.log", filename)),
-		// pathNow:  filepath.Join(logdir, fmt.Sprintf("%s.%v.log", filename, t.Format(gopsu.FileTimeFromat))),
+		pathOld:  filepath.Join(logdir, fmt.Sprintf("%s.current.log", filename)),
 		enablegz: true,
 	}
 	// 搜索最后一个文件名
@@ -80,10 +75,8 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 			gin.DefaultWriter = f.out
 			gin.DefaultErrorWriter = f.out
 		}
-
 		start := time.Now()
 		path := c.Request.URL.Path
-		// raw := c.Request.URL.RawQuery
 
 		c.Next()
 
@@ -100,35 +93,11 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 		param.StatusCode = c.Writer.Status()
 		param.ErrorMessage = c.Errors.ByType(gin.ErrorTypePrivate).String()
 		param.BodySize = c.Writer.Size()
-		// if raw != "" {
-		// 	path = path + "?" + raw
-		// }
 		raw, ok := c.Params.Get("_raw")
 		if !ok {
 			raw = c.Request.URL.RawQuery
 		}
 		path += "?" + raw
-		// if len(c.Params) > 0 {
-		// 	if c.Request.Method == "GET" || c.GetHeader("Content-Type") == "application/x-www-form-urlencoded" {
-		// 		var raw = url.Values{}
-		// 		for _, v := range c.Params {
-		// 			if strings.HasPrefix(v.Key, "_") {
-		// 				continue
-		// 			}
-		// 			raw.Add(v.Key, v.Value)
-		// 		}
-		// 		path += "?" + raw.Encode()
-		// 	} else {
-		// 		var s string
-		// 		for _, v := range c.Params {
-		// 			if strings.HasPrefix(v.Key, "_") {
-		// 				continue
-		// 			}
-		// 			s, _ = sjson.Set(s, v.Key, gjson.Parse(v.Value).Value())
-		// 		}
-		// 		path += "?" + s
-		// 	}
-		// }
 		param.Path = path
 
 		var s string
@@ -196,8 +165,6 @@ func (f *ginLogger) rollingFile() bool {
 	f.fno.Close()
 	// 创建新日志
 	f.newFile()
-	// 清理旧日志
-	f.clearFile()
 
 	return true
 }
@@ -249,7 +216,7 @@ func (f *ginLogger) zipFile(s string) {
 }
 
 // 清理旧日志
-func (f *ginLogger) clearFile() {
+func (f *ginLogger) cleanFile() {
 	// 若未设置超时，则不清理
 	if f.fexpired == 0 {
 		return
@@ -258,36 +225,24 @@ func (f *ginLogger) clearFile() {
 	lstfno, ex := ioutil.ReadDir(f.logDir)
 	if ex != nil {
 		ioutil.WriteFile("ginlogerr.log", []byte(fmt.Sprintf("clear log files error: %s", ex.Error())), 0644)
+		return
 	}
-	t := time.Now()
-	for _, fno := range lstfno {
-		if fno.IsDir() || !strings.Contains(fno.Name(), f.fname) || strings.Contains(fno.Name(), ".current") { // 忽略目录，不含日志名的文件，以及当前文件
-			continue
+	go func() {
+		t := time.Now()
+		for _, fno := range lstfno {
+			if fno.IsDir() || !strings.Contains(fno.Name(), f.fname) { // 忽略目录，不含日志名的文件，以及当前文件
+				continue
+			}
+			// 比对文件生存期
+			if t.Unix()-fno.ModTime().Unix() >= f.fexpired {
+				os.Remove(filepath.Join(f.logDir, fno.Name()))
+			}
 		}
-		// 比对文件生存期
-		if t.Unix()-fno.ModTime().Unix() >= f.fexpired {
-			os.Remove(filepath.Join(f.logDir, fno.Name()))
-		}
-	}
+	}()
 }
 
 // 创建新日志文件
 func (f *ginLogger) newFile() {
-	// 使用文件链接创建当前日志文件
-	// 文件不存在时创建
-	// if !gopsu.IsExist(f.pathNow) {
-	// 	f, err := os.Create(f.pathNow)
-	// 	if err == nil {
-	// 		f.Close()
-	// 	}
-	// }
-	// 删除旧的文件链接
-	// os.Remove(f.pathLink)
-	// // 创建当前日志链接
-	// f.err = os.Symlink(f.nameNow, f.pathLink)
-	// if f.err != nil {
-	// 	println("Symlink log file error: " + f.err.Error())
-	// }
 	t := time.Now()
 	if f.fileDay != t.Day() {
 		f.fileDay = t.Day()
@@ -296,12 +251,14 @@ func (f *ginLogger) newFile() {
 	// 直接写入当日日志
 	f.nameNow = fmt.Sprintf("%s.%v.%d.log", f.fname, t.Format(gopsu.FileTimeFromat), f.fileIndex)
 	f.pathNow = filepath.Join(f.logDir, f.nameNow)
-	f.pathLink = f.pathNow
+	f.pathOld = f.pathNow
 	if f.fname == "" {
 		f.out = os.Stdout
 	} else {
+		// 清理旧日志
+		f.cleanFile()
 		// 打开文件
-		f.fno, f.err = os.OpenFile(f.pathLink, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
+		f.fno, f.err = os.OpenFile(f.pathOld, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
 		if f.err != nil {
 			ioutil.WriteFile("ginlogerr.log", []byte("Log file open error: "+f.err.Error()), 0644)
 			f.out = io.MultiWriter(os.Stdout)

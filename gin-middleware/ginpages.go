@@ -1,16 +1,20 @@
 package ginmiddleware
 
 import (
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
+	"github.com/xyzj/gopsu"
 )
 
 var (
@@ -283,6 +287,35 @@ func PageRuntime(c *gin.Context) {
 	}
 	h.WriteContentType(c.Writer)
 	h.Render(c.Writer)
+}
+
+// Cleanlog 日志清理
+func Cleanlog(c *gin.Context) {
+	if c.Param("pwd") != "xyissogood" {
+		c.String(200, "Wrong!!!")
+		return
+	}
+	var days int64
+	if days = gopsu.String2Int64(c.Param("days"), 0); days == 0 {
+		days = 7
+	}
+	// 遍历文件夹
+	lstfno, ex := ioutil.ReadDir(c.Param("dir"))
+	if ex != nil {
+		ioutil.WriteFile("ginlogerr.log", []byte(fmt.Sprintf("clear log files error: %s", ex.Error())), 0644)
+	}
+	t := time.Now()
+	for _, fno := range lstfno {
+		if fno.IsDir() || !strings.Contains(fno.Name(), c.Param("name")) { // 忽略目录，不含日志名的文件，以及当前文件
+			continue
+		}
+		// 比对文件生存期
+		if t.Unix()-fno.ModTime().Unix() >= days*24*60*60-10 {
+			os.Remove(filepath.Join(c.Param("dir"), fno.Name()))
+			c.Set(fno.Name(), "deleted")
+		}
+	}
+	c.PureJSON(200, c.Keys)
 }
 
 // SetVersionInfo 设置服务版本信息

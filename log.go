@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -80,7 +79,6 @@ type MxLog struct {
 	fileSize      int64
 	fileMaxLife   int64
 	fileMaxSize   int64
-	fileLogger    *log.Logger
 	fileName      string
 	fileNameNow   string
 	fileNameOld   string
@@ -90,7 +88,6 @@ type MxLog struct {
 	fileHour      int
 	fno           *os.File
 	logLevel      int
-	conLogger     *log.Logger
 	enablegz      bool
 	err           error
 	fileLock      sync.RWMutex
@@ -225,8 +222,6 @@ func (l *MxLog) writeLog(msg string, level int, lock ...bool) {
 		if level >= 40 && l.logLevel >= 20 {
 			println(s)
 		}
-		// l.fileLogger.Println(msg)
-		// l.fileSize += int64(len(msg) + 17)
 	}
 }
 
@@ -304,9 +299,6 @@ func (l *MxLog) CurrentFileSize() int64 {
 
 // Close close logger
 func (l *MxLog) Close() error {
-	// defer l.fno.Close()
-	// l.fileLogger = nil
-	// l.conLogger = nil
 	if l.writeAsync {
 		l.chanClose <- true
 	}
@@ -381,9 +373,6 @@ func (l *MxLog) rolledWithFileSize() bool {
 
 func (l *MxLog) rollingFileNoLock() bool {
 	t := time.Now()
-	// if l.fileSize > l.fileMaxSize {
-	// 	l.fileIndex++
-	// }
 	l.rolledWithFileSize()
 	l.fileNameNow = fmt.Sprintf("%s.%v.%d.log", l.fileName, t.Format(FileTimeFromat), l.fileIndex)
 	// 比对文件名，若不同则重新设置io
@@ -410,10 +399,12 @@ func (l *MxLog) rollingFile() bool {
 
 // 压缩旧日志
 func (l *MxLog) zipFile(s string) {
+	println("in zip file ", s)
 	if !l.enablegz || len(s) == 0 || !IsExist(filepath.Join(l.fileDir, s)) {
 		return
 	}
 	go func() {
+		println("start zip file")
 		zfile := filepath.Join(l.fileDir, s+".zip")
 		ofile := filepath.Join(l.fileDir, s)
 
@@ -479,21 +470,6 @@ func (l *MxLog) clearFile() {
 
 // 创建新日志文件
 func (l *MxLog) newFile() {
-	// 使用文件链接创建当前日志文件
-	// 文件不存在时创建
-	// if !IsExist(l.fileFullName) {
-	// 	f, err := os.Create(l.fileFullName)
-	// 	if err == nil {
-	// 		l.Close()
-	// 	}
-	// }
-	// 删除旧的文件链接
-	// os.Remove(l.fileFullName)
-	// // 创建当前日志链接
-	// l.err = os.Symlink(l.fileName, l.fileFullName)
-	// if l.err != nil {
-	// 	println("Symlink log file error: " + l.err.Error())
-	// }
 	t := time.Now()
 	if l.fileDay != t.Day() {
 		l.fileDay = t.Day()
@@ -512,9 +488,6 @@ func (l *MxLog) newFile() {
 	} else {
 		l.defaultWriter = io.MultiWriter(l.fno)
 	}
-	// l.fileLogger = log.New(l.fno, "", log.Lmicroseconds)
-	// l.fileSize = l.getFileSize()
-
 	// 判断是否压缩旧日志
 	if l.enablegz {
 		l.zipFile(l.fileNameOld)
