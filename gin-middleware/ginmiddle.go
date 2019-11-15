@@ -219,7 +219,7 @@ func ReadParams() gin.HandlerFunc {
 }
 
 // ReadCacheJSON 读取数据库缓存
-func ReadCacheJSON(mydb *db.MySQL) gin.HandlerFunc {
+func ReadCacheJSON(mydb db.SQLInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if mydb != nil {
 			cachetag := c.Param("cachetag")
@@ -241,7 +241,7 @@ func ReadCacheJSON(mydb *db.MySQL) gin.HandlerFunc {
 }
 
 // ReadCachePB2 读取数据库缓存
-func ReadCachePB2(mydb *db.MySQL) gin.HandlerFunc {
+func ReadCachePB2(mydb db.SQLInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if mydb != nil {
 			cachetag := c.Param("cachetag")
