@@ -18,7 +18,7 @@ func main() {
 		DriverType:  db.DriverMYSQL,
 		DataBase:    "mydb10001_data",
 		Logger:      &gopsu.StdLogger{},
-		Timeout:     50,
+		Timeout:     100,
 	}
 	err := sql.New()
 	if err != nil {
@@ -26,7 +26,7 @@ func main() {
 		return
 	}
 	t1 := time.Now().Unix()
-	strsql := "select * from data_rtu_loop_record"
+	strsql := "select * from data_rtu_record"
 	s, err := sql.QueryJSON(strsql, 0)
 	if err != nil {
 		println("query", err.Error())
