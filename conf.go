@@ -121,12 +121,12 @@ func (c *ConfData) SetItem(key, value, remark string) bool {
 
 // GetItemDefault 获取配置项的value
 func (c *ConfData) GetItemDefault(key, value string, remark ...string) string {
-	v, _ := c.items.LoadOrStore(key, &confItem{
-		key:    key,
-		value:  value,
-		remark: remark[0],
-	})
-	return v.(*confItem).value
+	v, err := c.GetItem(key)
+	if err != nil {
+		c.SetItem(key, value, remark[0])
+		v = TrimString(value)
+	}
+	return v
 	// if c.items == nil {
 	// 	return ""
 	// }
@@ -212,7 +212,7 @@ func (c *ConfData) Save() error {
 		remark := make([]string, 0)
 		x := strings.Split(v.remark, "#")
 		for _, v := range x {
-			if len(v) > 0 {
+			if TrimString(v) != "" {
 				remark = append(remark, "#"+v)
 			}
 		}
