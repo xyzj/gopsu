@@ -165,6 +165,8 @@ func (f *ginLogger) rollingFile() bool {
 	f.fno.Close()
 	// 创建新日志
 	f.newFile()
+	// 清理旧日志
+	f.cleanFile()
 
 	return true
 }
@@ -221,13 +223,15 @@ func (f *ginLogger) cleanFile() {
 	if f.fexpired == 0 {
 		return
 	}
-	// 遍历文件夹
-	lstfno, ex := ioutil.ReadDir(f.logDir)
-	if ex != nil {
-		ioutil.WriteFile("ginlogerr.log", []byte(fmt.Sprintf("clear log files error: %s", ex.Error())), 0644)
-		return
-	}
 	go func() {
+		defer func() { recover() }()
+
+		// 遍历文件夹
+		lstfno, ex := ioutil.ReadDir(f.logDir)
+		if ex != nil {
+			ioutil.WriteFile("ginlogerr.log", []byte(fmt.Sprintf("clear log files error: %s", ex.Error())), 0644)
+			return
+		}
 		t := time.Now()
 		for _, fno := range lstfno {
 			if fno.IsDir() || !strings.Contains(fno.Name(), f.fname) { // 忽略目录，不含日志名的文件，以及当前文件
@@ -255,8 +259,6 @@ func (f *ginLogger) newFile() {
 	if f.fname == "" {
 		f.out = os.Stdout
 	} else {
-		// 清理旧日志
-		f.cleanFile()
 		// 打开文件
 		f.fno, f.err = os.OpenFile(f.pathOld, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
 		if f.err != nil {

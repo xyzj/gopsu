@@ -502,21 +502,24 @@ func (l *MxLog) clearFile() {
 	if l.fileMaxLife == 0 {
 		return
 	}
-	// 遍历文件夹
-	lstfno, ex := ioutil.ReadDir(l.fileDir)
-	if ex != nil {
-		println(fmt.Sprintf("clear log files error: %s", ex.Error()))
-	}
-	t := time.Now()
-	for _, fno := range lstfno {
-		if fno.IsDir() || !strings.Contains(fno.Name(), l.fileName) || strings.Contains(fno.Name(), ".current") { // 忽略目录，不含日志名的文件，以及当前文件
-			continue
+	go func() {
+		defer func() { recover() }()
+		// 遍历文件夹
+		lstfno, ex := ioutil.ReadDir(l.fileDir)
+		if ex != nil {
+			println(fmt.Sprintf("clear log files error: %s", ex.Error()))
 		}
-		// 比对文件生存期
-		if t.Unix()-fno.ModTime().Unix() >= l.fileMaxLife {
-			os.Remove(filepath.Join(l.fileDir, fno.Name()))
+		t := time.Now()
+		for _, fno := range lstfno {
+			if fno.IsDir() || !strings.Contains(fno.Name(), l.fileName) { // 忽略目录，不含日志名的文件，以及当前文件
+				continue
+			}
+			// 比对文件生存期
+			if t.Unix()-fno.ModTime().Unix() >= l.fileMaxLife {
+				os.Remove(filepath.Join(l.fileDir, fno.Name()))
+			}
 		}
-	}
+	}()
 }
 
 // 创建新日志文件
