@@ -58,19 +58,19 @@ func (l *NilLogger) Error(msgs string) {}
 // System System
 func (l *NilLogger) System(msgs string) {}
 
-// Debug Debug
+// DebugFormat Debug
 func (l *NilLogger) DebugFormat(f string, msg ...interface{}) {}
 
-// Info Info
+// InfoFormat Info
 func (l *NilLogger) InfoFormat(f string, msg ...interface{}) {}
 
-// Warning Warning
+// WarningFormat Warning
 func (l *NilLogger) WarningFormat(f string, msg ...interface{}) {}
 
-// Error Error
+// ErrorFormat Error
 func (l *NilLogger) ErrorFormat(f string, msg ...interface{}) {}
 
-// System System
+// SystemFormat System
 func (l *NilLogger) SystemFormat(f string, msg ...interface{}) {}
 
 // StdLogger 空日志
@@ -101,27 +101,27 @@ func (l *StdLogger) System(msgs string) {
 	println(msgs)
 }
 
-// Debug Debug
+// DebugFormat Debug
 func (l *StdLogger) DebugFormat(f string, msg ...interface{}) {
 	println(fmt.Sprintf(f, msg...))
 }
 
-// Info Info
+// InfoFormat Info
 func (l *StdLogger) InfoFormat(f string, msg ...interface{}) {
 	println(fmt.Sprintf(f, msg...))
 }
 
-// Warning Warning
+// WarningFormat Warning
 func (l *StdLogger) WarningFormat(f string, msg ...interface{}) {
 	println(fmt.Sprintf(f, msg...))
 }
 
-// Error Error
+// ErrorFormat Error
 func (l *StdLogger) ErrorFormat(f string, msg ...interface{}) {
 	println(fmt.Sprintf(f, msg...))
 }
 
-// System System
+// SystemFormat System
 func (l *StdLogger) SystemFormat(f string, msg ...interface{}) {
 	println(fmt.Sprintf(f, msg...))
 }
@@ -452,12 +452,10 @@ func (l *MxLog) rollingFile() bool {
 
 // 压缩旧日志
 func (l *MxLog) zipFile(s string) {
-	println("in zip file ", s)
 	if !l.enablegz || len(s) == 0 || !IsExist(filepath.Join(l.fileDir, s)) {
 		return
 	}
 	go func() {
-		println("start zip file")
 		zfile := filepath.Join(l.fileDir, s+".zip")
 		ofile := filepath.Join(l.fileDir, s)
 
