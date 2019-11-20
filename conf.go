@@ -86,6 +86,11 @@ func (c *ConfData) UpdateItem(key, value string) bool {
 	return found
 }
 
+// DelItem 删除配置项
+func (c *ConfData) DelItem(key string) {
+	c.items.Delete(key)
+}
+
 // SetItem 设置配置项
 func (c *ConfData) SetItem(key, value, remark string) bool {
 	// defer return false
