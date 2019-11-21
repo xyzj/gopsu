@@ -1,7 +1,6 @@
 package ginmiddleware
 
 import (
-	"archive/zip"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -56,13 +55,14 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 	}
 	// 搜索最后一个文件名
 	for i := 0; i < 255; i++ {
-		if gopsu.IsExist(filepath.Join(f.logDir, fmt.Sprintf("%s.%v.%d.log", filename, t.Format(gopsu.FileTimeFromat), i))) {
+		if gopsu.IsExist(filepath.Join(f.logDir, fmt.Sprintf("%s.%v.%d.log", filename, t.Format(gopsu.FileTimeFormat), i))) ||
+			gopsu.IsExist(filepath.Join(f.logDir, fmt.Sprintf("%s.%v.%d.log.zip", filename, t.Format(gopsu.FileTimeFormat), i))) {
 			f.fileIndex = i
 		} else {
 			break
 		}
 	}
-	f.pathNow = filepath.Join(logdir, fmt.Sprintf("%s.%v.%d.log", filename, t.Format(gopsu.FileTimeFromat), f.fileIndex))
+	f.pathNow = filepath.Join(logdir, fmt.Sprintf("%s.%v.%d.log", filename, t.Format(gopsu.FileTimeFormat), f.fileIndex))
 	// 创建新日志
 	f.newFile()
 	// 设置io
@@ -156,7 +156,7 @@ func (f *ginLogger) rollingFile() bool {
 
 	t := time.Now()
 	f.rolledWithFileSize()
-	f.nameNow = fmt.Sprintf("%s.%v.%d.log", f.fname, t.Format(gopsu.FileTimeFromat), f.fileIndex)
+	f.nameNow = fmt.Sprintf("%s.%v.%d.log", f.fname, t.Format(gopsu.FileTimeFormat), f.fileIndex)
 	// 比对文件名，若不同则重新设置io
 	if f.nameNow == f.nameOld {
 		return false
@@ -177,43 +177,12 @@ func (f *ginLogger) zipFile(s string) {
 		return
 	}
 	go func() {
-		zfile := filepath.Join(f.logDir, s+".zip")
-		ofile := filepath.Join(f.logDir, s)
-
-		newZipFile, err := os.Create(zfile)
-		if err != nil {
-			return
-		}
-		defer newZipFile.Close()
-
-		zipWriter := zip.NewWriter(newZipFile)
-		defer zipWriter.Close()
-
-		zipfile, err := os.Open(ofile)
-		if err != nil {
-			return
-		}
-		defer zipfile.Close()
-		info, err := zipfile.Stat()
-		if err != nil {
-			return
-		}
-
-		header, err := zip.FileInfoHeader(info)
-		if err != nil {
-			return
-		}
-		header.Method = zip.Deflate
-
-		writer, err := zipWriter.CreateHeader(header)
-		if err != nil {
-			return
-		}
-		if _, err = io.Copy(writer, zipfile); err != nil {
-			return
-		}
+		gopsu.ZIPFile(f.logDir, s, true)
 		// 删除已压缩的旧日志
-		os.Remove(filepath.Join(f.logDir, s))
+		// err := os.Remove(filepath.Join(f.logDir, s))
+		// if err != nil {
+		// 	ioutil.WriteFile(fmt.Sprintf("logcrash.%d.log", time.Now().Unix()), []byte("del old file:"+s+" "+err.Error()), 0664)
+		// }
 	}()
 }
 
@@ -253,7 +222,7 @@ func (f *ginLogger) newFile() {
 		f.fileIndex = 0
 	}
 	// 直接写入当日日志
-	f.nameNow = fmt.Sprintf("%s.%v.%d.log", f.fname, t.Format(gopsu.FileTimeFromat), f.fileIndex)
+	f.nameNow = fmt.Sprintf("%s.%v.%d.log", f.fname, t.Format(gopsu.FileTimeFormat), f.fileIndex)
 	f.pathNow = filepath.Join(f.logDir, f.nameNow)
 	f.pathOld = f.pathNow
 	if f.fname == "" {

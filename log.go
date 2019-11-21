@@ -1,7 +1,6 @@
 package gopsu
 
 import (
-	"archive/zip"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -390,7 +389,8 @@ func NewLogger(d, f string) *MxLog {
 	}
 
 	for i := byte(0); i < 255; i++ {
-		if IsExist(filepath.Join(mylog.fileDir, fmt.Sprintf("%s.%v.%d.log", mylog.fileName, t.Format(FileTimeFromat), i))) {
+		if IsExist(filepath.Join(mylog.fileDir, fmt.Sprintf("%s.%v.%d.log", mylog.fileName, t.Format(FileTimeFormat), i))) ||
+			IsExist(filepath.Join(mylog.fileDir, fmt.Sprintf("%s.%v.%d.log.zip", mylog.fileName, t.Format(FileTimeFormat), i))) {
 			mylog.fileIndex = i
 		} else {
 			break
@@ -427,7 +427,7 @@ func (l *MxLog) rolledWithFileSize() bool {
 func (l *MxLog) rollingFileNoLock() bool {
 	t := time.Now()
 	l.rolledWithFileSize()
-	l.fileNameNow = fmt.Sprintf("%s.%v.%d.log", l.fileName, t.Format(FileTimeFromat), l.fileIndex)
+	l.fileNameNow = fmt.Sprintf("%s.%v.%d.log", l.fileName, t.Format(FileTimeFormat), l.fileIndex)
 	// 比对文件名，若不同则重新设置io
 	if l.fileNameNow == l.fileNameOld {
 		return false
@@ -456,43 +456,12 @@ func (l *MxLog) zipFile(s string) {
 		return
 	}
 	go func() {
-		zfile := filepath.Join(l.fileDir, s+".zip")
-		ofile := filepath.Join(l.fileDir, s)
-
-		newZipFile, err := os.Create(zfile)
-		if err != nil {
-			return
-		}
-		defer newZipFile.Close()
-
-		zipWriter := zip.NewWriter(newZipFile)
-		defer zipWriter.Close()
-
-		zipfile, err := os.Open(ofile)
-		if err != nil {
-			return
-		}
-		defer zipfile.Close()
-		info, err := zipfile.Stat()
-		if err != nil {
-			return
-		}
-
-		header, err := zip.FileInfoHeader(info)
-		if err != nil {
-			return
-		}
-		header.Method = zip.Deflate
-
-		writer, err := zipWriter.CreateHeader(header)
-		if err != nil {
-			return
-		}
-		if _, err = io.Copy(writer, zipfile); err != nil {
-			return
-		}
-		// 删除已压缩的旧日志
-		os.Remove(filepath.Join(l.fileDir, s))
+		ZIPFile(l.fileDir, s, true)
+		// // 删除已压缩的旧日志
+		// err := os.Remove(filepath.Join(l.fileDir, s))
+		// if err != nil {
+		// 	ioutil.WriteFile(fmt.Sprintf("logcrash.%d.log", time.Now().Unix()), []byte("del old file:"+s+" "+err.Error()), 0664)
+		// }
 	}()
 }
 
@@ -529,7 +498,7 @@ func (l *MxLog) newFile() {
 		l.fileDay = t.Day()
 		l.fileIndex = 0
 	}
-	l.fileNameNow = fmt.Sprintf("%s.%v.%d.log", l.fileName, t.Format(FileTimeFromat), l.fileIndex)
+	l.fileNameNow = fmt.Sprintf("%s.%v.%d.log", l.fileName, t.Format(FileTimeFormat), l.fileIndex)
 	l.fileFullPath = filepath.Join(l.fileDir, l.fileNameNow)
 	// 直接写入当日日志
 	// 打开文件

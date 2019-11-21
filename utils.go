@@ -1,6 +1,7 @@
 package gopsu
 
 import (
+	"archive/zip"
 	"bytes"
 	"compress/gzip"
 	"compress/zlib"
@@ -46,8 +47,8 @@ const (
 	LongTimeFormat = "2006/01/02 15:04:05.000"
 	// ShortTimeFormat 无日期的日志内容时间戳格式 15:04:05.000
 	ShortTimeFormat = "15:04:05.000"
-	// FileTimeFromat 日志文件命名格式 060102
-	FileTimeFromat = "060102" // 日志文件命名格式
+	// FileTimeFormat 日志文件命名格式 060102
+	FileTimeFormat = "060102" // 日志文件命名格式
 )
 const (
 	// CryptoMD5 md5算法
@@ -1397,4 +1398,48 @@ func EncodeUTF16BE(s string) []byte {
 func TrimString(s string) string {
 	r := strings.NewReplacer("\r", "", "\n", "")
 	return r.Replace(strings.TrimSpace(s))
+}
+
+// ZIPFile 压缩文件
+func ZIPFile(d, s string, delold bool) {
+	defer func() {
+		if delold {
+			os.Remove(filepath.Join(d, s))
+		}
+	}()
+	zfile := filepath.Join(d, s+".zip")
+	ofile := filepath.Join(d, s)
+
+	newZipFile, err := os.Create(zfile)
+	if err != nil {
+		return
+	}
+	defer newZipFile.Close()
+
+	zipWriter := zip.NewWriter(newZipFile)
+	defer zipWriter.Close()
+
+	zipfile, err := os.Open(ofile)
+	if err != nil {
+		return
+	}
+	defer zipfile.Close()
+	info, err := zipfile.Stat()
+	if err != nil {
+		return
+	}
+
+	header, err := zip.FileInfoHeader(info)
+	if err != nil {
+		return
+	}
+	header.Method = zip.Deflate
+
+	writer, err := zipWriter.CreateHeader(header)
+	if err != nil {
+		return
+	}
+	if _, err = io.Copy(writer, zipfile); err != nil {
+		return
+	}
 }
