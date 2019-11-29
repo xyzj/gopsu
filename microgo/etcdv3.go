@@ -215,8 +215,8 @@ func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string
 		// 注册
 		leaseid, ok := m.etcdRegister()
 		for {
-			// 使用1-4s内的随机间隔
-			// t := time.NewTicker(time.Duration(rand.Intn(2000)+1000) * time.Millisecond)
+			// 使用2-4s内的随机间隔
+			// t := time.NewTicker(time.Duration(rand.Intn(2000)+2000) * time.Millisecond)
 			// for _ = range t.C {
 			if ok { // 成功注册时发送心跳
 				ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
@@ -229,8 +229,8 @@ func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string
 			} else { // 注册失败时重新注册
 				leaseid, ok = m.etcdRegister()
 			}
-			// 使用1-4s内的随机间隔
-			time.Sleep(time.Duration(rand.Intn(2000)+1000) * time.Millisecond)
+			// 使用随机间隔
+			time.Sleep(time.Duration(rand.Intn(2000)+1500) * time.Millisecond)
 		}
 	}()
 }
