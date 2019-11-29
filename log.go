@@ -232,7 +232,7 @@ func (l *MxLog) writeLogAsync() {
 			l.chanWatcher <- "mxlog"
 		}()
 		closeme := false
-		t := time.NewTicker(time.Hour)
+		// t := time.NewTicker(time.Hour)
 		for {
 			if closeme {
 				break
@@ -240,7 +240,7 @@ func (l *MxLog) writeLogAsync() {
 			select {
 			case msg := <-l.chanWrite:
 				l.writeLog(msg.msg, msg.level)
-			case <-t.C:
+				// case <-t.C:
 				// fs, ex := os.Stat(l.fileFullPath)
 				// if ex == nil {
 				// 	if fs.Size() > 1048576000 {

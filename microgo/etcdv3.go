@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"sort"
 	"strings"
@@ -20,7 +21,7 @@ import (
 
 const (
 	leaseTimeout   = 7
-	contextTimeout = 2 * time.Second
+	contextTimeout = 3 * time.Second
 )
 
 // Etcdv3Client 微服务结构体
@@ -102,7 +103,8 @@ func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile string) (*E
 func (m *Etcdv3Client) listServers() error {
 	defer func() error {
 		if err := recover(); err != nil {
-			// fmt.Printf("%+v\n", err)
+			m.logger.Error("etcd list error: " + err.(error).Error())
+			return err.(error)
 		}
 		return nil
 	}()
@@ -203,11 +205,19 @@ func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string
 
 	// 监视线程，在etcd崩溃并重启时重新注册
 	go func() {
+		defer func() {
+			err := recover()
+			if err != nil {
+				ioutil.WriteFile("etcdcrash."+time.Now().Format("060102150405")+".log", []byte(err.(error).Error()), 0664)
+				m.logger.Error("etcd register error: " + err.(error).Error())
+			}
+		}()
 		// 注册
 		leaseid, ok := m.etcdRegister()
-		// 使用1-4s内的随机间隔
-		t := time.NewTicker(time.Duration(rand.Intn(2000)+1000) * time.Millisecond)
-		for _ = range t.C {
+		for {
+			// 使用1-4s内的随机间隔
+			// t := time.NewTicker(time.Duration(rand.Intn(2000)+1000) * time.Millisecond)
+			// for _ = range t.C {
 			if ok { // 成功注册时发送心跳
 				ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
 				_, err := m.etcdClient.KeepAliveOnce(ctx, *leaseid)
@@ -219,6 +229,8 @@ func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string
 			} else { // 注册失败时重新注册
 				leaseid, ok = m.etcdRegister()
 			}
+			// 使用1-4s内的随机间隔
+			time.Sleep(time.Duration(rand.Intn(2000)+1000) * time.Millisecond)
 		}
 	}()
 }
@@ -235,7 +247,7 @@ func (m *Etcdv3Client) Watcher(model ...byte) error {
 		go func() {
 			for {
 				select {
-				case <-time.Tick(time.Second * 2):
+				case <-time.After(time.Second * 3):
 					m.listServers()
 				}
 			}
