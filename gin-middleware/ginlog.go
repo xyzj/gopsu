@@ -125,7 +125,7 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 		if param.ErrorMessage != "" {
 			s += " |>" + param.ErrorMessage
 		}
-		fmt.Fprintln(f.out, s)
+		go fmt.Fprintln(f.out, s)
 	}
 }
 
