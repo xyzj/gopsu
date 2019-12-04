@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 
 	"github.com/tidwall/sjson"
@@ -103,7 +104,7 @@ func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile string) (*E
 func (m *Etcdv3Client) listServers() error {
 	defer func() error {
 		if err := recover(); err != nil {
-			m.logger.Error("etcd list error: " + err.(error).Error())
+			m.logger.Error("etcd list error: " + errors.WithStack(err.(error)).Error())
 			return err.(error)
 		}
 		return nil
@@ -206,10 +207,9 @@ func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string
 	// 监视线程，在etcd崩溃并重启时重新注册
 	go func() {
 		defer func() {
-			err := recover()
-			if err != nil {
-				ioutil.WriteFile("etcdcrash."+time.Now().Format("060102150405")+".log", []byte(err.(error).Error()), 0664)
-				m.logger.Error("etcd register error: " + err.(error).Error())
+			if err := recover(); err != nil {
+				ioutil.WriteFile("etcdcrash."+time.Now().Format("060102150405")+".log", []byte(errors.WithStack(err.(error)).Error()), 0664)
+				m.logger.Error("etcd register error: " + errors.WithStack(err.(error)).Error())
 			}
 		}()
 		// 注册

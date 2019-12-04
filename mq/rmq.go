@@ -99,7 +99,7 @@ func (sessn *Session) SetLogger(l gopsu.Logger) {
 func (sessn *Session) handleReconnect(t string) {
 	defer func() {
 		if err := recover(); err != nil {
-			sessn.logger.Error(err.(error).Error())
+			sessn.logger.Error(errors.WithStack(err.(error)).Error())
 		}
 	}()
 	if sessn.connect() {
