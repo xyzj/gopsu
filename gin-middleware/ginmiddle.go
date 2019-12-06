@@ -224,16 +224,14 @@ func ReadCacheJSON(mydb db.SQLInterface) gin.HandlerFunc {
 		if mydb != nil {
 			cachetag := c.Param("cachetag")
 			if cachetag != "" {
-				if gopsu.IsExist(cachetag) {
-					cachestart := gopsu.String2Int(c.Param("cachestart"), 10)
-					cacherows := gopsu.String2Int(c.Param("cachesrows"), 10)
-					ans := mydb.QueryCacheJSON(cachetag, cachestart, cacherows)
-					if gjson.Parse(ans).Get("total").Int() > 0 {
-						c.Params = append(c.Params, gin.Param{
-							Key:   "_cacheData",
-							Value: ans,
-						})
-					}
+				cachestart := gopsu.String2Int(c.Param("cachestart"), 10)
+				cacherows := gopsu.String2Int(c.Param("cacherows"), 10)
+				ans := mydb.QueryCacheJSON(cachetag, cachestart, cacherows)
+				if gjson.Parse(ans).Get("total").Int() > 0 {
+					c.Params = append(c.Params, gin.Param{
+						Key:   "_cacheData",
+						Value: ans,
+					})
 				}
 			}
 		}
@@ -246,17 +244,15 @@ func ReadCachePB2(mydb db.SQLInterface) gin.HandlerFunc {
 		if mydb != nil {
 			cachetag := c.Param("cachetag")
 			if cachetag != "" {
-				if gopsu.IsExist(cachetag) {
-					cachestart := gopsu.String2Int(c.Param("cachestart"), 10)
-					cacherows := gopsu.String2Int(c.Param("cachesrows"), 10)
-					ans := mydb.QueryCachePB2(cachetag, cachestart, cacherows)
-					if ans.Total > 0 {
-						b, _ := proto.Marshal(ans)
-						c.Params = append(c.Params, gin.Param{
-							Key:   "_cacheData",
-							Value: string(b),
-						})
-					}
+				cachestart := gopsu.String2Int(c.Param("cachestart"), 10)
+				cacherows := gopsu.String2Int(c.Param("cacherows"), 10)
+				ans := mydb.QueryCachePB2(cachetag, cachestart, cacherows)
+				if ans.Total > 0 {
+					b, _ := proto.Marshal(ans)
+					c.Params = append(c.Params, gin.Param{
+						Key:   "_cacheData",
+						Value: string(b),
+					})
 				}
 			}
 		}
