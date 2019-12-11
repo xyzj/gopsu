@@ -97,7 +97,9 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 		if !ok {
 			raw = c.Request.URL.RawQuery
 		}
-		path += "?" + raw
+		if raw != "" {
+			path += "?" + raw
+		}
 		param.Path = path
 
 		var s string

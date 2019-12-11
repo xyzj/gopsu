@@ -300,7 +300,11 @@ func Cleanlog(c *gin.Context) {
 		days = 7
 	}
 	// 遍历文件夹
-	lstfno, ex := ioutil.ReadDir(c.Param("dir"))
+	dir := c.Param("dir")
+	if dir == "" {
+		dir = gopsu.DefaultLogDir
+	}
+	lstfno, ex := ioutil.ReadDir(dir)
 	if ex != nil {
 		ioutil.WriteFile("ginlogerr.log", []byte(fmt.Sprintf("clear log files error: %s", ex.Error())), 0644)
 	}
