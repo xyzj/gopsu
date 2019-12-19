@@ -289,8 +289,8 @@ func PageRuntime(c *gin.Context) {
 	h.Render(c.Writer)
 }
 
-// Cleanlog 日志清理
-func Cleanlog(c *gin.Context) {
+// Clearlog 日志清理
+func Clearlog(c *gin.Context) {
 	if c.Param("pwd") != "xyissogood" {
 		c.String(200, "Wrong!!!")
 		return

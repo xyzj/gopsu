@@ -35,7 +35,7 @@ func (c *ConfData) Reload() error {
 			return ex
 		}
 		defer file.Close()
-		c.Clean()
+		c.Clear()
 		var remarkbuf bytes.Buffer
 		buf := bufio.NewReader(file)
 		for {
@@ -255,8 +255,8 @@ func (c *ConfData) GetAll() string {
 	return fmt.Sprintf("{%s}", strings.Join(s, ","))
 }
 
-// Clean 清除所有配置项
-func (c *ConfData) Clean() {
+// Clear 清除所有配置项
+func (c *ConfData) Clear() {
 	c.items.Range(func(k, v interface{}) bool {
 		c.items.Delete(k)
 		return true

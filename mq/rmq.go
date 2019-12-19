@@ -280,6 +280,13 @@ func (sessn *Session) BindKey(k ...string) error {
 	return fmt.Errorf("Failed to bind key, channel not ready")
 }
 
+// ClearQueue 清空队列
+func (sessn *Session) ClearQueue() {
+	if sessn.isReady {
+		sessn.channel.QueuePurge(sessn.queueName, true)
+	}
+}
+
 // UnBindKey 解绑过滤器
 func (sessn *Session) UnBindKey(k ...string) error {
 	if sessn.isReady {
