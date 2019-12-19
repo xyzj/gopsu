@@ -302,7 +302,7 @@ func (sessn *Session) UnBindKey(k ...string) error {
 			sessn.routingKeys.Delete(v)
 		}
 		if len(s) > 0 {
-			return fmt.Errorf(strings.Join(s, ",") + " bind error:" + err.Error())
+			return fmt.Errorf(strings.Join(s, ",") + " unbind error:" + err.Error())
 		}
 		return nil
 	}
