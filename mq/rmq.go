@@ -358,7 +358,7 @@ func (sessn *Session) SendCustom(d *RabbitMQData) {
 		if err != nil {
 			sessn.logger.Error("SndErr:" + sessn.addr + "|" + err.Error() + "|" + d.RoutingKey)
 		}
-		sessn.logger.Debug("S:" + sessn.addr + "|" + d.RoutingKey + "|" + FormatMQBody(d.Data.Body))
+		sessn.logger.Info("S:" + sessn.addr + "|" + d.RoutingKey + "|" + FormatMQBody(d.Data.Body))
 	}()
 }
 
