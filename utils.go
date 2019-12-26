@@ -1443,3 +1443,15 @@ func ZIPFile(d, s string, delold bool) {
 		return
 	}
 }
+
+// GPS2DFM 经纬度转度分秒
+func GPS2DFM(l float64) (int, int, float64) {
+	du, x := math.Modf(l)
+	fen, y := math.Modf(x * 60)
+	return int(du), int(fen), y * 60
+}
+
+// DFM2GPS 度分秒转经纬度
+func DFM2GPS(du, fen int, miao float64) float64 {
+	return float64(du) + float64(fen)/60 + miao/3600
+}
