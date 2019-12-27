@@ -1455,3 +1455,52 @@ func GPS2DFM(l float64) (int, int, float64) {
 func DFM2GPS(du, fen int, miao float64) float64 {
 	return float64(du) + float64(fen)/60 + miao/3600
 }
+
+// Float642BcdBytes 浮点转bcd字节数组（小端序）
+// v：十进制浮点数值
+// f：格式化的字符串，如"%07.03f","%03.0f"
+func Float642BcdBytes(v float64, f string) []byte {
+	s := strings.ReplaceAll(fmt.Sprintf(f, math.Abs(v)), ".", "")
+	var b bytes.Buffer
+	if len(s)%2 != 0 {
+		s = "0" + s
+	}
+	for i := len(s); i > 1; i -= 2 {
+		if i == 2 {
+			if v > 0 {
+				b.WriteByte(String2Int8(s[i-2:i], 16))
+			} else {
+				b.WriteByte(String2Int8(s[i-2:i], 16) + 0x80)
+			}
+		} else {
+			b.WriteByte(String2Int8(s[i-2:i], 16))
+		}
+	}
+	return b.Bytes()
+}
+
+// BcdBytes2Float64 bcd数组转浮点(小端序)
+// b:bcd数组
+// d：小数位数
+// Unsigned：无符号的
+func BcdBytes2Float64(b []byte, decimal int, unsigned bool) float64 {
+	var negative = false
+	var s string
+	for k, v := range b {
+		if k == len(b)-1 { // 最后一位，判正负
+			if !unsigned {
+				if v >= 128 {
+					v = v - 0x80
+					negative = true
+				}
+			}
+		}
+		s = fmt.Sprintf("%02x", v) + s
+	}
+	s = s[:len(s)-decimal] + "." + s[len(s)-decimal:]
+	f, _ := strconv.ParseFloat(s, 16)
+	if negative {
+		f = f * -1
+	}
+	return f
+}

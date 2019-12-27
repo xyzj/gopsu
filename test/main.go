@@ -8,7 +8,6 @@ import (
 
 // 启动文件 main.go
 func main() {
-	a, b, c := gopsu.GPS2DFM(116.83)
-	println(a, b, fmt.Sprintf("%.02f", c))
-	println(fmt.Sprintf("%.02f", gopsu.DFM2GPS(116, 49, 48.00)))
+
+	println(fmt.Sprintf("%.1f", gopsu.BcdBytes2Bin([]byte{0x01, 0xa8}, 0, false)))
 }
