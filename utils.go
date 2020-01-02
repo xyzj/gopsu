@@ -1396,7 +1396,7 @@ func EncodeUTF16BE(s string) []byte {
 
 // TrimString 去除字符串末尾的空格，\r\n
 func TrimString(s string) string {
-	r := strings.NewReplacer("\r", "", "\n", "")
+	r := strings.NewReplacer("\r", "", "\n", "", "\000", "")
 	return r.Replace(strings.TrimSpace(s))
 }
 
@@ -1503,4 +1503,14 @@ func BcdBytes2Float64(b []byte, decimal int, unsigned bool) float64 {
 		f = f * -1
 	}
 	return f
+}
+
+// Bcd2STime bcd转hh*60+mm
+func Bcd2STime(b []byte) int32 {
+	return String2Int32(fmt.Sprintf("%02x", b[0]), 10)*60 + String2Int32(fmt.Sprintf("%02x", b[1]), 10)
+}
+
+// STime2Bcd hh*60+mm转BCD
+func STime2Bcd(t int32) []byte {
+	return []byte{Bcd2Int8(byte(t / 60)), Bcd2Int8(byte(t % 60))}
 }
