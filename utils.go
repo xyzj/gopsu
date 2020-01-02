@@ -1514,3 +1514,22 @@ func Bcd2STime(b []byte) int32 {
 func STime2Bcd(t int32) []byte {
 	return []byte{Bcd2Int8(byte(t / 60)), Bcd2Int8(byte(t % 60))}
 }
+
+// Byte2SignedInt32 转有符号整型
+func Byte2SignedInt32(b byte) int32 {
+	if b > 127 {
+		return (int32(b) - 128) * -1
+	}
+	return int32(b)
+}
+
+// SignedInt322Byte 有符号整型转byte
+func SignedInt322Byte(i int32) byte {
+	if i > 127 || i < -127 {
+		return byte(0)
+	}
+	if i < 0 {
+		return byte(i*-1 + 128)
+	}
+	return byte(i)
+}
