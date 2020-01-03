@@ -835,13 +835,10 @@ func Stamp2Time(t int64, fmt ...string) string {
 }
 
 // Time2Stampf 可根据制定的时间格式和时区转换为当前时区的Unix时间戳
-//  fmt：
-//  year：2006
-//  month：01
-//  day：02
-//  hour：15
-//  minute：04
-//  second：05
+//	s：时间字符串
+//  fmt：时间格式
+//  year：2006，month：01，day：02
+//  hour：15，minute：04，second：05
 //  tz：0～12,超范围时使用本地时区
 func Time2Stampf(s, fmt string, tz float32) int64 {
 	if fmt == "" {
@@ -853,8 +850,10 @@ func Time2Stampf(s, fmt string, tz float32) int64 {
 	}
 	var loc *time.Location
 	loc = time.FixedZone("", int((time.Duration(tz) * time.Hour).Seconds()))
+	println(loc)
 	tm, ex := time.ParseInLocation(fmt, s, loc)
 	if ex != nil {
+		println(ex.Error())
 		return 0
 	}
 	return tm.Unix()
@@ -1264,7 +1263,8 @@ func Base64Imgfile(b, f string) error {
 }
 
 // SplitStringWithLen 按制定长度分割字符串
-// s-原始字符串,l-切割长度
+// 	s-原始字符串
+//	l-切割长度
 func SplitStringWithLen(s string, l int) []string {
 	rs := []rune(s)
 	var ss = make([]string, 0)
@@ -1283,7 +1283,9 @@ func SplitStringWithLen(s string, l int) []string {
 }
 
 // HexString2Bytes 转换hexstring为字节数组
-// s-hexstring（11aabb），bigorder-是否高位在前，false低位在前
+// 	s-hexstring（11aabb）
+//	bigorder-是否高位在前
+//	false低位在前
 func HexString2Bytes(s string, bigorder bool) []byte {
 	if len(s)%2 == 1 {
 		s = "0" + s
@@ -1305,7 +1307,9 @@ func HexString2Bytes(s string, bigorder bool) []byte {
 }
 
 // Bytes2Uint64 字节数组转换为uint64
-// b-字节数组，bigorder-是否高位在前，false低位在前
+// 	b-字节数组
+//	bigorder-是否高位在前
+//	false低位在前
 func Bytes2Uint64(b []byte, bigorder bool) uint64 {
 	s := ""
 	for _, v := range b {
@@ -1320,7 +1324,9 @@ func Bytes2Uint64(b []byte, bigorder bool) uint64 {
 }
 
 // Bytes2Int64 字节数组转换为uint64
-// b-字节数组，bigorder-是否高位在前，false低位在前
+// 	b-字节数组
+// 	bigorder-是否高位在前
+//	false低位在前
 func Bytes2Int64(b []byte, bigorder bool) int64 {
 	s := ""
 	for _, v := range b {
@@ -1335,9 +1341,9 @@ func Bytes2Int64(b []byte, bigorder bool) int64 {
 }
 
 // GetServerTLSConfig 获取https配置
-// certfile: 服务端证书
-// keyfile: 服务端key
-// clientca: 双向验证时客户端根证书
+//	certfile: 服务端证书
+// 	keyfile: 服务端key
+// 	clientca: 双向验证时客户端根证书
 func GetServerTLSConfig(certfile, keyfile, clientca string) (*tls.Config, error) {
 	tc := &tls.Config{}
 	cliCrt, err := tls.LoadX509KeyPair(certfile, keyfile)
@@ -1358,9 +1364,9 @@ func GetServerTLSConfig(certfile, keyfile, clientca string) (*tls.Config, error)
 }
 
 // GetClientTLSConfig 获取https配置
-// certfile: 双向验证时客户端证书
-// keyfile: 双向验证时客户端key
-// rootca: 服务端根证书
+// 	certfile: 双向验证时客户端证书
+// 	keyfile: 双向验证时客户端key
+// 	rootca: 服务端根证书
 func GetClientTLSConfig(certfile, keyfile, rootca string) (*tls.Config, error) {
 	tc := &tls.Config{}
 	var err error
@@ -1457,8 +1463,8 @@ func DFM2GPS(du, fen int, miao float64) float64 {
 }
 
 // Float642BcdBytes 浮点转bcd字节数组（小端序）
-// v：十进制浮点数值
-// f：格式化的字符串，如"%07.03f","%03.0f"
+// 	v：十进制浮点数值
+// 	f：格式化的字符串，如"%07.03f","%03.0f"
 func Float642BcdBytes(v float64, f string) []byte {
 	s := strings.ReplaceAll(fmt.Sprintf(f, math.Abs(v)), ".", "")
 	var b bytes.Buffer
@@ -1480,9 +1486,9 @@ func Float642BcdBytes(v float64, f string) []byte {
 }
 
 // BcdBytes2Float64 bcd数组转浮点(小端序)
-// b:bcd数组
-// d：小数位数
-// Unsigned：无符号的
+// 	b:bcd数组
+// 	d：小数位数
+// 	Unsigned：无符号的
 func BcdBytes2Float64(b []byte, decimal int, unsigned bool) float64 {
 	var negative = false
 	var s string
@@ -1532,4 +1538,18 @@ func SignedInt322Byte(i int32) byte {
 		return byte(i*-1 + 128)
 	}
 	return byte(i)
+}
+
+// BcdDT2Stamp bcd时间戳转unix
+func BcdDT2Stamp(d []byte) int64 {
+	var f = "0601021504"
+	if len(d) == 6 {
+		f = "060102150405"
+	}
+	return Time2Stampf(fmt.Sprintf("%d", int(BcdBytes2Float64(d, 0, true))), f, 8)
+}
+
+// Stamp2BcdDT unix时间戳转bcd,6字节，第一字节为秒
+func Stamp2BcdDT(dt int64) []byte {
+	return Float642BcdBytes(String2Float64(Stamp2Time(dt, "060102150405")), "%12.0f")
 }
