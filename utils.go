@@ -850,10 +850,8 @@ func Time2Stampf(s, fmt string, tz float32) int64 {
 	}
 	var loc *time.Location
 	loc = time.FixedZone("", int((time.Duration(tz) * time.Hour).Seconds()))
-	println(loc)
 	tm, ex := time.ParseInLocation(fmt, s, loc)
 	if ex != nil {
-		println(ex.Error())
 		return 0
 	}
 	return tm.Unix()
@@ -1008,7 +1006,6 @@ func DoZlibCompress(src []byte) []byte {
 func SwapCase(s string) string {
 	var ns bytes.Buffer
 	for _, v := range s {
-		// println(v, string(v))
 		if v >= 65 && v <= 90 {
 			ns.WriteString(string(int(v) + 32))
 		} else if v >= 97 && v <= 122 {
