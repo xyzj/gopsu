@@ -1456,7 +1456,7 @@ func GPS2DFM(l float64) (int, int, float64) {
 
 // DFM2GPS 度分秒转经纬度
 func DFM2GPS(du, fen int, miao float64) float64 {
-	return float64(du) + float64(fen)/60 + miao/3600
+	return float64(du) + float64(fen)/60 + miao/360000
 }
 
 // Float642BcdBytes 浮点转bcd字节数组（小端序）
