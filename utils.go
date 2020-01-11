@@ -1550,3 +1550,17 @@ func BcdDT2Stamp(d []byte) int64 {
 func Stamp2BcdDT(dt int64) []byte {
 	return Float642BcdBytes(String2Float64(Stamp2Time(dt, "060102150405")), "%12.0f")
 }
+
+// CountRCMru 计算电表校验码
+func CountRCMru(d []byte) byte {
+	var a int
+	for _, v := range d {
+		a += int(v)
+	}
+	return byte(a % 256)
+}
+
+// CheckRCMru 校验电表数据
+func CheckRCMru(d []byte) bool {
+	return d[len(d)-2] == CountRCMru(d[:len(d)-2])
+}
