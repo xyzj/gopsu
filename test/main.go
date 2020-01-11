@@ -2,12 +2,33 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/xyzj/gopsu"
 )
 
+var (
+	h   = -0.833
+	uto = 180
+)
+
 // 启动文件 main.go
 func main() {
-
-	println(fmt.Sprintf("%.1f", gopsu.BcdBytes2Bin([]byte{0x01, 0xa8}, 0, false)))
+	lon := 121.4890497
+	lat := 31.2252985
+	t := time.Unix(gopsu.Time2Stamp("2020-01-11 00:00:00"), 0)
+	ss := &gopsu.SunrisesetParams{}
+	ss.Latitude = lat
+	ss.Longitude = lon
+	// ss.UtcOffset = 8
+	println(ss.Calculation())
+	ss.SunResult.Range(func(key, value interface{}) bool {
+		vv := value.(*gopsu.SunrisesetResult)
+		println(fmt.Sprintf("%02d-%02d --> %02d:%02d - %02d:%02d", vv.Month, vv.Day, vv.Sunrise/60, vv.Sunrise%60, vv.Sunset/60, vv.Sunset%60))
+		return true
+	})
+	c, d := ss.Get(1, 11)
+	println(c, d, fmt.Sprintf("%02d:%02d - %02d:%02d", c/60, c%60, d/60, d%60))
+	a, b, _ := gopsu.GetSunriseSunset(lat, lon, 8, t)
+	println(a.Format("15:04" + " - " + b.Format("15:04")))
 }

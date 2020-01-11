@@ -38,6 +38,10 @@ func (p *SunrisesetParams) Calculation() bool {
 	if p.Year == 0 {
 		p.Year = time.Now().UTC().Year()
 	}
+	if p.UtcOffset == 0 {
+		_, tz := time.Now().Zone()
+		p.UtcOffset = float64(tz) / 3600
+	}
 	var lock sync.WaitGroup
 	var faultCount int32
 	var days int32
@@ -47,7 +51,7 @@ func (p *SunrisesetParams) Calculation() bool {
 			defer lock.Done()
 			dd := int(atomic.AddInt32(&days, 1))
 			tt := time.Date(p.Year, time.January, dd, 0, 0, 0, 0, time.Local)
-			rise, set, err := GetSunriseSunset(p.Latitude, p.Longitude, 0, tt)
+			rise, set, err := GetSunriseSunset(p.Latitude, p.Longitude, p.UtcOffset, tt)
 			if err != nil {
 				atomic.AddInt32(&faultCount, 1)
 				return
@@ -105,9 +109,9 @@ func deg2rad(degrees float64) float64 {
 // seconds - The number of seconds will be normalized to 1
 // Return A vector with the seconds normalized to 0~1
 func createSecondsNormalized(seconds int) (vector []float64) {
+	vector = make([]float64, seconds)
 	for index := 0; index < seconds; index++ {
-		temp := float64(index) / float64(seconds-1)
-		vector = append(vector, temp)
+		vector[index] = float64(index) / float64(seconds-1)
 	}
 	return
 }
@@ -118,9 +122,9 @@ func createSecondsNormalized(seconds int) (vector []float64) {
 // utcOffset - UTC offset defined by the user
 // Return Julian day slice
 func calcJulianDay(numDays int64, secondsNorm []float64, utcOffset float64) (julianDay []float64) {
+	julianDay = make([]float64, len(secondsNorm))
 	for index := 0; index < len(secondsNorm); index++ {
-		temp := float64(numDays) + 2415018.5 + secondsNorm[index] - utcOffset/24.0
-		julianDay = append(julianDay, temp)
+		julianDay[index] = float64(numDays) + 2415018.5 + secondsNorm[index] - utcOffset/24.0
 	}
 	return
 }
@@ -129,9 +133,9 @@ func calcJulianDay(numDays int64, secondsNorm []float64, utcOffset float64) (jul
 // julianDay - Julian day vector calculated by the calcJulianDay function
 // Return Julian century slice
 func calcJulianCentury(julianDay []float64) (julianCentury []float64) {
+	julianCentury = make([]float64, len(julianDay))
 	for index := 0; index < len(julianDay); index++ {
-		temp := (julianDay[index] - 2451545.0) / 36525.0
-		julianCentury = append(julianCentury, temp)
+		julianCentury[index] = (julianDay[index] - 2451545.0) / 36525.0
 	}
 	return
 }
@@ -140,10 +144,10 @@ func calcJulianCentury(julianDay []float64) (julianCentury []float64) {
 // julianCentury - Julian century calculated by the calcJulianCentury function
 // Return The Geom Mean Long Sun slice
 func calcGeomMeanLongSun(julianCentury []float64) (geomMeanLongSun []float64) {
+	geomMeanLongSun = make([]float64, len(julianCentury))
 	for index := 0; index < len(julianCentury); index++ {
 		a := 280.46646 + julianCentury[index]*(36000.76983+julianCentury[index]*0.0003032)
-		temp := math.Mod(a, 360.0)
-		geomMeanLongSun = append(geomMeanLongSun, temp)
+		geomMeanLongSun[index] = math.Mod(a, 360.0)
 	}
 	return
 }
@@ -152,9 +156,9 @@ func calcGeomMeanLongSun(julianCentury []float64) (geomMeanLongSun []float64) {
 // julianCentury - Julian century calculated by the calcJulianCentury function
 // Return The Geom Mean Anom Sun slice
 func calcGeomMeanAnomSun(julianCentury []float64) (geomMeanAnomSun []float64) {
+	geomMeanAnomSun = make([]float64, len(julianCentury))
 	for index := 0; index < len(julianCentury); index++ {
-		temp := 357.52911 + julianCentury[index]*(35999.05029-0.0001537*julianCentury[index])
-		geomMeanAnomSun = append(geomMeanAnomSun, temp)
+		geomMeanAnomSun[index] = 357.52911 + julianCentury[index]*(35999.05029-0.0001537*julianCentury[index])
 	}
 	return
 }
@@ -163,9 +167,9 @@ func calcGeomMeanAnomSun(julianCentury []float64) (geomMeanAnomSun []float64) {
 // julianCentury - Julian century calculated by the calcJulianCentury function
 // Return The Eccent Earth Orbit slice
 func calcEccentEarthOrbit(julianCentury []float64) (eccentEarthOrbit []float64) {
+	eccentEarthOrbit = make([]float64, len(julianCentury))
 	for index := 0; index < len(julianCentury); index++ {
-		temp := 0.016708634 - julianCentury[index]*(0.000042037+0.0000001267*julianCentury[index])
-		eccentEarthOrbit = append(eccentEarthOrbit, temp)
+		eccentEarthOrbit[index] = 0.016708634 - julianCentury[index]*(0.000042037+0.0000001267*julianCentury[index])
 	}
 	return
 }
@@ -179,9 +183,9 @@ func calcSunEqCtr(julianCentury []float64, geomMeanAnomSun []float64) (sunEqCtr 
 		return
 	}
 
+	sunEqCtr = make([]float64, len(julianCentury))
 	for index := 0; index < len(julianCentury); index++ {
-		temp := math.Sin(deg2rad(geomMeanAnomSun[index]))*(1.914602-julianCentury[index]*(0.004817+0.000014*julianCentury[index])) + math.Sin(deg2rad(2*geomMeanAnomSun[index]))*(0.019993-0.000101*julianCentury[index]) + math.Sin(deg2rad(3*geomMeanAnomSun[index]))*0.000289
-		sunEqCtr = append(sunEqCtr, temp)
+		sunEqCtr[index] = math.Sin(deg2rad(geomMeanAnomSun[index]))*(1.914602-julianCentury[index]*(0.004817+0.000014*julianCentury[index])) + math.Sin(deg2rad(2*geomMeanAnomSun[index]))*(0.019993-0.000101*julianCentury[index]) + math.Sin(deg2rad(3*geomMeanAnomSun[index]))*0.000289
 	}
 	return
 }
@@ -195,9 +199,9 @@ func calcSunTrueLong(sunEqCtr []float64, geomMeanLongSun []float64) (sunTrueLong
 		return
 	}
 
+	sunTrueLong = make([]float64, len(sunEqCtr))
 	for index := 0; index < len(sunEqCtr); index++ {
-		temp := sunEqCtr[index] + geomMeanLongSun[index]
-		sunTrueLong = append(sunTrueLong, temp)
+		sunTrueLong[index] = sunEqCtr[index] + geomMeanLongSun[index]
 	}
 	return
 }
@@ -211,9 +215,9 @@ func calcSunAppLong(sunTrueLong []float64, julianCentury []float64) (sunAppLong 
 		return
 	}
 
+	sunAppLong = make([]float64, len(sunTrueLong))
 	for index := 0; index < len(sunTrueLong); index++ {
-		temp := sunTrueLong[index] - 0.00569 - 0.00478*math.Sin(deg2rad(125.04-1934.136*julianCentury[index]))
-		sunAppLong = append(sunAppLong, temp)
+		sunAppLong[index] = sunTrueLong[index] - 0.00569 - 0.00478*math.Sin(deg2rad(125.04-1934.136*julianCentury[index]))
 	}
 	return
 }
@@ -222,9 +226,9 @@ func calcSunAppLong(sunTrueLong []float64, julianCentury []float64) (sunAppLong 
 // julianCentury - Julian century calculated by the calcJulianCentury function
 // Return the Mean Obliq Ecliptic slice
 func calcMeanObliqEcliptic(julianCentury []float64) (meanObliqEcliptic []float64) {
+	meanObliqEcliptic = make([]float64, len(julianCentury))
 	for index := 0; index < len(julianCentury); index++ {
-		temp := 23.0 + (26.0+(21.448-julianCentury[index]*(46.815+julianCentury[index]*(0.00059-julianCentury[index]*0.001813)))/60.0)/60.0
-		meanObliqEcliptic = append(meanObliqEcliptic, temp)
+		meanObliqEcliptic[index] = 23.0 + (26.0+(21.448-julianCentury[index]*(46.815+julianCentury[index]*(0.00059-julianCentury[index]*0.001813)))/60.0)/60.0
 	}
 	return
 }
@@ -238,9 +242,9 @@ func calcObliqCorr(meanObliqEcliptic []float64, julianCentury []float64) (obliqC
 		return
 	}
 
+	obliqCorr = make([]float64, len(julianCentury))
 	for index := 0; index < len(julianCentury); index++ {
-		temp := meanObliqEcliptic[index] + 0.00256*math.Cos(deg2rad(125.04-1934.136*julianCentury[index]))
-		obliqCorr = append(obliqCorr, temp)
+		obliqCorr[index] = meanObliqEcliptic[index] + 0.00256*math.Cos(deg2rad(125.04-1934.136*julianCentury[index]))
 	}
 	return
 }
@@ -254,9 +258,9 @@ func calcSunDeclination(obliqCorr []float64, sunAppLong []float64) (sunDeclinati
 		return
 	}
 
+	sunDeclination = make([]float64, len(obliqCorr))
 	for index := 0; index < len(obliqCorr); index++ {
-		temp := rad2deg(math.Asin(math.Sin(deg2rad(obliqCorr[index])) * math.Sin(deg2rad(sunAppLong[index]))))
-		sunDeclination = append(sunDeclination, temp)
+		sunDeclination[index] = rad2deg(math.Asin(math.Sin(deg2rad(obliqCorr[index])) * math.Sin(deg2rad(sunAppLong[index]))))
 	}
 	return
 }
@@ -276,6 +280,7 @@ func calcEquationOfTime(multiFactor []float64, geomMeanLongSun []float64, eccent
 		return
 	}
 
+	equationOfTime = make([]float64, len(multiFactor))
 	for index := 0; index < len(multiFactor); index++ {
 		a := multiFactor[index] * math.Sin(2.0*deg2rad(geomMeanLongSun[index]))
 		b := 2.0 * eccentEarthOrbit[index] * math.Sin(deg2rad(geomMeanAnomSun[index]))
@@ -283,8 +288,7 @@ func calcEquationOfTime(multiFactor []float64, geomMeanLongSun []float64, eccent
 		d := math.Cos(2.0 * deg2rad(geomMeanLongSun[index]))
 		e := 0.5 * multiFactor[index] * multiFactor[index] * math.Sin(4.0*deg2rad(geomMeanLongSun[index]))
 		f := 1.25 * eccentEarthOrbit[index] * eccentEarthOrbit[index] * math.Sin(2.0*deg2rad(geomMeanAnomSun[index]))
-		temp := 4.0 * rad2deg(a-b+c*d-e-f)
-		equationOfTime = append(equationOfTime, temp)
+		equationOfTime[index] = 4.0 * rad2deg(a-b+c*d-e-f)
 	}
 	return
 }
@@ -294,9 +298,9 @@ func calcEquationOfTime(multiFactor []float64, geomMeanLongSun []float64, eccent
 // sunDeclination - The Sun Declination calculated by the calcSunDeclination function
 // Return the HaSunrise slice
 func calcHaSunrise(latitude float64, sunDeclination []float64) (haSunrise []float64) {
+	haSunrise = make([]float64, len(sunDeclination))
 	for index := 0; index < len(sunDeclination); index++ {
-		temp := rad2deg(math.Acos(math.Cos(deg2rad(90.833))/(math.Cos(deg2rad(latitude))*math.Cos(deg2rad(sunDeclination[index]))) - math.Tan(deg2rad(latitude))*math.Tan(deg2rad(sunDeclination[index]))))
-		haSunrise = append(haSunrise, temp)
+		haSunrise[index] = rad2deg(math.Acos(math.Cos(deg2rad(90.833))/(math.Cos(deg2rad(latitude))*math.Cos(deg2rad(sunDeclination[index]))) - math.Tan(deg2rad(latitude))*math.Tan(deg2rad(sunDeclination[index]))))
 	}
 	return
 }
@@ -307,9 +311,9 @@ func calcHaSunrise(latitude float64, sunDeclination []float64) (haSunrise []floa
 // utcOffset - The UTC offset is defined by the user
 // Return the Solar Noon slice
 func calcSolarNoon(longitude float64, equationOfTime []float64, utcOffset float64) (solarNoon []float64) {
+	solarNoon = make([]float64, len(equationOfTime))
 	for index := 0; index < len(equationOfTime); index++ {
-		temp := (720.0 - 4.0*longitude - equationOfTime[index] + utcOffset*60.0) * 60.0
-		solarNoon = append(solarNoon, temp)
+		solarNoon[index] = (720.0 - 4.0*longitude - equationOfTime[index] + utcOffset*60.0) * 60.0
 	}
 	return
 }
@@ -371,12 +375,14 @@ func minIndex(slice []float64) int {
 
 // Convert each value to the absolute value
 func abs(slice []float64) []float64 {
-	var newSlice []float64
+	var newSlice = make([]float64, len(slice))
+	var index = 0
 	for _, value := range slice {
 		if value < 0.0 {
 			value = math.Abs(value)
 		}
-		newSlice = append(newSlice, value)
+		newSlice[index] = value
+		index++
 	}
 	return newSlice
 }
@@ -456,10 +462,10 @@ func GetSunriseSunset(latitude float64, longitude float64, utcOffset float64, da
 	sunDeclination := calcSunDeclination(obliqCorr, sunAppLong)
 
 	// var y
-	var multiFactor []float64
+	var multiFactor = make([]float64, len(obliqCorr))
 	for index := 0; index < len(obliqCorr); index++ {
 		temp := math.Tan(deg2rad(obliqCorr[index]/2.0)) * math.Tan(deg2rad(obliqCorr[index]/2.0))
-		multiFactor = append(multiFactor, temp)
+		multiFactor[index] = temp
 	}
 
 	// Eq of Time (minutes)
@@ -472,12 +478,12 @@ func GetSunriseSunset(latitude float64, longitude float64, utcOffset float64, da
 	solarNoon := calcSolarNoon(longitude, equationOfTime, utcOffset)
 
 	// Sunrise and Sunset Times (LST)
-	var tempSunrise []float64
-	var tempSunset []float64
+	var tempSunrise = make([]float64, len(solarNoon))
+	var tempSunset = make([]float64, len(solarNoon))
 
 	for index := 0; index < len(solarNoon); index++ {
-		tempSunrise = append(tempSunrise, (solarNoon[index] - float64(round(haSunrise[index]*4.0*60.0)) - float64(seconds)*secondsNorm[index]))
-		tempSunset = append(tempSunset, (solarNoon[index] + float64(round(haSunrise[index]*4.0*60.0)) - float64(seconds)*secondsNorm[index]))
+		tempSunrise[index] = (solarNoon[index] - float64(round(haSunrise[index]*4.0*60.0)) - float64(seconds)*secondsNorm[index])
+		tempSunset[index] = (solarNoon[index] + float64(round(haSunrise[index]*4.0*60.0)) - float64(seconds)*secondsNorm[index])
 	}
 
 	// Get the sunrise and sunset in seconds
@@ -487,7 +493,7 @@ func GetSunriseSunset(latitude float64, longitude float64, utcOffset float64, da
 	// Convert the seconds to time
 	defaultTime := new(time.Time)
 	sunrise = defaultTime.Add(time.Duration(sunriseSeconds) * time.Second)
-	sunset = defaultTime.Add(time.Duration(sunsetSeconds) * time.Second)
+	sunset = defaultTime.Add(time.Duration(sunsetSeconds+60) * time.Second) // 手动修正1分钟
 
 	return
 }
