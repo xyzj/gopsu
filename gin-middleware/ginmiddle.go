@@ -119,9 +119,6 @@ func ListenAndServe(port int, h *gin.Engine) error {
 // keyfile： key file path
 // clientca: 客户端根证书用于验证客户端合法性
 func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, clientca ...string) error {
-	if gopsu.IsExist(".forcehttp") {
-		return ListenAndServe(port, h)
-	}
 	sss := getRoutes(h)
 	if sss != "" {
 		h.GET("/showroutes", func(c *gin.Context) {
