@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -20,6 +21,49 @@ import (
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/db"
 )
+
+type renewCert struct {
+	tc       *tls.Config
+	timer    *time.Ticker
+	sign     string
+	certFile string
+	keyFile  string
+}
+
+func (renew *renewCert) start() error {
+	if renew.timer == nil {
+		renew.timer = time.NewTicker(time.Hour * 24)
+	}
+	if renew.tc == nil {
+		renew.tc = &tls.Config{
+			Certificates: make([]tls.Certificate, 1),
+			NextProtos:   []string{"http/1.1"},
+		}
+		var err error
+		renew.tc.Certificates[0], err = tls.LoadX509KeyPair(renew.certFile, renew.keyFile)
+		if err != nil {
+			return err
+		}
+		renew.sign = gopsu.GetMD5(string(renew.tc.Certificates[0].Certificate[0]))
+	}
+	go func() {
+		for {
+			select {
+			case <-renew.timer.C:
+				newcert, err := tls.LoadX509KeyPair(renew.certFile, renew.keyFile)
+				if err == nil {
+					newsign := gopsu.GetMD5(string(newcert.Certificate[0]))
+					// println(renew.certFile, "\n---", renew.sign, len(renew.tc.Certificates[0].Certificate[0]), "\n", "==", newsign, len(newcert.Certificate[0]))
+					if renew.sign != newsign {
+						renew.sign = newsign
+						renew.tc.Certificates[0] = newcert
+					}
+				}
+			}
+		}
+	}()
+	return nil
+}
 
 // NewGinEngine 返回一个新的gin路由
 // logName：日志文件名
@@ -50,6 +94,7 @@ func NewGinEngine(logDir, logName string, logDays int, logLevel ...int) *gin.Eng
 	// r.HTMLRender = multiRender()
 	// 基础路由
 	// 404,405
+	r.HandleMethodNotAllowed = true
 	r.NoMethod(Page405)
 	r.NoRoute(Page404)
 	r.GET("/", PageDefault)
@@ -127,14 +172,24 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 			render.WriteString(c.Writer, sss, nil)
 		})
 	}
-	var tc = &tls.Config{}
+	var tcm = &renewCert{
+		certFile: certfile,
+		keyFile:  keyfile,
+		timer:    time.NewTicker(time.Second * 10),
+	}
+	// var tc = &tls.Config{
+	// 	Certificates: make([]tls.Certificate, 1),
+	// 	NextProtos:   []string{"http/1.1"},
+	// }
+	// var err error
+	// tc.Certificates[0], err = tls.LoadX509KeyPair(certfile, keyfile)
 	if len(clientca) > 0 {
 		pool := x509.NewCertPool()
 		caCrt, err := ioutil.ReadFile(clientca[0])
 		if err == nil {
 			pool.AppendCertsFromPEM(caCrt)
-			tc.ClientCAs = pool
-			tc.ClientAuth = tls.RequireAndVerifyClientCert
+			tcm.tc.ClientCAs = pool
+			tcm.tc.ClientAuth = tls.RequireAndVerifyClientCert
 		}
 	}
 	s := &http.Server{
@@ -143,11 +198,22 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 		ReadTimeout:  getSocketTimeout(),
 		WriteTimeout: getSocketTimeout(),
 		IdleTimeout:  getSocketTimeout(),
-		TLSConfig:    tc,
+		// TLSConfig:    tc,
 	}
-
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return err
+	}
+	defer ln.Close()
+	err = tcm.start()
+	if err != nil {
+		return err
+	}
+	tlsListener := tls.NewListener(ln, tcm.tc)
+	defer tlsListener.Close()
 	fmt.Fprintf(gin.DefaultWriter, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTPS server at :"+strconv.Itoa(port))
-	return s.ListenAndServeTLS(certfile, keyfile)
+	// return s.ListenAndServeTLS("", "")
+	return s.Serve(tlsListener)
 }
 
 // CheckRequired 检查必填参数
