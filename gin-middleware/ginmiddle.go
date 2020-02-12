@@ -50,6 +50,7 @@ func NewGinEngine(logDir, logName string, logDays int, logLevel ...int) *gin.Eng
 	// r.HTMLRender = multiRender()
 	// 基础路由
 	// 404,405
+	r.HandleMethodNotAllowed = true
 	r.NoMethod(Page405)
 	r.NoRoute(Page404)
 	r.GET("/", PageDefault)
