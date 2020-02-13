@@ -4,12 +4,15 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -28,6 +31,7 @@ type renewCert struct {
 	sign     string
 	certFile string
 	keyFile  string
+	rlock    sync.RWMutex
 }
 
 func (renew *renewCert) start() error {
@@ -47,6 +51,7 @@ func (renew *renewCert) start() error {
 		renew.sign = gopsu.GetMD5(string(renew.tc.Certificates[0].Certificate[0]))
 	}
 	go func() {
+		defer func() { recover() }()
 		for {
 			select {
 			case <-renew.timer.C:
@@ -55,8 +60,10 @@ func (renew *renewCert) start() error {
 					newsign := gopsu.GetMD5(string(newcert.Certificate[0]))
 					// println(renew.certFile, "\n---", renew.sign, len(renew.tc.Certificates[0].Certificate[0]), "\n", "==", newsign, len(newcert.Certificate[0]))
 					if renew.sign != newsign {
-						renew.sign = newsign
+						renew.rlock.RLock()
+						defer renew.rlock.RUnlock()
 						renew.tc.Certificates[0] = newcert
+						renew.sign = newsign
 					}
 				}
 			}
@@ -153,7 +160,7 @@ func ListenAndServe(port int, h *gin.Engine) error {
 		WriteTimeout: getSocketTimeout(),
 		IdleTimeout:  getSocketTimeout(),
 	}
-	fmt.Fprintf(gin.DefaultWriter, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTP server at :"+strconv.Itoa(port))
+	fmt.Fprintf(io.MultiWriter(gin.DefaultWriter, os.Stdout), "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTP server at :"+strconv.Itoa(port))
 	return s.ListenAndServe()
 }
 
@@ -175,7 +182,6 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 	var tcm = &renewCert{
 		certFile: certfile,
 		keyFile:  keyfile,
-		timer:    time.NewTicker(time.Second * 10),
 	}
 	// var tc = &tls.Config{
 	// 	Certificates: make([]tls.Certificate, 1),
@@ -193,12 +199,15 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 		}
 	}
 	s := &http.Server{
-		Addr:         fmt.Sprintf(":%d", port),
+		// Addr:         fmt.Sprintf(":%d", port),
 		Handler:      h,
 		ReadTimeout:  getSocketTimeout(),
 		WriteTimeout: getSocketTimeout(),
 		IdleTimeout:  getSocketTimeout(),
 		// TLSConfig:    tc,
+	}
+	if err := s.setupHTTP2_ServeTLS(); err != nil {
+		return err
 	}
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -211,7 +220,7 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 	}
 	tlsListener := tls.NewListener(ln, tcm.tc)
 	defer tlsListener.Close()
-	fmt.Fprintf(gin.DefaultWriter, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTPS server at :"+strconv.Itoa(port))
+	fmt.Fprintf(io.MultiWriter(gin.DefaultWriter, os.Stdout), "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTPS server at :"+strconv.Itoa(port))
 	// return s.ListenAndServeTLS("", "")
 	return s.Serve(tlsListener)
 }
