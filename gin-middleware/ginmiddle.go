@@ -162,7 +162,7 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 				fmt.Fprintf(io.MultiWriter(gin.DefaultWriter, os.Stdout), "cert update crash: %s\n", err.(error).Error())
 			}
 		}()
-		tt := time.NewTicker(time.Second * 24)
+		tt := time.NewTicker(time.Hour * 24)
 		oldsign := gopsu.GetMD5(string(s.TLSConfig.Certificates[0].Certificate[0]))
 		var certlock sync.RWMutex
 		for {
