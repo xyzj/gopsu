@@ -194,7 +194,8 @@ func CheckRequired(params ...string) gin.HandlerFunc {
 			}
 			if c.Param(v) == "" {
 				c.Set("status", 0)
-				c.Set("detail", "Missing parameters: "+v)
+				c.Set("detail", v)
+				c.Set("xfile", 5)
 				c.AbortWithStatusJSON(200, c.Keys)
 				break
 			}

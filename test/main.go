@@ -28,4 +28,5 @@ func main() {
 	// })
 	c, d := ss.Get(5, 11)
 	println(fmt.Sprintf("%02d:%02d - %02d:%02d", c/60, c%60, d/60, d%60))
+	println(gopsu.GetMD5("moffice"))
 }
