@@ -1403,13 +1403,54 @@ func TrimString(s string) string {
 	return r.Replace(strings.TrimSpace(s))
 }
 
+// ZIPFiles 压缩多个文件
+func ZIPFiles(dstName string, srcFiles []string, newDir string) error {
+	newZipFile, err := os.Create(dstName)
+	if err != nil {
+		return err
+	}
+	defer newZipFile.Close()
+
+	zipWriter := zip.NewWriter(newZipFile)
+	defer zipWriter.Close()
+	for _, v := range srcFiles {
+		zipfile, err := os.Open(v)
+		if err != nil {
+			return err
+		}
+		defer zipfile.Close()
+		info, err := zipfile.Stat()
+		if err != nil {
+			return err
+		}
+
+		header, err := zip.FileInfoHeader(info)
+		if err != nil {
+			return err
+		}
+		header.Method = zip.Deflate
+		if newDir != "" {
+			header.Name = filepath.Join(newDir, filepath.Base(v))
+		}
+
+		writer, err := zipWriter.CreateHeader(header)
+		if err != nil {
+			return err
+		}
+		if _, err = io.Copy(writer, zipfile); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ZIPFile 压缩文件
 func ZIPFile(d, s string, delold bool) {
-	defer func() {
-		if delold {
-			os.Remove(filepath.Join(d, s))
-		}
-	}()
+	// defer func() {
+	// 	if delold {
+	// 		os.Remove(filepath.Join(d, s))
+	// 	}
+	// }()
 	zfile := filepath.Join(d, s+".zip")
 	ofile := filepath.Join(d, s)
 
@@ -1444,6 +1485,9 @@ func ZIPFile(d, s string, delold bool) {
 	}
 	if _, err = io.Copy(writer, zipfile); err != nil {
 		return
+	}
+	if delold {
+		os.Remove(filepath.Join(d, s))
 	}
 }
 
@@ -1563,4 +1607,30 @@ func CountRCMru(d []byte) byte {
 // CheckRCMru 校验电表数据
 func CheckRCMru(d []byte) bool {
 	return d[len(d)-2] == CountRCMru(d[:len(d)-2])
+}
+
+// CopyFile 复制文件
+func CopyFile(src, dst string) (int64, error) {
+	sourceFileStat, err := os.Stat(src)
+	if err != nil {
+		return 0, err
+	}
+
+	if !sourceFileStat.Mode().IsRegular() {
+		return 0, fmt.Errorf("%s is not a regular file", src)
+	}
+
+	source, err := os.Open(src)
+	if err != nil {
+		return 0, err
+	}
+	defer source.Close()
+
+	destination, err := os.Create(dst)
+	if err != nil {
+		return 0, err
+	}
+	defer destination.Close()
+	nBytes, err := io.Copy(destination, source)
+	return nBytes, err
 }
