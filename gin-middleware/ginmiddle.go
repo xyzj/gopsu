@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin/render"
 	"github.com/gogo/protobuf/proto"
 	"github.com/tidwall/gjson"
+	"github.com/unrolled/secure"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/db"
 )
@@ -293,5 +294,21 @@ func Delay() gin.HandlerFunc {
 			}
 			time.Sleep(time.Millisecond * time.Duration(t))
 		}
+	}
+}
+
+// TLSRedirect tls重定向
+func TLSRedirect() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		secureMiddleware := secure.New(secure.Options{
+			SSLRedirect: true,
+		})
+
+		err := secureMiddleware.Process(c.Writer, c.Request)
+		if err != nil {
+			return
+		}
+
+		c.Next()
 	}
 }
