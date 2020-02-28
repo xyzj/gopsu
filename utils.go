@@ -1429,10 +1429,13 @@ func ZIPFiles(dstName string, srcFiles []string, newDir string) error {
 			return err
 		}
 		header.Method = zip.Deflate
-		if newDir != "" {
-			header.Name = filepath.Join(newDir, filepath.Base(v))
-		} else {
+		switch newDir {
+		case "":
 			header.Name = filepath.Base(v)
+		case "/":
+			header.Name = v
+		default:
+			header.Name = filepath.Join(newDir, filepath.Base(v))
 		}
 
 		writer, err := zipWriter.CreateHeader(header)
