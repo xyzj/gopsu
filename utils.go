@@ -1431,6 +1431,8 @@ func ZIPFiles(dstName string, srcFiles []string, newDir string) error {
 		header.Method = zip.Deflate
 		if newDir != "" {
 			header.Name = filepath.Join(newDir, filepath.Base(v))
+		} else {
+			header.Name = filepath.Base(v)
 		}
 
 		writer, err := zipWriter.CreateHeader(header)
