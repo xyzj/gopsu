@@ -938,26 +938,24 @@ func ReverseString(s string) string {
 func CodeString(s string) string {
 	x := byte(rand.Int31n(126) + 1)
 	l := len(s)
-	salt := string(x) + GetRandomString(int64(l))
+	salt := GetRandomASCII(int64(l))
 	var y, z bytes.Buffer
+	for _, v := range []byte(s) {
+		y.WriteByte(v + x)
+	}
+	zz := y.Bytes()
 	var c1, c2 int
-	for i := 0; i < 2*l+1; i++ {
+	z.WriteByte(x)
+	for i := 1; i < 2*l; i++ {
 		if i%2 == 0 {
 			z.WriteByte(salt[c1])
 			c1++
 		} else {
-			z.WriteByte(s[c2])
+			z.WriteByte(zz[c2])
 			c2++
 		}
 	}
-	for k, v := range z.Bytes() {
-		if k == 0 {
-			y.WriteByte(v)
-		} else {
-			y.WriteByte(v + x)
-		}
-	}
-	a := base64.StdEncoding.EncodeToString(y.Bytes())
+	a := base64.StdEncoding.EncodeToString(z.Bytes())
 	a = ReverseString(a)
 	a = SwapCase(a)
 	a = strings.Replace(a, "=", "", -1)
