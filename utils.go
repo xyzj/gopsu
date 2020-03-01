@@ -930,6 +930,36 @@ func ReverseString(s string) string {
 	return string(runes)
 }
 
+// CodeString 编码字符串
+func CodeString(s string) string {
+	x := byte(rand.Int31n(126) + 1)
+	l := len(s)
+	salt := string(x) + GetRandomString(int64(l))
+	// var zz = make([]byte, l*2+1)
+	var y, z bytes.Buffer
+	var c1, c2 int
+	// zzz := y.Bytes()
+	for i := 0; i < 2*l+1; i++ {
+		if i%2 == 0 {
+			z.WriteByte(salt[c1])
+			// zz[i] = salt[c1]
+			c1++
+		} else {
+			z.WriteByte(s[c1])
+			// zz[i] = s[c2]
+			c2++
+		}
+	}
+	for _, v := range z.Bytes() {
+		y.WriteByte(v + x)
+	}
+	a := base64.StdEncoding.EncodeToString(y.Bytes())
+	a = ReverseString(a)
+	a = SwapCase(a)
+	a = strings.Replace(a, "=", "", -1)
+	return a
+}
+
 // DecodeString 解码混淆字符串，兼容python算法
 func DecodeString(s string) string {
 	s = strings.TrimSpace(s)
