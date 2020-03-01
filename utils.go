@@ -88,6 +88,10 @@ var (
 
 var json = jsoniter.Config{}.Froze()
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 // GetNewCryptoWorker 获取新的序列化或加密管理器
 func GetNewCryptoWorker(cryptoType byte) *CryptoWorker {
 	h := &CryptoWorker{
@@ -935,23 +939,23 @@ func CodeString(s string) string {
 	x := byte(rand.Int31n(126) + 1)
 	l := len(s)
 	salt := string(x) + GetRandomString(int64(l))
-	// var zz = make([]byte, l*2+1)
 	var y, z bytes.Buffer
 	var c1, c2 int
-	// zzz := y.Bytes()
 	for i := 0; i < 2*l+1; i++ {
 		if i%2 == 0 {
 			z.WriteByte(salt[c1])
-			// zz[i] = salt[c1]
 			c1++
 		} else {
 			z.WriteByte(s[c2])
-			// zz[i] = s[c2]
 			c2++
 		}
 	}
-	for _, v := range z.Bytes() {
-		y.WriteByte(v + x)
+	for k, v := range z.Bytes() {
+		if k == 0 {
+			y.WriteByte(v)
+		} else {
+			y.WriteByte(v + x)
+		}
 	}
 	a := base64.StdEncoding.EncodeToString(y.Bytes())
 	a = ReverseString(a)
@@ -1111,6 +1115,16 @@ func CalculateSecurityCode(t, salt string, offset int) []string {
 		}
 	}
 	return sc
+}
+
+// GetRandomASCII 获取随机ascII码字符串
+func GetRandomASCII(l int64) []byte {
+	var rs bytes.Buffer
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := int64(0); i < l; i++ {
+		rs.WriteByte(byte(r.Int31n(256) + 1))
+	}
+	return rs.Bytes()
 }
 
 // GetRandomString 生成随机字符串
