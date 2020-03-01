@@ -945,7 +945,7 @@ func CodeString(s string) string {
 			// zz[i] = salt[c1]
 			c1++
 		} else {
-			z.WriteByte(s[c1])
+			z.WriteByte(s[c2])
 			// zz[i] = s[c2]
 			c2++
 		}
