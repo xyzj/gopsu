@@ -20,6 +20,7 @@ import (
 	"github.com/gin-gonic/gin/render"
 	"github.com/gogo/protobuf/proto"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"github.com/unrolled/secure"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/db"
@@ -204,6 +205,37 @@ func CheckRequired(params ...string) gin.HandlerFunc {
 	}
 }
 
+// HideParams 隐藏敏感参数值
+func HideParams(params ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		s := c.Param("_raw")
+		switch c.Param("_rawType") {
+		case "url":
+			x := make([]string, 0)
+			for _, v := range params {
+				x = append(x, v+"="+c.Param(v))
+				x = append(x, v+"="+gopsu.CodeString(c.Param(v)))
+			}
+			r := strings.NewReplacer(x...)
+			s = r.Replace(s)
+		case "json":
+			for _, v := range params {
+				s, _ = sjson.Set(s, v, gopsu.CodeString(c.Param(v)))
+			}
+		}
+		for k, vv := range c.Params {
+			if vv.Key == "_raw" {
+				c.Params[k] = gin.Param{
+					Key:   "_raw",
+					Value: s,
+				}
+				break
+			}
+		}
+		c.Next()
+	}
+}
+
 // ReadParams 读取请求的参数，保存到c.Params
 func ReadParams() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -216,6 +248,10 @@ func ReadParams() gin.HandlerFunc {
 				Key:   "_raw",
 				Value: c.Request.URL.RawQuery,
 			})
+			c.Params = append(c.Params, gin.Param{
+				Key:   "_rawType",
+				Value: "url",
+			})
 		case "", "application/json", "application/x-www-form-urlencoded": // 传参类，进行解析
 			switch c.Request.Method {
 			case "GET": // get请求忽略body内容
@@ -224,11 +260,19 @@ func ReadParams() gin.HandlerFunc {
 					Key:   "_raw",
 					Value: c.Request.URL.RawQuery,
 				})
+				c.Params = append(c.Params, gin.Param{
+					Key:   "_rawType",
+					Value: "url",
+				})
 			default: // post，put，delete等请求只认body
 				b, _ := ioutil.ReadAll(c.Request.Body)
 				c.Params = append(c.Params, gin.Param{
 					Key:   "_raw",
 					Value: string(b),
+				})
+				c.Params = append(c.Params, gin.Param{
+					Key:   "_rawType",
+					Value: "json",
 				})
 				if len(b) > 0 {
 					switch ct {
