@@ -275,6 +275,11 @@ func (c *ConfData) Len() int {
 	// return len(c.items)
 }
 
+// FullPath 配置文件完整路径
+func (c *ConfData) FullPath() string {
+	return c.fileFullPath
+}
+
 // LoadConfig load config file
 func LoadConfig(fullpath string) (*ConfData, error) {
 	c := &ConfData{
