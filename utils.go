@@ -707,7 +707,6 @@ func CheckCrc16VB(d []byte) bool {
 
 // CountCrc16VB count crc16 as vb6 do
 func CountCrc16VB(data *[]byte) []byte {
-	var z = make([]byte, 0)
 	crc16lo := byte(0xFF)
 	crc16hi := byte(0xFF)
 	cl := byte(0x01)
@@ -728,8 +727,7 @@ func CountCrc16VB(data *[]byte) []byte {
 			}
 		}
 	}
-	z = append(z, byte(crc16lo), byte(crc16hi))
-	return z
+	return []byte{crc16lo, crc16hi}
 }
 
 // IPUint2String change ip int64 data to string format
