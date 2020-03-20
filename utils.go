@@ -135,48 +135,36 @@ func (h *CryptoWorker) SetKey(key, iv string) error {
 		}
 		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:16])
 		h.cryptoIV = []byte(iv)[:16]
-		h.cryptoCBCEncrypter = cipher.NewCBCEncrypter(h.cryptoBlock, h.cryptoIV)
-		h.cryptoCBCDecrypter = cipher.NewCBCDecrypter(h.cryptoBlock, h.cryptoIV)
 	case CryptoAES192CBC:
 		if len(key) < 24 || len(iv) < 24 {
 			return fmt.Errorf("key and iv must be longer than 24")
 		}
 		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:24])
 		h.cryptoIV = []byte(iv)[:24]
-		h.cryptoCBCEncrypter = cipher.NewCBCEncrypter(h.cryptoBlock, h.cryptoIV)
-		h.cryptoCBCDecrypter = cipher.NewCBCDecrypter(h.cryptoBlock, h.cryptoIV)
 	case CryptoAES256CBC:
 		if len(key) < 32 || len(iv) < 32 {
 			return fmt.Errorf("key and iv must be longer than 32")
 		}
 		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:32])
 		h.cryptoIV = []byte(iv)[:32]
-		h.cryptoCBCEncrypter = cipher.NewCBCEncrypter(h.cryptoBlock, h.cryptoIV)
-		h.cryptoCBCDecrypter = cipher.NewCBCDecrypter(h.cryptoBlock, h.cryptoIV)
 	case CryptoAES128CFB:
 		if len(key) < 16 || len(iv) < 16 {
 			return fmt.Errorf("key and iv must be longer than 16")
 		}
 		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:16])
 		h.cryptoIV = []byte(iv)[:16]
-		h.cryptoCFBEncrypter = cipher.NewCFBEncrypter(h.cryptoBlock, h.cryptoIV)
-		h.cryptoCFBDecrypter = cipher.NewCFBDecrypter(h.cryptoBlock, h.cryptoIV)
 	case CryptoAES192CFB:
 		if len(key) < 24 || len(iv) < 24 {
 			return fmt.Errorf("key and iv must be longer than 24")
 		}
 		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:24])
 		h.cryptoIV = []byte(iv)[:24]
-		h.cryptoCFBEncrypter = cipher.NewCFBEncrypter(h.cryptoBlock, h.cryptoIV)
-		h.cryptoCFBDecrypter = cipher.NewCFBDecrypter(h.cryptoBlock, h.cryptoIV)
 	case CryptoAES256CFB:
 		if len(key) < 32 || len(iv) < 32 {
 			return fmt.Errorf("key and iv must be longer than 32")
 		}
 		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:32])
 		h.cryptoIV = []byte(iv)[:32]
-		h.cryptoCFBEncrypter = cipher.NewCFBEncrypter(h.cryptoBlock, h.cryptoIV)
-		h.cryptoCFBDecrypter = cipher.NewCFBDecrypter(h.cryptoBlock, h.cryptoIV)
 	default:
 		return fmt.Errorf("Not yet supported")
 	}
@@ -185,6 +173,8 @@ func (h *CryptoWorker) SetKey(key, iv string) error {
 
 // Encrypt 加密
 func (h *CryptoWorker) Encrypt(s string) string {
+	// h.cryptoLocker.Lock()
+	// defer h.cryptoLocker.Unlock()
 	if len(h.cryptoIV) == 0 {
 		return ""
 	}
@@ -192,7 +182,7 @@ func (h *CryptoWorker) Encrypt(s string) string {
 	case CryptoAES128CBC, CryptoAES192CBC, CryptoAES256CBC:
 		content := pkcs5Padding([]byte(s), h.cryptoBlock.BlockSize())
 		crypted := make([]byte, len(content))
-		h.cryptoCBCEncrypter.CryptBlocks(crypted, content)
+		cipher.NewCBCEncrypter(h.cryptoBlock, h.cryptoIV).CryptBlocks(crypted, content)
 		return base64.StdEncoding.EncodeToString(crypted)
 	case CryptoAES128CFB, CryptoAES192CFB, CryptoAES256CFB:
 		crypted := make([]byte, aes.BlockSize+len(s))
@@ -209,6 +199,8 @@ func (h *CryptoWorker) EncryptNoTail(s string) string {
 
 // Decrypt 解密
 func (h *CryptoWorker) Decrypt(s string) string {
+	// h.cryptoLocker.Lock()
+	// defer h.cryptoLocker.Unlock()
 	if len(h.cryptoIV) == 0 {
 		return ""
 	}
@@ -218,12 +210,11 @@ func (h *CryptoWorker) Decrypt(s string) string {
 			s += "="
 		}
 	}
-
 	msg, _ := base64.StdEncoding.DecodeString(s)
 	switch h.cryptoType {
 	case CryptoAES128CBC, CryptoAES192CBC, CryptoAES256CBC:
 		decrypted := make([]byte, len(msg))
-		h.cryptoCBCDecrypter.CryptBlocks(decrypted, msg)
+		cipher.NewCBCDecrypter(h.cryptoBlock, h.cryptoIV).CryptBlocks(decrypted, msg)
 		return string(pkcs5Unpadding(decrypted))
 	case CryptoAES128CFB, CryptoAES192CFB, CryptoAES256CFB:
 		msg = msg[aes.BlockSize:]
