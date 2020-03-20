@@ -693,6 +693,18 @@ func CountLrc(data *[]byte) byte {
 	return a
 }
 
+// CheckCrc16VBBigOrder check crc16 data，use big order
+func CheckCrc16VBBigOrder(d []byte) bool {
+	rowdata := d[:len(d)-2]
+	crcdata := d[len(d)-2:]
+
+	c := CountCrc16VB(&rowdata)
+	if c[1] == crcdata[0] && c[0] == crcdata[1] {
+		return true
+	}
+	return false
+}
+
 // CheckCrc16VB check crc16 data
 func CheckCrc16VB(d []byte) bool {
 	rowdata := d[:len(d)-2]
