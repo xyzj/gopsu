@@ -207,6 +207,9 @@ func CheckRequired(params ...string) gin.HandlerFunc {
 // HideParams 隐藏敏感参数值
 func HideParams(params ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if gin.IsDebugging() {
+			return
+		}
 		s := c.Param("_raw")
 		switch c.Param("_rawType") {
 		case "url":
