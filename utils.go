@@ -8,7 +8,9 @@ import (
 	"container/list"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/md5"
+	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/tls"
@@ -56,6 +58,8 @@ const (
 	CryptoSHA256
 	// CryptoSHA512 sha512算法
 	CryptoSHA512
+	// CryptoHMACSHA1 hmacsha1摘要算法
+	CryptoHMACSHA1
 	// CryptoAES128CBC aes128cbc算法
 	CryptoAES128CBC
 	// CryptoAES128CFB aes128cfb算法
@@ -100,6 +104,9 @@ func init() {
 }
 
 // GetNewCryptoWorker 获取新的序列化或加密管理器
+// md5,sha256,sha512初始化后直接调用hash
+// hmacsha1初始化后需调用SetSignKey设置签名key后调用hash
+// aes加密算法初始化后需调用SetKey设置key和iv后调用Encrypt，Decrypt
 func GetNewCryptoWorker(cryptoType byte) *CryptoWorker {
 	h := &CryptoWorker{
 		cryptoType: cryptoType,
@@ -233,8 +240,20 @@ func (h *CryptoWorker) Hash(b []byte) string {
 		h.cryptoHash.Reset()
 		h.cryptoHash.Write(b)
 		return fmt.Sprintf("%x", h.cryptoHash.Sum(nil))
+	case CryptoHMACSHA1:
+		if h.cryptoHash == nil {
+			return ""
+		}
+		h.cryptoHash.Reset()
+		h.cryptoHash.Write(b)
+		return base64.StdEncoding.EncodeToString(h.cryptoHash.Sum(nil))
 	}
 	return ""
+}
+
+// SetSignKey 设置hmacsha1签名key
+func (h *CryptoWorker) SetSignKey(key []byte) {
+	h.cryptoHash = hmac.New(sha1.New, key)
 }
 
 // GetMD5 生成32位md5字符串
