@@ -76,16 +76,12 @@ const (
 
 // CryptoWorker 序列化或加密管理器
 type CryptoWorker struct {
-	cryptoType         byte
-	cryptoHash         hash.Hash
-	cryptoLocker       sync.Mutex
-	cryptoKey          []byte
-	cryptoIV           []byte
-	cryptoBlock        cipher.Block
-	cryptoCBCEncrypter cipher.BlockMode
-	cryptoCBCDecrypter cipher.BlockMode
-	cryptoCFBEncrypter cipher.Stream
-	cryptoCFBDecrypter cipher.Stream
+	cryptoType   byte
+	cryptoHash   hash.Hash
+	cryptoLocker sync.Mutex
+	cryptoKey    []byte
+	cryptoIV     []byte
+	cryptoBlock  cipher.Block
 }
 
 var (
@@ -136,6 +132,8 @@ func pkcs5Unpadding(encrypt []byte) []byte {
 // SetKey 设置aes-key,iv
 func (h *CryptoWorker) SetKey(key, iv string) error {
 	switch h.cryptoType {
+	case CryptoHMACSHA1:
+		h.cryptoHash = hmac.New(sha1.New, []byte(key))
 	case CryptoAES128CBC:
 		if len(key) < 16 || len(iv) < 16 {
 			return fmt.Errorf("key and iv must be longer than 16")
@@ -249,11 +247,6 @@ func (h *CryptoWorker) Hash(b []byte) string {
 		return base64.StdEncoding.EncodeToString(h.cryptoHash.Sum(nil))
 	}
 	return ""
-}
-
-// SetSignKey 设置hmacsha1签名key
-func (h *CryptoWorker) SetSignKey(key []byte) {
-	h.cryptoHash = hmac.New(sha1.New, key)
 }
 
 // GetMD5 生成32位md5字符串
