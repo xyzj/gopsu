@@ -181,10 +181,11 @@ func (f *ginLogger) zipFile(s string) {
 	go func() {
 		gopsu.ZIPFile(f.logDir, s, true)
 		// 删除已压缩的旧日志
-		// err := os.Remove(filepath.Join(f.logDir, s))
-		// if err != nil {
-		// 	ioutil.WriteFile(fmt.Sprintf("logcrash.%d.log", time.Now().Unix()), []byte("del old file:"+s+" "+err.Error()), 0664)
-		// }
+		err := os.Remove(filepath.Join(f.logDir, s))
+		if err != nil {
+			fmt.Fprintln(f.out, "gin del old file error: "+s+" "+err.Error())
+			// ioutil.WriteFile(fmt.Sprintf("logcrash.%d.log", time.Now().Unix()), []byte("del old file:"+s+" "+err.Error()), 0664)
+		}
 	}()
 }
 
