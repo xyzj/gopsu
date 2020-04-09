@@ -16,6 +16,7 @@ import (
 )
 
 var json = jsoniter.Config{}.Froze()
+var md5worker = gopsu.GetNewCryptoWorker(gopsu.CryptoMD5)
 
 type ginLogger struct {
 	fno       *os.File     // 文件日志
@@ -99,6 +100,13 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 		}
 		if raw != "" {
 			path += "?" + raw
+		}
+		token := c.Param("User-Token")
+		if len(token) == 36 {
+			token = md5worker.Hash([]byte(token))
+		}
+		if token != "" {
+			path = "(" + token + ")" + path
 		}
 		param.Path = path
 
