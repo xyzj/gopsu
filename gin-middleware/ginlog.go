@@ -79,6 +79,11 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 		start := time.Now()
 		path := c.Request.URL.Path
 
+		token := c.Request.Header.Get("User-Token")
+		if len(token) == 36 {
+			token = md5worker.Hash([]byte(token))
+		}
+
 		c.Next()
 
 		param := &gin.LogFormatterParams{
@@ -100,10 +105,6 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 		}
 		if raw != "" {
 			path += "?" + raw
-		}
-		token := c.Param("User-Token")
-		if len(token) == 36 {
-			token = md5worker.Hash([]byte(token))
 		}
 		if token != "" {
 			path = "(" + token + ")" + path
