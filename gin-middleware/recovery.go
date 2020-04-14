@@ -65,6 +65,7 @@ func Recovery() gin.HandlerFunc {
 				} else {
 					c.Set("status", 0)
 					c.Set("detail", "panic recovery, see log files for more information")
+					c.Set("xfile", 6)
 					c.AbortWithStatusJSON(http.StatusInternalServerError, c.Keys)
 				}
 			}

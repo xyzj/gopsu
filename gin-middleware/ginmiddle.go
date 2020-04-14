@@ -197,6 +197,9 @@ func CheckRequired(params ...string) gin.HandlerFunc {
 			if c.Param(v) == "" {
 				c.Set("status", 0)
 				c.Set("detail", v)
+				c.Set("xfile", 5)
+				js, _ := sjson.Set("", "key_name", v)
+				c.Set("xfile_args", gjson.Parse(js).Value())
 				c.AbortWithStatusJSON(200, c.Keys)
 				break
 			}
@@ -362,6 +365,7 @@ func CheckSecurityCode(codeType string, codeRange int) gin.HandlerFunc {
 		if !found {
 			c.Set("status", 0)
 			c.Set("detail", "Illegal Security-Code")
+			c.Set("xfile",10)
 			c.AbortWithStatusJSON(200, c.Keys)
 		}
 	}
