@@ -64,9 +64,10 @@ func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile string) (*E
 	var err error
 	if gopsu.IsExist(certfile) && gopsu.IsExist(keyfile) && gopsu.IsExist(cafile) {
 		tlsinfo := transport.TLSInfo{
-			CertFile:      certfile,
-			KeyFile:       keyfile,
-			TrustedCAFile: cafile,
+			CertFile:           certfile,
+			KeyFile:            keyfile,
+			TrustedCAFile:      cafile,
+			InsecureSkipVerify: true,
 		}
 		tlsconf, err = tlsinfo.ClientConfig()
 		if err != nil {

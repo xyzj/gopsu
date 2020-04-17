@@ -138,9 +138,10 @@ func GetGRPCSecureConfig(cafiles ...string) (*credentials.TransportCredentials, 
 				}
 
 				creds := credentials.NewTLS(&tls.Config{
-					ServerName:   svrip, // NOTE: this is required!
-					Certificates: []tls.Certificate{certificate},
-					RootCAs:      certPool,
+					ServerName:         svrip, // NOTE: this is required!
+					Certificates:       []tls.Certificate{certificate},
+					RootCAs:            certPool,
+					InsecureSkipVerify: true,
 				})
 				return &creds, nil
 			}
