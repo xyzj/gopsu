@@ -53,8 +53,10 @@ func (c *ConfData) Reload() error {
 				continue
 			} else {
 				s := strings.SplitN(line, "=", 2)
-				if len(s[1]) > 0 {
-					c.SetItem(s[0], s[1], remarkbuf.String())
+				if len(s) > 1 {
+					if len(s[1]) > 0 {
+						c.SetItem(s[0], s[1], remarkbuf.String())
+					}
 				}
 				remarkbuf.Reset()
 			}
