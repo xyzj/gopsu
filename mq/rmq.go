@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tidwall/gjson"
+
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 	"github.com/xyzj/gopsu"
@@ -365,12 +367,8 @@ func (sessn *Session) SendCustom(d *RabbitMQData) {
 
 // FormatMQBody 格式化日志输出
 func FormatMQBody(d []byte) string {
-	var body = string(d)
-	for _, v := range d {
-		if v > 126 || v < 32 {
-			body = base64.StdEncoding.EncodeToString(d)
-			break
-		}
+	if gjson.ParseBytes(d).Exists() {
+		return string(d)
 	}
-	return body
+	return base64.StdEncoding.EncodeToString(d)
 }
