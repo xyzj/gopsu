@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -63,7 +64,7 @@ func NewGinEngine(logDir, logName string, logDays int, logLevel ...int) *gin.Eng
 	r.GET("/health", PageDefault)
 	r.GET("/clearlog", CheckRequired("name"), Clearlog)
 	r.GET("/runtime", PageRuntime)
-	r.Static("/static", "./static")
+	r.Static("/static", filepath.Join(gopsu.GetExecDir(), "static"))
 	return r
 }
 
@@ -365,7 +366,7 @@ func CheckSecurityCode(codeType string, codeRange int) gin.HandlerFunc {
 		if !found {
 			c.Set("status", 0)
 			c.Set("detail", "Illegal Security-Code")
-			c.Set("xfile",10)
+			c.Set("xfile", 10)
 			c.AbortWithStatusJSON(200, c.Keys)
 		}
 	}
