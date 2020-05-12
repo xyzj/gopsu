@@ -214,26 +214,27 @@ func HideParams(params ...string) gin.HandlerFunc {
 		if gin.IsDebugging() {
 			return
 		}
-		s := c.Param("_raw")
-		switch c.Param("_rawType") {
-		case "url":
-			x := make([]string, 0)
-			for _, v := range params {
-				x = append(x, v+"="+c.Param(v))
-				x = append(x, v+"="+gopsu.CodeString(c.Param(v)))
-			}
-			r := strings.NewReplacer(x...)
-			s = r.Replace(s)
-		case "json":
-			for _, v := range params {
-				s, _ = sjson.Set(s, v, gopsu.CodeString(c.Param(v)))
+		replaceP := make([]string, 0)
+		body := c.Params.ByName("_body")
+		jsbody := gjson.Parse(body).Exists()
+		// 创建url替换器，并替换_body
+		for _, v := range params {
+			replaceP = append(replaceP, v+"="+c.Params.ByName(v))
+			replaceP = append(replaceP, v+"=**classified**")
+			if len(body) > 0 && jsbody {
+				body, _ = sjson.Set(body, v, "**classified**")
 			}
 		}
-		for k, vv := range c.Params {
-			if vv.Key == "_raw" {
+		r := strings.NewReplacer(replaceP...)
+		c.Request.RequestURI = r.Replace(c.Request.RequestURI)
+		if !jsbody { // 非json body尝试替换字符串
+			body = r.Replace(body)
+		}
+		for k, v := range c.Params {
+			if v.Key == "_body" {
 				c.Params[k] = gin.Param{
-					Key:   "_raw",
-					Value: s,
+					Key:   "_body",
+					Value: body,
 				}
 				break
 			}
@@ -247,49 +248,25 @@ func ReadParams() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ct = strings.Split(c.GetHeader("Content-Type"), ";")[0]
 		var x = url.Values{}
-		switch ct {
-		case "multipart/form-data": // 文件上传
-			x, _ = url.ParseQuery(c.Request.URL.RawQuery)
-			c.Params = append(c.Params, gin.Param{
-				Key:   "_raw",
-				Value: c.Request.URL.RawQuery,
-			})
-			c.Params = append(c.Params, gin.Param{
-				Key:   "_rawType",
-				Value: "url",
-			})
-		case "", "application/json", "application/x-www-form-urlencoded": // 传参类，进行解析
-			switch c.Request.Method {
-			case "GET": // get请求忽略body内容
-				x, _ = url.ParseQuery(c.Request.URL.RawQuery)
+		x, _ = url.ParseQuery(c.Request.URL.RawQuery)
+		b, err := ioutil.ReadAll(c.Request.Body)
+		if err == nil {
+			if len(b) > 0 {
 				c.Params = append(c.Params, gin.Param{
-					Key:   "_raw",
-					Value: c.Request.URL.RawQuery,
-				})
-				c.Params = append(c.Params, gin.Param{
-					Key:   "_rawType",
-					Value: "url",
-				})
-			default: // post，put，delete等请求只认body
-				b, _ := ioutil.ReadAll(c.Request.Body)
-				c.Params = append(c.Params, gin.Param{
-					Key:   "_raw",
+					Key:   "_body",
 					Value: string(b),
 				})
-				c.Params = append(c.Params, gin.Param{
-					Key:   "_rawType",
-					Value: "json",
-				})
-				if len(b) > 0 {
-					switch ct {
-					case "", "application/x-www-form-urlencoded":
-						x, _ = url.ParseQuery(string(b))
-					default:
-						gjson.ParseBytes(b).ForEach(func(key, value gjson.Result) bool {
-							x.Add(key.String(), value.String())
-							return true
-						})
+				switch ct {
+				case "", "application/x-www-form-urlencoded":
+					xx, _ := url.ParseQuery(string(b))
+					for k, v := range xx {
+						x.Add(k, v[0])
 					}
+				default:
+					gjson.ParseBytes(b).ForEach(func(key, value gjson.Result) bool {
+						x.Add(key.String(), value.String())
+						return true
+					})
 				}
 			}
 		}

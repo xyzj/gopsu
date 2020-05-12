@@ -74,7 +74,6 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 			gin.DefaultErrorWriter = f.out
 		}
 		start := time.Now()
-		path := c.Request.URL.Path
 
 		token := c.GetHeader("User-Token")
 		if len(token) == 36 {
@@ -82,12 +81,11 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 		}
 
 		c.Next()
-
+		path := c.Request.RequestURI
 		param := &gin.LogFormatterParams{
 			Request: c.Request,
 			Keys:    c.Keys,
 		}
-
 		// Stop timer
 		param.TimeStamp = time.Now()
 		param.Latency = param.TimeStamp.Sub(start)
@@ -96,12 +94,8 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 		param.StatusCode = c.Writer.Status()
 		param.ErrorMessage = c.Errors.ByType(gin.ErrorTypePrivate).String()
 		param.BodySize = c.Writer.Size()
-		raw, ok := c.Params.Get("_raw")
-		if !ok {
-			raw = c.Request.URL.RawQuery
-		}
-		if raw != "" {
-			path += "?" + raw
+		if body, ok := c.Params.Get("_body"); ok {
+			path += "|" + body
 		}
 		if len(token) == 32 {
 			path = "(" + token + ")" + path
@@ -120,7 +114,7 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 			)
 		} else {
 			jsn, _ := json.Marshal(param.Keys)
-			s = fmt.Sprintf("%v |%3d| %-10s | %-15s|%-4s %s|%s",
+			s = fmt.Sprintf("%v |%3d| %-10s | %-15s|%-4s %s ▸%s",
 				param.TimeStamp.Format(gopsu.ShortTimeFormat),
 				param.StatusCode,
 				param.Latency,
@@ -131,7 +125,7 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 			)
 		}
 		if param.ErrorMessage != "" {
-			s += " |>" + param.ErrorMessage
+			s += " #" + param.ErrorMessage
 		}
 		go func() {
 			defer func() { recover() }()
