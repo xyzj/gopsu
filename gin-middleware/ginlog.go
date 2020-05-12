@@ -55,7 +55,7 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 		enablegz: true,
 	}
 	// 搜索最后一个文件名
-	for i := byte(255); i >= 0; i-- {
+	for i := byte(255); i > 0; i-- {
 		if gopsu.IsExist(filepath.Join(f.logDir, fmt.Sprintf("%s.%v.%d.log", filename, t.Format(gopsu.FileTimeFormat), i))) {
 			f.fileIndex = i
 		}

@@ -398,12 +398,11 @@ func NewLogger(d, f string) *MxLog {
 		enablegz:    true,
 	}
 
-	for i := byte(255); i >= 0; i-- {
+	for i := byte(255); i > 0; i-- {
 		if IsExist(filepath.Join(mylog.logDir, fmt.Sprintf("%s.%v.%d.log", mylog.fname, t.Format(FileTimeFormat), i))) {
 			mylog.fileIndex = i
 		}
 	}
-
 	// mylog.coreWatcher()
 	// mylog.writeLogAsync()
 	mylog.newFile()
@@ -511,6 +510,7 @@ func (l *MxLog) newFile() {
 		l.fileDay = t.Day()
 		l.fileIndex = 0
 	}
+	println("new")
 	l.nameNow = fmt.Sprintf("%s.%v.%d.log", l.fname, t.Format(FileTimeFormat), l.fileIndex)
 	l.pathNow = filepath.Join(l.logDir, l.nameNow)
 	// 直接写入当日日志
