@@ -21,8 +21,8 @@ var md5worker = gopsu.GetNewCryptoWorker(gopsu.CryptoMD5)
 type ginLogger struct {
 	fno       *os.File     // 文件日志
 	fname     string       // 日志文件名
-	fileIndex int          // 文件索引号
-	fexpired  int64        // 日志文件过期时长
+	fileIndex byte         // 文件索引号
+	expired   int64        // 日志文件过期时长
 	flock     sync.RWMutex // 同步锁
 	nameOld   string       // 旧日志文件名
 	nameNow   string       // 当前日志文件名
@@ -47,7 +47,7 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 	f := &ginLogger{
 		logDir:   logdir,
 		fname:    filename,
-		fexpired: int64(maxdays)*24*60*60 - 10,
+		expired:  int64(maxdays)*24*60*60 - 10,
 		maxDays:  maxdays,
 		fileHour: t.Hour(),
 		fileDay:  t.Day(),
@@ -55,12 +55,9 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 		enablegz: true,
 	}
 	// 搜索最后一个文件名
-	for i := 0; i < 255; i++ {
-		if gopsu.IsExist(filepath.Join(f.logDir, fmt.Sprintf("%s.%v.%d.log", filename, t.Format(gopsu.FileTimeFormat), i))) ||
-			gopsu.IsExist(filepath.Join(f.logDir, fmt.Sprintf("%s.%v.%d.log.zip", filename, t.Format(gopsu.FileTimeFormat), i))) {
+	for i := byte(255); i >= 0; i-- {
+		if gopsu.IsExist(filepath.Join(f.logDir, fmt.Sprintf("%s.%v.%d.log", filename, t.Format(gopsu.FileTimeFormat), i))) {
 			f.fileIndex = i
-		} else {
-			break
 		}
 	}
 	f.pathNow = filepath.Join(logdir, fmt.Sprintf("%s.%v.%d.log", filename, t.Format(gopsu.FileTimeFormat), f.fileIndex))
@@ -136,7 +133,10 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 		if param.ErrorMessage != "" {
 			s += " |>" + param.ErrorMessage
 		}
-		go fmt.Fprintln(f.out, s)
+		go func() {
+			defer func() { recover() }()
+			fmt.Fprintln(l.out, s)
+		}()
 	}
 }
 
@@ -187,21 +187,25 @@ func (f *ginLogger) zipFile(s string) {
 	if !f.enablegz || len(s) == 0 || !gopsu.IsExist(filepath.Join(f.logDir, s)) {
 		return
 	}
-	go func() {
-		gopsu.ZIPFile(f.logDir, s, true)
+	go func(s string) {
+		err := ZIPFile(l.logDir, s, true)
+		if err != nil {
+			fmt.Fprintln(f.out, "zip log file error: "+s+" "+err.Error())
+			return
+		}
 		// 删除已压缩的旧日志
 		err := os.Remove(filepath.Join(f.logDir, s))
 		if err != nil {
 			fmt.Fprintln(f.out, "gin del old file error: "+s+" "+err.Error())
 			// ioutil.WriteFile(fmt.Sprintf("logcrash.%d.log", time.Now().Unix()), []byte("del old file:"+s+" "+err.Error()), 0664)
 		}
-	}()
+	}(s)
 }
 
 // 清理旧日志
 func (f *ginLogger) cleanFile() {
 	// 若未设置超时，则不清理
-	if f.fexpired == 0 {
+	if f.expired == 0 {
 		return
 	}
 	go func() {
@@ -219,7 +223,7 @@ func (f *ginLogger) cleanFile() {
 				continue
 			}
 			// 比对文件生存期
-			if t.Unix()-fno.ModTime().Unix() >= f.fexpired {
+			if t.Unix()-fno.ModTime().Unix() >= f.expired {
 				os.Remove(filepath.Join(f.logDir, fno.Name()))
 			}
 		}
@@ -238,7 +242,7 @@ func (f *ginLogger) newFile() {
 	f.pathNow = filepath.Join(f.logDir, f.nameNow)
 	f.pathOld = f.pathNow
 	if f.fname == "" {
-		f.out = os.Stdout
+		f.out = io.MultiWriter(os.Stdout)
 	} else {
 		// 打开文件
 		f.fno, f.err = os.OpenFile(f.pathOld, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
@@ -251,10 +255,10 @@ func (f *ginLogger) newFile() {
 			} else {
 				f.out = io.MultiWriter(f.fno)
 			}
-			// 判断是否压缩旧日志
-			if f.enablegz {
-				f.zipFile(f.nameOld)
-			}
+		}
+		// 判断是否压缩旧日志
+		if f.enablegz {
+			f.zipFile(f.nameOld)
 		}
 	}
 	f.nameOld = f.nameNow

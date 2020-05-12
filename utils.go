@@ -1571,7 +1571,7 @@ func UnZIPFile(archive, target string) error {
 }
 
 // ZIPFile 压缩文件
-func ZIPFile(d, s string, delold bool) {
+func ZIPFile(d, s string, delold bool) error {
 	// defer func() {
 	// 	if delold {
 	// 		os.Remove(filepath.Join(d, s))
@@ -1582,7 +1582,7 @@ func ZIPFile(d, s string, delold bool) {
 
 	newZipFile, err := os.Create(zfile)
 	if err != nil {
-		return
+		return err
 	}
 	defer newZipFile.Close()
 
@@ -1591,30 +1591,31 @@ func ZIPFile(d, s string, delold bool) {
 
 	zipfile, err := os.Open(ofile)
 	if err != nil {
-		return
+		return err
 	}
 	defer zipfile.Close()
 	info, err := zipfile.Stat()
 	if err != nil {
-		return
+		return err
 	}
 
 	header, err := zip.FileInfoHeader(info)
 	if err != nil {
-		return
+		return err
 	}
 	header.Method = zip.Deflate
 
 	writer, err := zipWriter.CreateHeader(header)
 	if err != nil {
-		return
+		return err
 	}
 	if _, err = io.Copy(writer, zipfile); err != nil {
-		return
+		return err
 	}
 	if delold {
 		os.Remove(filepath.Join(d, s))
 	}
+	return nil
 }
 
 // GPS2DFM 经纬度转度分秒
