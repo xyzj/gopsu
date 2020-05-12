@@ -135,7 +135,7 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 		}
 		go func() {
 			defer func() { recover() }()
-			fmt.Fprintln(l.out, s)
+			fmt.Fprintln(f.out, s)
 		}()
 	}
 }
@@ -188,13 +188,13 @@ func (f *ginLogger) zipFile(s string) {
 		return
 	}
 	go func(s string) {
-		err := ZIPFile(l.logDir, s, true)
+		err := gopsu.ZIPFile(f.logDir, s, true)
 		if err != nil {
 			fmt.Fprintln(f.out, "zip log file error: "+s+" "+err.Error())
 			return
 		}
 		// 删除已压缩的旧日志
-		err := os.Remove(filepath.Join(f.logDir, s))
+		err = os.Remove(filepath.Join(f.logDir, s))
 		if err != nil {
 			fmt.Fprintln(f.out, "gin del old file error: "+s+" "+err.Error())
 			// ioutil.WriteFile(fmt.Sprintf("logcrash.%d.log", time.Now().Unix()), []byte("del old file:"+s+" "+err.Error()), 0664)
