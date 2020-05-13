@@ -248,28 +248,31 @@ func ReadParams() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ct = strings.Split(c.GetHeader("Content-Type"), ";")[0]
 		var x = url.Values{}
-		x, _ = url.ParseQuery(c.Request.URL.RawQuery)
-		b, err := ioutil.ReadAll(c.Request.Body)
-		if err == nil {
-			if len(b) > 0 {
-				c.Params = append(c.Params, gin.Param{
-					Key:   "_body",
-					Value: string(b),
-				})
-				switch ct {
-				case "", "application/x-www-form-urlencoded":
-					xx, _ := url.ParseQuery(string(b))
-					for k, v := range xx {
-						x.Add(k, v[0])
+		switch ct {
+		case "", "application/x-www-form-urlencoded", "application/json":
+			x, _ = url.ParseQuery(c.Request.URL.RawQuery)
+			b, err := ioutil.ReadAll(c.Request.Body)
+			c.Params = append(c.Params, gin.Param{
+				Key:   "_body",
+				Value: string(b),
+			})
+			if err == nil {
+				if len(b) > 0 {
+					if ct == "application/json" {
+						gjson.ParseBytes(b).ForEach(func(key, value gjson.Result) bool {
+							x.Add(key.String(), value.String())
+							return true
+						})
+					} else {
+						xx, _ := url.ParseQuery(string(b))
+						for k, v := range xx {
+							x.Add(k, v[0])
+						}
 					}
-				default:
-					gjson.ParseBytes(b).ForEach(func(key, value gjson.Result) bool {
-						x.Add(key.String(), value.String())
-						return true
-					})
 				}
 			}
 		}
+
 		if len(x.Encode()) > 0 {
 			for k := range x {
 				if strings.HasPrefix(k, "_") {
