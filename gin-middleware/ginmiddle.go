@@ -45,13 +45,13 @@ func NewGinEngine(logDir, logName string, logDays int, logLevel ...int) *gin.Eng
 	}))
 	// 日志
 	r.Use(LoggerWithRolling(logDir, logName, logDays))
-	// 数据压缩
-	r.Use(gingzip.Gzip(9))
 	// 错误恢复
 	// r.Use(gin.Recovery())
 	r.Use(Recovery())
+	// 数据压缩
+	r.Use(gingzip.Gzip(9))
 	// 读取请求参数
-	r.Use(ReadParams())
+	// r.Use(ReadParams())
 	// 渲染模板
 	// r.HTMLRender = multiRender()
 	// 基础路由

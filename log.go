@@ -37,6 +37,7 @@ type Logger interface {
 	WarningFormat(f string, msgs ...interface{})
 	ErrorFormat(f string, msgs ...interface{})
 	SystemFormat(f string, msgs ...interface{})
+	DefaultWriter() io.Writer
 }
 
 // NilLogger 空日志
@@ -71,6 +72,9 @@ func (l *NilLogger) ErrorFormat(f string, msg ...interface{}) {}
 
 // SystemFormat System
 func (l *NilLogger) SystemFormat(f string, msg ...interface{}) {}
+
+// DefaultWriter 返回日志Writer
+func (l *NilLogger) DefaultWriter() io.Writer { return nil }
 
 // StdLogger 空日志
 type StdLogger struct{}
@@ -125,6 +129,9 @@ func (l *StdLogger) SystemFormat(f string, msg ...interface{}) {
 	println(fmt.Sprintf(f, msg...))
 }
 
+// DefaultWriter 返回日志Writer
+func (l *StdLogger) DefaultWriter() io.Writer { return os.Stdout }
+
 // MxLog mx log
 type MxLog struct {
 	pathNow     string
@@ -156,29 +163,20 @@ type logMessage struct {
 	level int
 }
 
-func (l *MxLog) getFileSize() int64 {
-	f, ex := os.Stat(l.pathNow)
-	if ex != nil {
-		l.fileSize = 0
-	}
-	l.fileSize = f.Size()
-	return l.fileSize
-}
-
 // SetMaxFileLife set max day log file keep
-func (l *MxLog) SetMaxFileLife(c int64) {
-	l.expired = c*24*60*60 - 10
-}
+// func (l *MxLog) SetMaxFileLife(c int64) {
+// 	l.expired = c*24*60*60 - 10
+// }
 
 // SetMaxFileCount [Discard] use SetMaxFileLife() instead
-func (l *MxLog) SetMaxFileCount(c uint16) {
-	l.SetMaxFileLife(int64(c))
-}
+// func (l *MxLog) SetMaxFileCount(c uint16) {
+// 	l.SetMaxFileLife(int64(c))
+// }
 
 // SetMaxFileSize set max log file size in M
-func (l *MxLog) SetMaxFileSize(c int64) {
-	l.fileMaxSize = c * 1024000
-}
+// func (l *MxLog) SetMaxFileSize(c int64) {
+// 	l.fileMaxSize = c * 1024000
+// }
 
 // DefaultWriter out
 func (l *MxLog) DefaultWriter() io.Writer {
@@ -186,15 +184,15 @@ func (l *MxLog) DefaultWriter() io.Writer {
 }
 
 // SetLogLevel set file & console log level
-func (l *MxLog) SetLogLevel(loglevel int, conlevel ...int) {
-	l.logLevel = loglevel
+// func (l *MxLog) SetLogLevel(loglevel int, conlevel ...int) {
+// 	l.logLevel = loglevel
 
-	if l.logLevel <= 10 {
-		l.out = io.MultiWriter(l.fno, os.Stdout)
-	} else {
-		l.out = io.MultiWriter(l.fno)
-	}
-}
+// 	if l.logLevel <= 10 {
+// 		l.out = io.MultiWriter(l.fno, os.Stdout)
+// 	} else {
+// 		l.out = io.MultiWriter(l.fno)
+// 	}
+// }
 
 // SetAsync 设置异步写入参数
 func (l *MxLog) SetAsync(c int) {
@@ -288,109 +286,171 @@ func (l *MxLog) writeLog(msg string, level int, lock ...bool) {
 }
 
 // Debug writelog with level 10
-func (l *MxLog) Debug(msgs ...string) {
-	msg := strings.Join(msgs, ",")
+func (l *MxLog) Debug(msg string) {
 	// if l.writeAsync {
 	// 	l.chanWrite <- &logMessage{
 	// 		msg:   msg,
 	// 		level: logDebug,
 	// 	}
 	// } else {
-	l.writeLog(msg, logDebug, true)
+	l.writeLog(msg, logDebug)
 	// }
 }
 
 // Info writelog with level 20
-func (l *MxLog) Info(msgs ...string) {
-	msg := strings.Join(msgs, ",")
+func (l *MxLog) Info(msg string) {
 	// if l.writeAsync {
 	// 	l.chanWrite <- &logMessage{
 	// 		msg:   msg,
 	// 		level: logInfo,
 	// 	}
 	// } else {
-	l.writeLog(msg, logInfo, true)
+	l.writeLog(msg, logInfo)
 	// }
 }
 
 // Warning writelog with level 30
-func (l *MxLog) Warning(msgs ...string) {
-	msg := strings.Join(msgs, ",")
+func (l *MxLog) Warning(msg string) {
 	// if l.writeAsync {
 	// 	l.chanWrite <- &logMessage{
 	// 		msg:   msg,
 	// 		level: logWarning,
 	// 	}
 	// } else {
-	l.writeLog(msg, logWarning, true)
+	l.writeLog(msg, logWarning)
 	// }
 }
 
 // Error writelog with level 40
-func (l *MxLog) Error(msgs ...string) {
-	msg := strings.Join(msgs, ",")
+func (l *MxLog) Error(msg string) {
 	// if l.writeAsync {
 	// 	l.chanWrite <- &logMessage{
 	// 		msg:   msg,
 	// 		level: logError,
 	// 	}
 	// } else {
-	l.writeLog(msg, logError, true)
+	l.writeLog(msg, logError)
 	// }
 	// _, fn, lno, _ := runtime.Caller(1)
 	// go l.writeLog(fmt.Sprintf("[%s:%d] %s", filepath.Base(fn), lno, msg), logError)
 }
 
 // System writelog with level 90
-func (l *MxLog) System(msgs ...string) {
-	msg := strings.Join(msgs, ",")
+func (l *MxLog) System(msg string) {
 	// if l.writeAsync {
 	// 	l.chanWrite <- &logMessage{
 	// 		msg:   msg,
 	// 		level: logSystem,
 	// 	}
 	// } else {
-	l.writeLog(msg, logSystem, true)
+	l.writeLog(msg, logSystem)
+	// }
+}
+
+// DebugFormat writelog with level 10
+func (l *MxLog) DebugFormat(f string, msg ...interface{}) {
+	// if l.writeAsync {
+	// 	l.chanWrite <- &logMessage{
+	// 		msg:   msg,
+	// 		level: logDebug,
+	// 	}
+	// } else {
+	l.writeLog(fmt.Sprintf(f, msg...), logDebug)
+	// }
+}
+
+// InfoFormat writelog with level 20
+func (l *MxLog) InfoFormat(f string, msg ...interface{}) {
+	// if l.writeAsync {
+	// 	l.chanWrite <- &logMessage{
+	// 		msg:   msg,
+	// 		level: logInfo,
+	// 	}
+	// } else {
+	l.writeLog(fmt.Sprintf(f, msg...), logInfo)
+	// }
+}
+
+// WarningFormat writelog with level 30
+func (l *MxLog) WarningFormat(f string, msg ...interface{}) {
+	// if l.writeAsync {
+	// 	l.chanWrite <- &logMessage{
+	// 		msg:   msg,
+	// 		level: logWarning,
+	// 	}
+	// } else {
+	l.writeLog(fmt.Sprintf(f, msg...), logWarning)
+	// }
+}
+
+// ErrorFormat writelog with level 40
+func (l *MxLog) ErrorFormat(f string, msg ...interface{}) {
+	// if l.writeAsync {
+	// 	l.chanWrite <- &logMessage{
+	// 		msg:   msg,
+	// 		level: logError,
+	// 	}
+	// } else {
+	l.writeLog(fmt.Sprintf(f, msg...), logError)
+	// }
+	// _, fn, lno, _ := runtime.Caller(1)
+	// go l.writeLog(fmt.Sprintf("[%s:%d] %s", filepath.Base(fn), lno, msg), logError)
+}
+
+// SystemFormat writelog with level 90
+func (l *MxLog) SystemFormat(f string, msg ...interface{}) {
+	// if l.writeAsync {
+	// 	l.chanWrite <- &logMessage{
+	// 		msg:   msg,
+	// 		level: logSystem,
+	// 	}
+	// } else {
+	l.writeLog(fmt.Sprintf(f, msg...), logSystem)
 	// }
 }
 
 // CurrentFileSize current file size
-func (l *MxLog) CurrentFileSize() int64 {
-	return l.fileSize
-}
+// func (l *MxLog) CurrentFileSize() int64 {
+// 	return l.fileSize
+// }
 
 // Close close logger
-func (l *MxLog) Close() error {
-	// if l.writeAsync {
-	// 	l.chanClose <- true
-	// }
-	return l.fno.Close()
-}
+// func (l *MxLog) Close() error {
+// 	// if l.writeAsync {
+// 	// 	l.chanClose <- true
+// 	// }
+// 	return l.fno.Close()
+// }
 
 // EnableGZ EnableGZ
-func (l *MxLog) EnableGZ(b bool) {
-	l.enablegz = b
-}
+// func (l *MxLog) EnableGZ(b bool) {
+// 	l.enablegz = b
+// }
 
 // InitNewLogger [Discard] use NewLogger() instead
-func InitNewLogger(p string) *MxLog {
-	return NewLogger(filepath.Dir(p), filepath.Base(p))
+func InitNewLogger(p string) Logger {
+	return NewLogger(filepath.Dir(p), filepath.Base(p), 20, 15)
 }
 
 // NewLogger init logger
-//   d: log file path
-//   f: log file name
-func NewLogger(d, f string) *MxLog {
+// 日志保存路径，日志文件名，日志级别，日志保留天数
+func NewLogger(d, f string, logLevel, logDays int) Logger {
+	switch logLevel {
+	case -1:
+		return &NilLogger{}
+	case 0:
+		return &StdLogger{}
+	}
 	t := time.Now()
 	mylog := &MxLog{
-		expired:     maxFileLife,
+		expired:     int64(logDays)*24*60*60 - 10,
 		fileMaxSize: maxFileSize,
 		fname:       f,
 		fileIndex:   0,
 		fileDay:     t.Day(),
 		fileHour:    t.Hour(),
 		logDir:      d,
-		logLevel:    logDebug,
+		logLevel:    logLevel,
 		chanWrite:   make(chan *logMessage, 5000),
 		chanClose:   make(chan bool, 2),
 		chanWatcher: make(chan string, 2),
@@ -510,7 +570,6 @@ func (l *MxLog) newFile() {
 		l.fileDay = t.Day()
 		l.fileIndex = 0
 	}
-	println("new")
 	l.nameNow = fmt.Sprintf("%s.%v.%d.log", l.fname, t.Format(FileTimeFormat), l.fileIndex)
 	l.pathNow = filepath.Join(l.logDir, l.nameNow)
 	// 直接写入当日日志
