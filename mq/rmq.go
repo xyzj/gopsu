@@ -27,41 +27,38 @@ type RabbitMQData struct {
 
 // Session rmq session
 type Session struct {
-	name          string
-	logger        gopsu.Logger
-	connection    *amqp.Connection
-	channel       *amqp.Channel
-	done          chan bool
-	closeMe       bool
-	isReady       bool
-	debug         bool
-	connStr       string
-	addr          string
-	queue         amqp.Queue
-	routingKeys   sync.Map           // 过滤器
-	queueName     string             // 队列名
-	queueDurable  bool               // 队列是否持久化
-	queueDelete   bool               // 队列在不用时是否删除
-	queueDelivery chan amqp.Delivery // 消息
-	sessnType     string             // consumer or producer
-	tlsConf       *tls.Config        // tls配置
+	name         string
+	logger       gopsu.Logger
+	connection   *amqp.Connection
+	channel      *amqp.Channel
+	done         chan bool
+	closeMe      bool
+	debug        bool
+	connStr      string
+	addr         string
+	queue        amqp.Queue
+	routingKeys  sync.Map    // 过滤器
+	queueName    string      // 队列名
+	queueDurable bool        // 队列是否持久化
+	queueDelete  bool        // 队列在不用时是否删除
+	sessnType    string      // consumer or producer
+	tlsConf      *tls.Config // tls配置
 }
 
 // NewConsumer 初始化消费者实例
 // exchangename,connstr,queuename,logger,durable,autodel,debug
 func NewConsumer(name, connstr, queuename string, durable, autodel, debug bool) *Session {
 	sessn := &Session{
-		sessnType:     "consumer",
-		name:          name,
-		connStr:       connstr,
-		debug:         debug,
-		done:          make(chan bool),
-		queueName:     queuename,
-		queueDurable:  durable,
-		queueDelete:   autodel,
-		queueDelivery: make(chan amqp.Delivery),
-		closeMe:       false,
-		logger:        &gopsu.NilLogger{},
+		sessnType:    "consumer",
+		name:         name,
+		connStr:      connstr,
+		debug:        debug,
+		done:         make(chan bool),
+		queueName:    queuename,
+		queueDurable: durable,
+		queueDelete:  autodel,
+		closeMe:      false,
+		logger:       &gopsu.NilLogger{},
 	}
 	sessn.addr = strings.Split(connstr, "@")[1]
 	return sessn
@@ -82,8 +79,19 @@ func NewProducer(name, connstr string, debug bool) *Session {
 }
 
 // Start Start
-func (sessn *Session) Start() {
-	sessn.handleReconnect(sessn.sessnType)
+func (sessn *Session) Start() bool {
+	sessn.handleReconnect()
+	return sessn.WaitReady(5)
+	// if sessn.connect() {
+	// 	switch sessn.sessnType {
+	// 	case "consumer":
+	// 		sessn.initConsumer()
+	// 	case "producer":
+	// 		sessn.initProducer()
+	// 	}
+	// 	return sessn.WaitReady(5)
+	// }
+	// return false
 }
 
 // StartTLS 使用ssl连接
@@ -98,14 +106,14 @@ func (sessn *Session) SetLogger(l gopsu.Logger) {
 }
 
 // handleReconnect 维护连接
-func (sessn *Session) handleReconnect(t string) {
+func (sessn *Session) handleReconnect() {
 	defer func() {
 		if err := recover(); err != nil {
 			sessn.logger.Error(errors.WithStack(err.(error)).Error())
 		}
 	}()
 	if sessn.connect() {
-		switch t {
+		switch sessn.sessnType {
 		case "consumer":
 			sessn.initConsumer()
 		case "producer":
@@ -121,15 +129,12 @@ func (sessn *Session) handleReconnect(t string) {
 			sessn.closeMe = true
 			sessn.channel.Close()
 			sessn.connection.Close()
-			_, ok := <-sessn.queueDelivery
-			if ok {
-			}
 		case <-time.After(10 * time.Second):
-			if sessn.isReady {
+			if !sessn.connection.IsClosed() {
 				continue
 			}
 			if sessn.connect() {
-				switch t {
+				switch sessn.sessnType {
 				case "consumer":
 					sessn.initConsumer()
 				case "producer":
@@ -142,7 +147,9 @@ func (sessn *Session) handleReconnect(t string) {
 
 // connect 建立连接
 func (sessn *Session) connect() bool {
-	sessn.isReady = false
+	if !sessn.connection.IsClosed() {
+		return true
+	}
 	sessn.logger.Warning("Attempting to connect to " + sessn.addr)
 	var err error
 	var conn *amqp.Connection
@@ -179,14 +186,12 @@ func (sessn *Session) connect() bool {
 	}
 
 	sessn.logger.System("Success to connect to " + sessn.addr)
-
-	sessn.isReady = true
 	return true
 }
 
 // IsReady 是否就绪
 func (sessn *Session) IsReady() bool {
-	return sessn.isReady
+	return !sessn.connection.IsClosed()
 }
 
 // WaitReady 等待就绪，0-默认超时5s
@@ -198,11 +203,11 @@ func (sessn *Session) WaitReady(second int) bool {
 	for {
 		select {
 		case <-time.After(time.Millisecond * 10):
-			if sessn.isReady {
+			if !sessn.connection.IsClosed() {
 				return true
 			}
 		case <-tc.C:
-			if sessn.isReady {
+			if !sessn.connection.IsClosed() {
 				return true
 			}
 			return false
@@ -218,7 +223,6 @@ func (sessn *Session) Close() {
 func (sessn *Session) initConsumer() {
 	defer func() {
 		if err := recover(); err != nil {
-			sessn.isReady = false
 			sessn.logger.Error("Consumer core error: " + errors.WithStack(err.(error)).Error())
 		}
 	}()
@@ -235,7 +239,6 @@ func (sessn *Session) initConsumer() {
 	)
 	if err != nil {
 		sessn.logger.Error("Failed to create queue " + sessn.queueName + ": " + err.Error())
-		sessn.isReady = false
 		return
 	}
 	sessn.routingKeys.Range(func(k, v interface{}) bool {
@@ -246,8 +249,8 @@ func (sessn *Session) initConsumer() {
 
 // Recv 接收消息
 func (sessn *Session) Recv() (<-chan amqp.Delivery, error) {
-	if !sessn.isReady {
-		return nil, fmt.Errorf("no connected")
+	if sessn.connection.IsClosed() {
+		return nil, fmt.Errorf("not connected")
 	}
 	return sessn.channel.Consume(
 		sessn.queueName,
@@ -262,18 +265,22 @@ func (sessn *Session) Recv() (<-chan amqp.Delivery, error) {
 
 // BindKey 绑定过滤器
 func (sessn *Session) BindKey(k ...string) error {
-	if sessn.isReady {
+	for _, v := range k {
+		if gopsu.TrimString(v) == "" {
+			continue
+		}
+		sessn.routingKeys.Store(v, "")
+	}
+	if !sessn.connection.IsClosed() {
 		var err error
 		var s = make([]string, 0)
-		for _, v := range k {
-			ex := sessn.channel.QueueBind(sessn.queueName, v, sessn.name, false, nil)
-			if ex != nil {
-				s = append(s, v)
-				err = ex
-				continue
+		sessn.routingKeys.Range(func(key, value interface{}) bool {
+			err = sessn.channel.QueueBind(sessn.queueName, value.(string), sessn.name, false, nil)
+			if err != nil {
+				s = append(s, value.(string))
 			}
-			sessn.routingKeys.Store(v, "")
-		}
+			return true
+		})
 		if len(s) > 0 {
 			return fmt.Errorf(strings.Join(s, ",") + " bind error:" + err.Error())
 		}
@@ -284,24 +291,28 @@ func (sessn *Session) BindKey(k ...string) error {
 
 // ClearQueue 清空队列
 func (sessn *Session) ClearQueue() {
-	if sessn.isReady {
+	if !sessn.connection.IsClosed() {
 		sessn.channel.QueuePurge(sessn.queueName, true)
 	}
 }
 
 // UnBindKey 解绑过滤器
 func (sessn *Session) UnBindKey(k ...string) error {
-	if sessn.isReady {
+	for _, v := range k {
+		if gopsu.TrimString(v) == "" {
+			continue
+		}
+		sessn.routingKeys.Delete(v)
+	}
+	if !sessn.connection.IsClosed() {
 		var err error
 		var s = make([]string, 0)
 		for _, v := range k {
-			ex := sessn.channel.QueueUnbind(sessn.queueName, v, sessn.name, nil)
-			if ex != nil {
+			err = sessn.channel.QueueUnbind(sessn.queueName, v, sessn.name, nil)
+			if err != nil {
 				s = append(s, v)
-				err = ex
 				continue
 			}
-			sessn.routingKeys.Delete(v)
 		}
 		if len(s) > 0 {
 			return fmt.Errorf(strings.Join(s, ",") + " unbind error:" + err.Error())
@@ -338,7 +349,7 @@ func (sessn *Session) Send(f string, d []byte) {
 // 	Body:         []byte("abcd"),
 // },
 func (sessn *Session) SendCustom(d *RabbitMQData) {
-	if !sessn.isReady {
+	if sessn.connection.IsClosed() {
 		return
 	}
 	go func() {
