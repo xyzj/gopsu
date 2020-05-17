@@ -130,7 +130,7 @@ func (sessn *Session) handleReconnect() {
 			sessn.channel.Close()
 			sessn.connection.Close()
 		case <-time.After(10 * time.Second):
-			if !sessn.connection.IsClosed() {
+			if sessn.IsReady() {
 				continue
 			}
 			if sessn.connect() {
@@ -147,7 +147,7 @@ func (sessn *Session) handleReconnect() {
 
 // connect 建立连接
 func (sessn *Session) connect() bool {
-	if !sessn.connection.IsClosed() {
+	if sessn.IsReady() {
 		return true
 	}
 	sessn.logger.Warning("Attempting to connect to " + sessn.addr)
@@ -191,6 +191,9 @@ func (sessn *Session) connect() bool {
 
 // IsReady 是否就绪
 func (sessn *Session) IsReady() bool {
+	if sessn.connection == nil {
+		return false
+	}
 	return !sessn.connection.IsClosed()
 }
 
@@ -203,11 +206,11 @@ func (sessn *Session) WaitReady(second int) bool {
 	for {
 		select {
 		case <-time.After(time.Millisecond * 10):
-			if !sessn.connection.IsClosed() {
+			if sessn.IsReady() {
 				return true
 			}
 		case <-tc.C:
-			if !sessn.connection.IsClosed() {
+			if sessn.IsReady() {
 				return true
 			}
 			return false
@@ -249,7 +252,7 @@ func (sessn *Session) initConsumer() {
 
 // Recv 接收消息
 func (sessn *Session) Recv() (<-chan amqp.Delivery, error) {
-	if sessn.connection.IsClosed() {
+	if !sessn.IsReady() {
 		return nil, fmt.Errorf("not connected")
 	}
 	return sessn.channel.Consume(
@@ -271,7 +274,7 @@ func (sessn *Session) BindKey(k ...string) error {
 		}
 		sessn.routingKeys.Store(v, "")
 	}
-	if !sessn.connection.IsClosed() {
+	if sessn.IsReady() {
 		var err error
 		var s = make([]string, 0)
 		sessn.routingKeys.Range(func(key, value interface{}) bool {
@@ -291,7 +294,7 @@ func (sessn *Session) BindKey(k ...string) error {
 
 // ClearQueue 清空队列
 func (sessn *Session) ClearQueue() {
-	if !sessn.connection.IsClosed() {
+	if sessn.IsReady() {
 		sessn.channel.QueuePurge(sessn.queueName, true)
 	}
 }
@@ -304,7 +307,7 @@ func (sessn *Session) UnBindKey(k ...string) error {
 		}
 		sessn.routingKeys.Delete(v)
 	}
-	if !sessn.connection.IsClosed() {
+	if sessn.IsReady() {
 		var err error
 		var s = make([]string, 0)
 		for _, v := range k {
@@ -349,7 +352,7 @@ func (sessn *Session) Send(f string, d []byte) {
 // 	Body:         []byte("abcd"),
 // },
 func (sessn *Session) SendCustom(d *RabbitMQData) {
-	if sessn.connection.IsClosed() {
+	if !sessn.IsReady() {
 		return
 	}
 	go func() {
