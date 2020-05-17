@@ -80,7 +80,7 @@ func NewProducer(name, connstr string, debug bool) *Session {
 
 // Start Start
 func (sessn *Session) Start() bool {
-	sessn.handleReconnect()
+	go sessn.handleReconnect()
 	return sessn.WaitReady(5)
 	// if sessn.connect() {
 	// 	switch sessn.sessnType {
