@@ -18,7 +18,6 @@ import (
 	"github.com/gin-contrib/cors"
 	gingzip "github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/render"
 	"github.com/gogo/protobuf/proto"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -100,14 +99,14 @@ func getRoutes(h *gin.Engine) string {
 // port：端口号
 // h： http.hander, like gin.New()
 func ListenAndServe(port int, h *gin.Engine) error {
-	sss := getRoutes(h)
-	if sss != "" {
-		h.GET("/showroutes", func(c *gin.Context) {
-			c.Header("Content-Type", "text/html")
-			c.Status(http.StatusOK)
-			render.WriteString(c.Writer, sss, nil)
-		})
-	}
+	// sss := getRoutes(h)
+	// if sss != "" {
+	// 	h.GET("/showroutes", func(c *gin.Context) {
+	// 		c.Header("Content-Type", "text/html")
+	// 		c.Status(http.StatusOK)
+	// 		render.WriteString(c.Writer, sss, nil)
+	// 	})
+	// }
 	s := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
 		Handler:      h,
@@ -126,14 +125,14 @@ func ListenAndServe(port int, h *gin.Engine) error {
 // keyfile： key file path
 // clientca: 客户端根证书用于验证客户端合法性
 func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, clientca ...string) error {
-	sss := getRoutes(h)
-	if sss != "" {
-		h.GET("/showroutes", func(c *gin.Context) {
-			c.Header("Content-Type", "text/html")
-			c.Status(http.StatusOK)
-			render.WriteString(c.Writer, sss, nil)
-		})
-	}
+	// sss := getRoutes(h)
+	// if sss != "" {
+	// 	h.GET("/showroutes", func(c *gin.Context) {
+	// 		c.Header("Content-Type", "text/html")
+	// 		c.Status(http.StatusOK)
+	// 		render.WriteString(c.Writer, sss, nil)
+	// 	})
+	// }
 	var tc = &tls.Config{
 		Certificates: make([]tls.Certificate, 1),
 	}
