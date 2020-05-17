@@ -95,9 +95,9 @@ func (sessn *Session) Start() bool {
 }
 
 // StartTLS 使用ssl连接
-func (sessn *Session) StartTLS(t *tls.Config) {
+func (sessn *Session) StartTLS(t *tls.Config) bool {
 	sessn.tlsConf = t
-	sessn.Start()
+	return sessn.Start()
 }
 
 // SetLogger SetLogger
