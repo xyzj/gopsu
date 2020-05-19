@@ -278,9 +278,9 @@ func (sessn *Session) BindKey(k ...string) error {
 		var err error
 		var s = make([]string, 0)
 		sessn.routingKeys.Range(func(key, value interface{}) bool {
-			err = sessn.channel.QueueBind(sessn.queueName, value.(string), sessn.name, false, nil)
+			err = sessn.channel.QueueBind(sessn.queueName, key.(string), sessn.name, false, nil)
 			if err != nil {
-				s = append(s, value.(string))
+				s = append(s, key.(string))
 			}
 			return true
 		})
