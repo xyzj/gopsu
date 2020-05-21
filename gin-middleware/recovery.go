@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -38,7 +39,7 @@ func Recovery() gin.HandlerFunc {
 					}
 				}
 				if gin.DefaultWriter != nil {
-					stack := stack(3)
+					// stack := stack(3)
 					httpRequest, _ := httputil.DumpRequest(c.Request, false)
 					headers := strings.Split(string(httpRequest), "\r\n")
 					for idx, header := range headers {
@@ -50,11 +51,11 @@ func Recovery() gin.HandlerFunc {
 					if brokenPipe {
 						fmt.Fprintf(gin.DefaultWriter, "%s\n%s\n", err, string(httpRequest))
 					} else if gin.IsDebugging() {
-						// fmt.Fprintf(gin.DefaultWriter, "[Recovery] %s\n%+v\n", strings.Join(headers, "\n"), errors.WithStack(err.(error)))
-						fmt.Fprintf(gin.DefaultWriter, "[Recovery] %s\n%+v\n", strings.Join(headers, "\n"), string(stack))
+						fmt.Fprintf(gin.DefaultWriter, "[Recovery] %s\n%+v\n", strings.Join(headers, "\n"), errors.WithStack(err.(error)))
+						// fmt.Fprintf(gin.DefaultWriter, "[Recovery] %s\n%+v\n", strings.Join(headers, "\n"), string(stack))
 					} else {
-						// fmt.Fprintf(gin.DefaultWriter, "[Recovery] %+v\n", errors.WithStack(err.(error)))
-						fmt.Fprintf(gin.DefaultWriter, "[Recovery] %+v\n", string(stack))
+						fmt.Fprintf(gin.DefaultWriter, "[Recovery] %+v\n", errors.WithStack(err.(error)))
+						// fmt.Fprintf(gin.DefaultWriter, "[Recovery] %+v\n", string(stack))
 					}
 				}
 
