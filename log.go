@@ -134,28 +134,30 @@ func (l *StdLogger) DefaultWriter() io.Writer { return os.Stdout }
 
 // MxLog mx log
 type MxLog struct {
-	pathNow     string
-	fileSize    int64
-	expired     int64
-	fileMaxSize int64
-	fname       string
-	nameNow     string
-	nameOld     string
-	fileIndex   byte
-	logDir      string
-	fileDay     int
-	fileHour    int
-	fno         *os.File
-	logLevel    int
-	enablegz    bool
-	err         error
-	fileLock    sync.RWMutex
-	chanWrite   chan *logMessage
-	chanClose   chan bool
-	writeAsync  bool
-	asyncLock   sync.WaitGroup
-	chanWatcher chan string
-	out         io.Writer
+	pathNow       string
+	fileSize      int64
+	expired       int64
+	fileMaxSize   int64
+	fname         string
+	nameNow       string
+	nameOld       string
+	fileIndex     byte
+	logDir        string
+	fileDay       int
+	fileHour      int
+	fno           *os.File
+	logLevel      int
+	enablegz      bool
+	err           error
+	fileLock      sync.RWMutex
+	chanWrite     chan *logMessage
+	chanClose     chan bool
+	writeAsync    bool
+	asyncLock     sync.WaitGroup
+	chanWatcher   chan string
+	out           io.Writer
+	logClassified bool
+	cWorker       *CryptoWorker
 }
 
 type logMessage struct {
@@ -177,6 +179,11 @@ type logMessage struct {
 // func (l *MxLog) SetMaxFileSize(c int64) {
 // 	l.fileMaxSize = c * 1024000
 // }
+
+// LogClassified 加密日志输出
+func (l *MxLog) LogClassified(b bool) {
+	l.logClassified = b
+}
 
 // DefaultWriter out
 func (l *MxLog) DefaultWriter() io.Writer {
@@ -275,13 +282,16 @@ func (l *MxLog) writeLog(msg string, level int, lock ...bool) {
 
 	if level >= l.logLevel {
 		s := fmt.Sprintf("%s [%02d] %s", time.Now().Format(ShortTimeFormat), level, msg)
-		go func() {
-			defer func() { recover() }()
-			fmt.Fprintln(l.out, s)
-		}()
 		if level >= 40 && l.logLevel >= 20 {
 			println(s)
 		}
+		go func() {
+			defer func() { recover() }()
+			if l.logClassified {
+				s = l.cWorker.EncryptNoTail(s)
+			}
+			fmt.Fprintln(l.out, s)
+		}()
 	}
 }
 
@@ -456,7 +466,9 @@ func NewLogger(d, f string, logLevel, logDays int) Logger {
 		chanWatcher: make(chan string, 2),
 		writeAsync:  false,
 		enablegz:    true,
+		cWorker:     GetNewCryptoWorker(CryptoAES128CBC),
 	}
+	mylog.cWorker.SetKey(":@9j&%D5pA!ISE_P", "JTHp^#h#<2|bgL}e")
 
 	for i := byte(255); i > 0; i-- {
 		if IsExist(filepath.Join(mylog.logDir, fmt.Sprintf("%s.%v.%d.log", mylog.fname, t.Format(FileTimeFormat), i))) {
