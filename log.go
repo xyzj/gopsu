@@ -180,11 +180,6 @@ type logMessage struct {
 // 	l.fileMaxSize = c * 1024000
 // }
 
-// LogClassified 加密日志输出
-func (l *MxLog) LogClassified(b bool) {
-	l.logClassified = b
-}
-
 // DefaultWriter out
 func (l *MxLog) DefaultWriter() io.Writer {
 	return l.out
@@ -453,22 +448,26 @@ func NewLogger(d, f string, logLevel, logDays int) Logger {
 	}
 	t := time.Now()
 	mylog := &MxLog{
-		expired:     int64(logDays)*24*60*60 - 10,
-		fileMaxSize: maxFileSize,
-		fname:       f,
-		fileIndex:   0,
-		fileDay:     t.Day(),
-		fileHour:    t.Hour(),
-		logDir:      d,
-		logLevel:    logLevel,
-		chanWrite:   make(chan *logMessage, 5000),
-		chanClose:   make(chan bool, 2),
-		chanWatcher: make(chan string, 2),
-		writeAsync:  false,
-		enablegz:    true,
-		cWorker:     GetNewCryptoWorker(CryptoAES128CBC),
+		expired:       int64(logDays)*24*60*60 - 10,
+		fileMaxSize:   maxFileSize,
+		fname:         f,
+		fileIndex:     0,
+		fileDay:       t.Day(),
+		fileHour:      t.Hour(),
+		logDir:        d,
+		logLevel:      logLevel,
+		chanWrite:     make(chan *logMessage, 5000),
+		chanClose:     make(chan bool, 2),
+		chanWatcher:   make(chan string, 2),
+		writeAsync:    false,
+		enablegz:      true,
+		logClassified: false,
+		cWorker:       GetNewCryptoWorker(CryptoAES128CBC),
 	}
 	mylog.cWorker.SetKey(":@9j&%D5pA!ISE_P", "JTHp^#h#<2|bgL}e")
+	if IsExist(filepath.Join(GetExecDir(), ".safemode")) {
+		mylog.logClassified = true
+	}
 
 	for i := byte(255); i > 0; i-- {
 		if IsExist(filepath.Join(mylog.logDir, fmt.Sprintf("%s.%v.%d.log", mylog.fname, t.Format(FileTimeFormat), i))) {
