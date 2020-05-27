@@ -251,12 +251,12 @@ func ReadParams() gin.HandlerFunc {
 		case "", "application/x-www-form-urlencoded", "application/json":
 			x, _ = url.ParseQuery(c.Request.URL.RawQuery)
 			b, err := ioutil.ReadAll(c.Request.Body)
-			c.Params = append(c.Params, gin.Param{
-				Key:   "_body",
-				Value: string(b),
-			})
 			if err == nil {
 				if len(b) > 0 {
+					c.Params = append(c.Params, gin.Param{
+						Key:   "_body",
+						Value: string(b),
+					})
 					if ct == "application/json" {
 						gjson.ParseBytes(b).ForEach(func(key, value gjson.Result) bool {
 							x.Add(key.String(), value.String())
