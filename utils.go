@@ -1446,18 +1446,16 @@ func GetServerTLSConfig(certfile, keyfile, clientca string) (*tls.Config, error)
 // 	keyfile: 双向验证时客户端key
 // 	rootca: 服务端根证书
 func GetClientTLSConfig(certfile, keyfile, rootca string) (*tls.Config, error) {
-	tc := &tls.Config{}
+	tc := &tls.Config{
+		InsecureSkipVerify: true,
+	}
 	var err error
 	caCrt, err := ioutil.ReadFile(rootca)
-	if err != nil {
-		return nil, err
-	}
-	pool := x509.NewCertPool()
-	if pool.AppendCertsFromPEM(caCrt) {
-		tc.RootCAs = pool
-		tc.InsecureSkipVerify = false
-	} else {
-		tc.InsecureSkipVerify = true
+	if err == nil {
+		pool := x509.NewCertPool()
+		if pool.AppendCertsFromPEM(caCrt) {
+			tc.RootCAs = pool
+		}
 	}
 
 	cliCrt, err := tls.LoadX509KeyPair(certfile, keyfile)

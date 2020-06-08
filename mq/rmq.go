@@ -202,10 +202,11 @@ func (sessn *Session) WaitReady(second int) bool {
 	if second == 0 {
 		second = 5
 	}
+	time.Sleep(time.Second)
 	tc := time.NewTicker(time.Second * time.Duration(second))
 	for {
 		select {
-		case <-time.After(time.Millisecond * 10):
+		case <-time.After(time.Millisecond * 100):
 			if sessn.IsReady() {
 				return true
 			}
