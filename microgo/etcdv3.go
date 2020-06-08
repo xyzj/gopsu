@@ -17,7 +17,6 @@ import (
 	"github.com/tidwall/sjson"
 	"github.com/xyzj/gopsu"
 	"go.etcd.io/etcd/clientv3"
-	"go.etcd.io/etcd/pkg/transport"
 )
 
 const (
@@ -63,13 +62,7 @@ func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile string) (*E
 	var tlsconf *tls.Config
 	var err error
 	if gopsu.IsExist(certfile) && gopsu.IsExist(keyfile) && gopsu.IsExist(cafile) {
-		tlsinfo := transport.TLSInfo{
-			CertFile:           certfile,
-			KeyFile:            keyfile,
-			TrustedCAFile:      cafile,
-			InsecureSkipVerify: true,
-		}
-		tlsconf, err = tlsinfo.ClientConfig()
+		tlsconf, err = gopsu.GetClientTLSConfig(certfile, keyfile, cafile)
 		if err != nil {
 			return nil, err
 		}
