@@ -249,14 +249,9 @@ func PageDefault(c *gin.Context) {
 	switch c.Request.Method {
 	case "GET":
 		if c.Request.RequestURI == "/" {
-			t, _ := template.New("helloworld").Parse(templateHelloWorld)
-			h := render.HTML{
-				Name:     "helloworld",
-				Data:     runtimeInfo,
-				Template: t,
-			}
-			h.WriteContentType(c.Writer)
-			h.Render(c.Writer)
+			c.Header("Content-Type", "text/html")
+			c.Status(http.StatusOK)
+			render.WriteString(c.Writer, templateHelloWorld, nil)
 		} else {
 			c.String(200, "ok")
 		}

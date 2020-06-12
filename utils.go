@@ -1457,7 +1457,6 @@ func GetClientTLSConfig(certfile, keyfile, rootca string) (*tls.Config, error) {
 			tc.RootCAs = pool
 		}
 	}
-
 	cliCrt, err := tls.LoadX509KeyPair(certfile, keyfile)
 	if err != nil {
 		return tc, nil
