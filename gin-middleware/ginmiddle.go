@@ -248,8 +248,11 @@ func ReadParams() gin.HandlerFunc {
 		var ct = strings.Split(c.GetHeader("Content-Type"), ";")[0]
 		var x = url.Values{}
 		switch ct {
-		case "", "application/x-www-form-urlencoded", "application/json":
+		case "", "application/x-www-form-urlencoded", "application/json", "multipart/form-data":
 			x, _ = url.ParseQuery(c.Request.URL.RawQuery)
+			if ct == "multipart/form-data" {
+				break
+			}
 			b, err := ioutil.ReadAll(c.Request.Body)
 			if err == nil {
 				if len(b) > 0 {
