@@ -538,12 +538,6 @@ func (l *MxLog) zipFile(s string) {
 			l.Error("zip log file error: " + s + " " + err.Error())
 			return
 		}
-		// 删除已压缩的旧日志
-		err = os.Remove(filepath.Join(l.logDir, s))
-		if err != nil {
-			l.Error("del old file error: " + s + " " + err.Error())
-			// ioutil.WriteFile(fmt.Sprintf("logcrash.%d.log", time.Now().Unix()), []byte("del old file:"+s+" "+err.Error()), 0664)
-		}
 	}(s)
 }
 
