@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"github.com/xyzj/gopsu"
 )
 
@@ -11,10 +13,12 @@ var (
 
 // 启动文件 main.go
 func main() {
-	s := "gopsu.GetRandomString(16)"
-	c := gopsu.GetNewCryptoWorker(gopsu.CryptoAES128CBC)
-	c.SetKey(gopsu.GetRandomString(16), gopsu.GetRandomString(16))
-	println(s)
-	s = c.EncryptNoTail(s)
-	println(s)
+	var aaa = gopsu.NewCache(100)
+	for i := 0; i < 111; i++ {
+		println(i, aaa.Set(i, "v interface{}", 6000))
+	}
+	for {
+		time.Sleep(time.Second)
+		println(aaa.Len())
+	}
 }

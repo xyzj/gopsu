@@ -107,12 +107,13 @@ func ListenAndServe(port int, h *gin.Engine) error {
 	// 		render.WriteString(c.Writer, sss, nil)
 	// 	})
 	// }
+	st := getSocketTimeout()
 	s := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
 		Handler:      h,
-		ReadTimeout:  getSocketTimeout(),
-		WriteTimeout: getSocketTimeout(),
-		IdleTimeout:  getSocketTimeout(),
+		ReadTimeout:  st,
+		WriteTimeout: st,
+		IdleTimeout:  st,
 	}
 	fmt.Fprintf(io.MultiWriter(gin.DefaultWriter, os.Stdout), "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTP server at :"+strconv.Itoa(port))
 	return s.ListenAndServe()
@@ -150,12 +151,13 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 			tc.ClientAuth = tls.RequireAndVerifyClientCert
 		}
 	}
+	st := getSocketTimeout()
 	s := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
 		Handler:      h,
-		ReadTimeout:  getSocketTimeout(),
-		WriteTimeout: getSocketTimeout(),
-		IdleTimeout:  getSocketTimeout(),
+		ReadTimeout:  st,
+		WriteTimeout: st,
+		IdleTimeout:  st,
 		TLSConfig:    tc,
 	}
 	go func() {
