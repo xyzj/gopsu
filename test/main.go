@@ -13,9 +13,9 @@ var (
 
 // 启动文件 main.go
 func main() {
-	var aaa = gopsu.NewCache(100)
+	var aaa = gopsu.NewCache(10)
 	for i := 0; i < 111; i++ {
-		println(i, aaa.Set(i, "v interface{}", 6000))
+		println(i, aaa.SetWithHold(i, "v interface{}", 59000, 60000))
 	}
 	for {
 		time.Sleep(time.Second)

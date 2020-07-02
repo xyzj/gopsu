@@ -7,13 +7,13 @@ import (
 
 // XCache 可设置超时的缓存字典
 type XCache struct {
-	m   map[interface{}]*xCacheData
-	len int
-	// chanSet      chan *xCacheData
-	chanSetTimeo chan *xCacheData
-	chanReq      chan int
-	chanGet      chan interface{}
-	chanResp     chan interface{}
+	m       map[interface{}]*xCacheData
+	len     int
+	chanSet chan *xCacheData
+	// chanSetTimeo chan *xCacheData
+	chanReq  chan int
+	chanGet  chan interface{}
+	chanResp chan interface{}
 }
 
 // xCacheData 可设置超时的缓存字典数据结构
@@ -27,13 +27,13 @@ type xCacheData struct {
 //	l：字典大小,0-不限制
 func NewCache(l int) *XCache {
 	xc := &XCache{
-		m:   make(map[interface{}]*xCacheData, l),
-		len: l,
-		// chanSet:      make(chan *xCacheData),
-		chanSetTimeo: make(chan *xCacheData),
-		chanReq:      make(chan int),
-		chanGet:      make(chan interface{}),
-		chanResp:     make(chan interface{}),
+		m:       make(map[interface{}]*xCacheData, l),
+		len:     l,
+		chanSet: make(chan *xCacheData),
+		// chanSetTimeo: make(chan *xCacheData),
+		chanReq:  make(chan int),
+		chanGet:  make(chan interface{}),
+		chanResp: make(chan interface{}),
 	}
 	go xc.run()
 	return xc
@@ -44,7 +44,16 @@ func NewCache(l int) *XCache {
 //	v: value
 //	expire: 超时时间（ms）,0-不超时
 func (xc *XCache) Set(k, v interface{}, expire int64) bool {
-	return xc.SetWithHold(k, v, expire, 13)
+	if expire <= 0 {
+		expire = 316224000000
+	}
+	xc.chanSet <- &xCacheData{
+		key:    k,
+		value:  v,
+		expire: time.Now().UnixNano()/1000000 + expire,
+	}
+	b := <-xc.chanResp
+	return b.(bool)
 }
 
 // SetWithHold 设置缓存数据
@@ -56,6 +65,10 @@ func (xc *XCache) SetWithHold(k, v interface{}, expire, timeout int64) bool {
 	if expire <= 0 {
 		expire = 316224000000
 	}
+	if xc.Set(k, v, expire) {
+		return true
+	}
+	// 插入失败，hold并重试
 	if timeout <= 0 {
 		timeout = 316224000000
 	}
@@ -65,13 +78,7 @@ func (xc *XCache) SetWithHold(k, v interface{}, expire, timeout int64) bool {
 		case <-t.C:
 			return false
 		case <-time.After(time.Millisecond * 7):
-			xc.chanSetTimeo <- &xCacheData{
-				key:    k,
-				value:  v,
-				expire: time.Now().UnixNano()/1000000 + expire,
-			}
-			b := <-xc.chanResp
-			if b.(bool) == true {
+			if xc.Set(k, v, expire) {
 				return true
 			}
 		}
@@ -109,10 +116,8 @@ RUN:
 		}()
 		for {
 			select {
-			// case set := <-xc.chanSet:
-			// 	xc.m[set.key] = set
-			case set := <-xc.chanSetTimeo:
-				if len(xc.m) < xc.len {
+			case set := <-xc.chanSet:
+				if xc.len == 0 || len(xc.m) < xc.len {
 					xc.m[set.key] = set
 					xc.chanResp <- true
 				} else {
@@ -126,7 +131,11 @@ RUN:
 					xc.m = make(map[interface{}]*xCacheData, xc.len)
 				}
 			case key := <-xc.chanGet:
-				xc.chanResp <- xc.m[key]
+				if v, ok := xc.m[key]; ok {
+					xc.chanResp <- v
+				} else {
+					xc.chanResp <- nil
+				}
 			case <-t.C:
 				tt := time.Now().UnixNano() / 1000000
 				for k, v := range xc.m {
