@@ -35,6 +35,7 @@ type Etcdv3Client struct {
 	svrPool      sync.Map         // 线程安全服务信息字典
 	svrDetail    string           // 服务信息
 	logger       gopsu.Logger     //  日志接口
+	realIP       string           // 所在电脑ip
 }
 
 // RegisteredServer 获取到的服务注册信息
@@ -59,8 +60,11 @@ func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile string) (*E
 		etcdAddr: etcdaddr,
 		logger:   &gopsu.NilLogger{},
 	}
+	ip, err := gopsu.RealIP()
+	if err == nil {
+		m.realIP = ip
+	}
 	var tlsconf *tls.Config
-	var err error
 	if gopsu.IsExist(certfile) && gopsu.IsExist(keyfile) && gopsu.IsExist(cafile) {
 		tlsconf, err = gopsu.GetClientTLSConfig(certfile, keyfile, cafile)
 		if err != nil {
@@ -196,6 +200,7 @@ func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string
 	js, _ = sjson.Set(js, "protocol", protoname)
 	js, _ = sjson.Set(js, "timeConnect", time.Now().Unix())
 	js, _ = sjson.Set(js, "timeActive", time.Now().Unix())
+	js, _ = sjson.Set(js, "source", m.realIP)
 	m.svrDetail = js
 
 	// 监视线程，在etcd崩溃并重启时重新注册

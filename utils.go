@@ -1758,3 +1758,61 @@ func CopyFile(src, dst string) (int64, error) {
 	nBytes, err := io.Copy(destination, source)
 	return nBytes, err
 }
+
+// JoinPathFromHere 从程序执行目录开始拼接路径
+func JoinPathFromHere(path ...string) string {
+	s := []string{GetExecDir()}
+	s = append(s, path...)
+	return filepath.Join(s...)
+}
+
+// SlicesUnion 求并集
+func SlicesUnion(slice1, slice2 []string) []string {
+	m := make(map[string]int)
+	for _, v := range slice1 {
+		m[v]++
+	}
+
+	for _, v := range slice2 {
+		times, _ := m[v]
+		if times == 0 {
+			slice1 = append(slice1, v)
+		}
+	}
+	return slice1
+}
+
+// SlicesIntersect 求交集
+func SlicesIntersect(slice1, slice2 []string) []string {
+	m := make(map[string]int)
+	nn := make([]string, 0)
+	for _, v := range slice1 {
+		m[v]++
+	}
+
+	for _, v := range slice2 {
+		times, _ := m[v]
+		if times == 1 {
+			nn = append(nn, v)
+		}
+	}
+	return nn
+}
+
+// SlicesDifference 求差集 slice1-并集
+func SlicesDifference(slice1, slice2 []string) []string {
+	m := make(map[string]int)
+	nn := make([]string, 0)
+	inter := SlicesIntersect(slice1, slice2)
+	for _, v := range inter {
+		m[v]++
+	}
+
+	for _, value := range slice1 {
+		times, _ := m[value]
+		if times == 0 {
+			nn = append(nn, value)
+		}
+	}
+	return nn
+}
