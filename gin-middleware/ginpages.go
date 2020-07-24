@@ -271,17 +271,22 @@ func PageRuntime(c *gin.Context) {
 			}
 		}
 	}
-	// c.Header("Content-Type", "text/html")
-	// c.Status(http.StatusOK)
-	// render.WriteString(c.Writer, templateRuntime, nil)
-	t, _ := template.New("runtime").Parse(templateRuntime)
-	h := render.HTML{
-		Name:     "runtime",
-		Data:     runtimeInfo,
-		Template: t,
+	switch c.Request.Method {
+	case "GET":
+		// c.Header("Content-Type", "text/html")
+		// c.Status(http.StatusOK)
+		// render.WriteString(c.Writer, templateRuntime, nil)
+		t, _ := template.New("runtime").Parse(templateRuntime)
+		h := render.HTML{
+			Name:     "runtime",
+			Data:     runtimeInfo,
+			Template: t,
+		}
+		h.WriteContentType(c.Writer)
+		h.Render(c.Writer)
+	case "POST":
+		c.PureJSON(200, runtimeInfo)
 	}
-	h.WriteContentType(c.Writer)
-	h.Render(c.Writer)
 }
 
 // Clearlog 日志清理

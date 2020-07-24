@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -63,7 +62,7 @@ func NewGinEngine(logDir, logName string, logDays int, logLevel ...int) *gin.Eng
 	r.GET("/health", PageDefault)
 	r.GET("/clearlog", CheckRequired("name"), Clearlog)
 	r.GET("/runtime", PageRuntime)
-	r.Static("/static", filepath.Join(gopsu.GetExecDir(), "static"))
+	r.Static("/static", gopsu.JoinPathFromHere("static"))
 	return r
 }
 
