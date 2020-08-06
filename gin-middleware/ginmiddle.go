@@ -261,8 +261,11 @@ func ReadParams() gin.HandlerFunc {
 						Key:   "_body",
 						Value: string(b),
 					})
-					if ct == "application/json" {
-						gjson.ParseBytes(b).ForEach(func(key, value gjson.Result) bool {
+					ans := gjson.ParseBytes(b)
+					if ans.IsObject() {
+						// if ct == "application/json" {
+						// 	gjson.ParseBytes(b).ForEach(func(key, value gjson.Result) bool {
+						ans.ForEach(func(key, value gjson.Result) bool {
 							x.Add(key.String(), value.String())
 							return true
 						})
