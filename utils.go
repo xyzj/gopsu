@@ -206,6 +206,7 @@ func (h *CryptoWorker) EncryptNoTail(s string) string {
 func (h *CryptoWorker) Decrypt(s string) string {
 	// h.cryptoLocker.Lock()
 	// defer h.cryptoLocker.Unlock()
+	defer func() { recover() }()
 	if len(h.cryptoIV) == 0 {
 		return ""
 	}
