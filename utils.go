@@ -20,6 +20,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"hash"
+	"hash/crc32"
 	"io"
 	"io/ioutil"
 	"math"
@@ -1816,4 +1817,14 @@ func SlicesDifference(slice1, slice2 []string) []string {
 		}
 	}
 	return nn
+}
+
+// CalcCRC32String 计算crc32，返回16进制字符串
+func CalcCRC32String(b []byte) string {
+	return strconv.FormatUint(uint64(crc32.ChecksumIEEE(b)), 16)
+}
+
+// CalcCRC32 计算crc32，返回[]byte
+func CalcCRC32(b []byte, bigorder bool) []byte {
+	return HexString2Bytes(strconv.FormatUint(uint64(crc32.ChecksumIEEE(b)), 16), bigorder)
 }
