@@ -606,15 +606,18 @@ func CheckIP(ip string) bool {
 // conf，log，cache三个文件夹的完整路径
 func MakeRuntimeDirs(rootpath string) (string, string, string) {
 	var basepath string
-	if strings.Compare(rootpath, ".") == 0 {
+	switch rootpath {
+	case ".":
 		basepath = GetExecDir()
-	} else {
+	case "..":
+		basepath = JoinPathFromHere("..")
+	default:
 		basepath = rootpath
 	}
-	os.MkdirAll(filepath.Join(basepath, "..", "conf"), 0775)
-	os.MkdirAll(filepath.Join(basepath, "..", "log"), 0775)
-	os.MkdirAll(filepath.Join(basepath, "..", "cache"), 0775)
-	return filepath.Join(basepath, "..", "conf"), filepath.Join(basepath, "..", "log"), filepath.Join(basepath, "..", "cache")
+	os.MkdirAll(filepath.Join(basepath, "conf"), 0775)
+	os.MkdirAll(filepath.Join(basepath, "log"), 0775)
+	os.MkdirAll(filepath.Join(basepath, "cache"), 0775)
+	return filepath.Join(basepath, "conf"), filepath.Join(basepath, "log"), filepath.Join(basepath, "cache")
 }
 
 // String2Bytes convert hex-string to []byte
