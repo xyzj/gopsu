@@ -160,29 +160,35 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 		TLSConfig:    tc,
 	}
 	go func() {
-		defer func() {
-			if err := recover(); err != nil {
-				fmt.Fprintf(io.MultiWriter(gin.DefaultWriter, os.Stdout), "cert update crash: %s\n", err.(error).Error())
-			}
-		}()
-		tt := time.NewTicker(time.Hour * 24)
-		oldsign := gopsu.GetMD5(string(s.TLSConfig.Certificates[0].Certificate[0]))
-		var certlock sync.RWMutex
-		for {
-			select {
-			case <-tt.C:
-				newcert, err := tls.LoadX509KeyPair(certfile, keyfile)
-				if err == nil {
-					newsign := gopsu.GetMD5(string(newcert.Certificate[0]))
-					if oldsign != newsign {
-						certlock.RLock()
-						defer certlock.RUnlock()
-						s.TLSConfig.Certificates[0] = newcert
-						oldsign = newsign
+		var runLook sync.WaitGroup
+	RUN:
+		go func() {
+			defer func() {
+				if err := recover(); err != nil {
+					fmt.Fprintf(io.MultiWriter(gin.DefaultWriter, os.Stdout), "cert update crash: %s\n", err.(error).Error())
+				}
+				runLook.Done()
+			}()
+			runLook.Add(1)
+			tt := time.NewTicker(time.Hour * 24)
+			oldsign := gopsu.GetMD5(string(s.TLSConfig.Certificates[0].Certificate[0]) + string(s.TLSConfig.Certificates[0].Certificate[1]))
+			for {
+				select {
+				case <-tt.C:
+					newcert, err := tls.LoadX509KeyPair(certfile, keyfile)
+					if err == nil {
+						newsign := gopsu.GetMD5(string(newcert.Certificate[0]) + string(newcert.Certificate[1]))
+						if oldsign != newsign {
+							s.TLSConfig.Certificates[0] = newcert
+							oldsign = newsign
+						}
 					}
 				}
 			}
-		}
+		}()
+		time.Sleep(time.Second)
+		runLook.Wait()
+		goto RUN
 	}()
 	fmt.Fprintf(io.MultiWriter(gin.DefaultWriter, os.Stdout), "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTPS server at :"+strconv.Itoa(port))
 	return s.ListenAndServeTLS("", "")
