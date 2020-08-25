@@ -68,6 +68,21 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 	gin.DefaultErrorWriter = f.out
 
 	return func(c *gin.Context) {
+		if f.nameNow != "" && !gopsu.IsExist(f.pathNow) {
+			f.fno.Close()
+			// 打开文件
+			f.fno, f.err = os.OpenFile(f.pathNow, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
+			if f.err != nil {
+				ioutil.WriteFile("ginlogerr.log", []byte("Log file reopen error: "+f.err.Error()), 0644)
+				f.out = io.MultiWriter(os.Stdout)
+			} else {
+				if gin.Mode() == "debug" {
+					f.out = io.MultiWriter(f.fno, os.Stdout)
+				} else {
+					f.out = io.MultiWriter(f.fno)
+				}
+			}
+		}
 		// 检查是否需要切分文件
 		if f.rollingFile() {
 			gin.DefaultWriter = f.out
