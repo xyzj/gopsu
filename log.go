@@ -208,7 +208,7 @@ func (l *MxLog) coreWatcher() {
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
-				ioutil.WriteFile(fmt.Sprintf("crash-log-%s.log", time.Now().Format("20060102150405")), []byte(fmt.Sprintf("%v", err.(error))), 0644)
+				ioutil.WriteFile(fmt.Sprintf("crash-log-%s.log", time.Now().Format("20060102150405")), []byte(fmt.Sprintf("%v", err.(error))), 0664)
 			}
 		}()
 		closeme := false
@@ -233,7 +233,7 @@ func (l *MxLog) writeLogAsync() {
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
-				ioutil.WriteFile(fmt.Sprintf("crash-log-%s.log", time.Now().Format("20060102150405")), []byte(fmt.Sprintf("%v", err.(error))), 0644)
+				ioutil.WriteFile(fmt.Sprintf("crash-log-%s.log", time.Now().Format("20060102150405")), []byte(fmt.Sprintf("%v", err.(error))), 0664)
 				time.Sleep(300 * time.Millisecond)
 			}
 			l.chanWatcher <- "mxlog"
@@ -272,9 +272,9 @@ func (l *MxLog) writeLog(msg string, level int, lock ...bool) {
 	if l.fname != "" && !IsExist(l.pathNow) {
 		l.fno.Close()
 		// 打开文件
-		l.fno, l.err = os.OpenFile(l.pathNow, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
+		l.fno, l.err = os.OpenFile(l.pathNow, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0664)
 		if l.err != nil {
-			ioutil.WriteFile("logerr.log", []byte("Log file reopen error: "+l.err.Error()), 0644)
+			ioutil.WriteFile("logerr.log", []byte("Log file reopen error: "+l.err.Error()), 0664)
 			l.out = io.MultiWriter(os.Stdout)
 		} else {
 			if l.logLevel <= 10 {
@@ -597,9 +597,9 @@ func (l *MxLog) newFile() {
 		l.out = io.MultiWriter(os.Stdout)
 	} else {
 		// 打开文件
-		l.fno, l.err = os.OpenFile(l.pathNow, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
+		l.fno, l.err = os.OpenFile(l.pathNow, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0664)
 		if l.err != nil {
-			ioutil.WriteFile("logerr.log", []byte("Log file open error: "+l.err.Error()), 0644)
+			ioutil.WriteFile("logerr.log", []byte("Log file open error: "+l.err.Error()), 0664)
 			l.out = io.MultiWriter(os.Stdout)
 		} else {
 			if l.logLevel <= 10 {

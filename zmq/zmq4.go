@@ -68,7 +68,7 @@ func (z *ZeroMQ) showMessages(s string, level int) {
 func (z *ZeroMQ) coreWatcher() {
 	defer func() {
 		if err := recover(); err != nil {
-			ioutil.WriteFile(fmt.Sprintf("crash-0mq-%s.log", time.Now().Format("20060102150405")), []byte(fmt.Sprintf("%v", errors.WithStack(err.(error)))), 0644)
+			ioutil.WriteFile(fmt.Sprintf("crash-0mq-%s.log", time.Now().Format("20060102150405")), []byte(fmt.Sprintf("%v", errors.WithStack(err.(error)))), 0664)
 			time.Sleep(300 * time.Millisecond)
 		}
 	}()
