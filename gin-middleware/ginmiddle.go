@@ -171,13 +171,13 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 			}()
 			runLook.Add(1)
 			tt := time.NewTicker(time.Hour * 24)
-			oldsign := gopsu.GetMD5(string(s.TLSConfig.Certificates[0].Certificate[0]) + string(s.TLSConfig.Certificates[0].Certificate[1]))
+			oldsign := gopsu.GetMD5(string(s.TLSConfig.Certificates[0].Certificate[0]))
 			for {
 				select {
 				case <-tt.C:
 					newcert, err := tls.LoadX509KeyPair(certfile, keyfile)
 					if err == nil {
-						newsign := gopsu.GetMD5(string(newcert.Certificate[0]) + string(newcert.Certificate[1]))
+						newsign := gopsu.GetMD5(string(newcert.Certificate[0]))
 						if oldsign != newsign {
 							s.TLSConfig.Certificates[0] = newcert
 							oldsign = newsign
