@@ -49,12 +49,12 @@ type registeredServer struct {
 }
 
 // NewEtcdv3Client 获取新的微服务结构
-func NewEtcdv3Client(etcdaddr []string) (*Etcdv3Client, error) {
-	return NewEtcdv3ClientTLS(etcdaddr, "", "", "")
+func NewEtcdv3Client(etcdaddr []string, username, password string) (*Etcdv3Client, error) {
+	return NewEtcdv3ClientTLS(etcdaddr, "", "", "", username, password)
 }
 
 // NewEtcdv3ClientTLS 获取新的微服务结构（tls）
-func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile string) (*Etcdv3Client, error) {
+func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile, username, password string) (*Etcdv3Client, error) {
 	m := &Etcdv3Client{
 		etcdRoot: "wlst-micro",
 		etcdAddr: etcdaddr,
@@ -73,11 +73,16 @@ func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile string) (*E
 	} else {
 		tlsconf = nil
 	}
-	m.etcdClient, err = clientv3.New(clientv3.Config{
+	cf := clientv3.Config{
 		Endpoints:   m.etcdAddr,
 		DialTimeout: 2 * time.Second,
 		TLS:         tlsconf,
-	})
+	}
+	if username != "" && password != "" {
+		cf.Username = username
+		cf.Password = password
+	}
+	m.etcdClient, err = clientv3.New(cf)
 	if err != nil {
 		return nil, err
 	}
