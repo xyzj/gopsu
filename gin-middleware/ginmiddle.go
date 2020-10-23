@@ -114,7 +114,7 @@ func ListenAndServe(port int, h *gin.Engine) error {
 		WriteTimeout: st,
 		IdleTimeout:  st,
 	}
-	fmt.Fprintf(io.MultiWriter(gin.DefaultWriter, os.Stdout), "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTP server at :"+strconv.Itoa(port))
+	fmt.Fprintf(gin.DefaultWriter, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Start HTTP server at :"+strconv.Itoa(port))
 	return s.ListenAndServe()
 }
 
