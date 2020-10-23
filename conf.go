@@ -21,8 +21,7 @@ type confItem struct {
 
 // ConfData 配置文件结构体
 type ConfData struct {
-	items sync.Map
-	// items []*confItem
+	items        sync.Map
 	fileFullPath string
 	fileName     string
 }
@@ -79,12 +78,6 @@ func (c *ConfData) UpdateItem(key, value string) bool {
 		}
 		return true
 	})
-	// for _, v := range c.items {
-	// 	if v.key == key {
-	// 		v.value = value
-	// 		return true
-	// 	}
-	// }
 	return found
 }
 
@@ -106,23 +99,6 @@ func (c *ConfData) SetItem(key, value, remark string) bool {
 		value:  value,
 		remark: remark,
 	})
-	// var found = false
-	// for _, v := range c.items {
-	// 	if v.key == key {
-	// 		v.value = value
-	// 		v.remark = remark
-	// 		found = true
-	// 		break
-	// 	}
-	// }
-	// if found == false {
-	// 	item := &confItem{
-	// 		key:    key,
-	// 		value:  value,
-	// 		remark: remark,
-	// 	}
-	// 	c.items = append(c.items, item)
-	// }
 	return true
 }
 
@@ -134,28 +110,6 @@ func (c *ConfData) GetItemDefault(key, value string, remark ...string) string {
 		v = TrimString(value)
 	}
 	return v
-	// if c.items == nil {
-	// 	return ""
-	// }
-	// found := false
-	// var x string
-	// for _, v := range c.items {
-	// 	if v.key == TrimString(key) {
-	// 		x = v.value
-	// 		found = true
-	// 		break
-	// 	}
-	// }
-	// if found == false {
-	// 	if len(remark) > 0 {
-	// 		c.SetItem(key, value, remark[0])
-	// 	} else {
-	// 		c.SetItem(key, value, "")
-	// 	}
-	// 	c.Save()
-	// 	return value
-	// }
-	// return x
 }
 
 // GetItem 获取配置项的value
@@ -165,22 +119,6 @@ func (c *ConfData) GetItem(key string) (string, error) {
 		return v.(*confItem).value, nil
 	}
 	return "", fmt.Errorf("Key does not exist")
-	// if c.items == nil {
-	// 	return "", fmt.Errorf("config data error")
-	// }
-	// found := false
-	// var x string
-	// for _, v := range c.items {
-	// 	if v.key == TrimString(key) {
-	// 		x = v.value
-	// 		found = true
-	// 		break
-	// 	}
-	// }
-	// if found == false {
-	// 	return "", errors.New("Key does not exist")
-	// }
-	// return x, nil
 }
 
 // GetKeys 获取所有配置项的key
@@ -190,10 +128,6 @@ func (c *ConfData) GetKeys() []string {
 		keys = append(keys, k.(string))
 		return true
 	})
-	// keys := make([]string, len(c.items))
-	// for k, v := range c.items {
-	// 	keys[k] = TrimString(v.key)
-	// }
 	return keys
 }
 
@@ -228,19 +162,6 @@ func (c *ConfData) Save() error {
 			return ex
 		}
 	}
-	// for _, v := range c.items {
-	// 	x := strings.Split(v.remark, "#")
-	// 	remark := make([]string, 0)
-	// 	for _, v := range x {
-	// 		if len(v) > 0 {
-	// 			remark = append(remark, "#"+v)
-	// 		}
-	// 	}
-	// 	_, ex := file.WriteString(fmt.Sprintf("%s\r\n%s=%s\r\n\r\n", strings.Join(remark, "\r\n"), v.key, v.value))
-	// 	if ex != nil {
-	// 		return ex
-	// 	}
-	// }
 	return err
 }
 
@@ -251,9 +172,6 @@ func (c *ConfData) GetAll() string {
 		s = append(s, fmt.Sprintf("\"%s\":\"%s\"", v.(*confItem).key, v.(*confItem).value))
 		return true
 	})
-	// for _, v := range c.items {
-	// 	s = append(s, fmt.Sprintf("\"%s\":\"%s\"", v.key, v.value))
-	// }
 	return fmt.Sprintf("{%s}", strings.Join(s, ","))
 }
 
@@ -263,7 +181,6 @@ func (c *ConfData) Clear() {
 		c.items.Delete(k)
 		return true
 	})
-	// c.items = make([]*confItem, 0)
 }
 
 // Len 获取配置数量
@@ -274,7 +191,6 @@ func (c *ConfData) Len() int {
 		return true
 	})
 	return i
-	// return len(c.items)
 }
 
 // FullPath 配置文件完整路径
@@ -287,45 +203,8 @@ func LoadConfig(fullpath string) (*ConfData, error) {
 	c := &ConfData{
 		fileFullPath: fullpath,
 		fileName:     path.Base(fullpath),
-		// items:        make([]*confItem, 0),
 	}
 	c.Reload()
-	// if IsExist(fullpath) {
-	// 	file, ex := os.Open(fullpath)
-	// 	if ex != nil {
-	// 		return c, ex
-	// 	}
-	// 	defer func() (*ConfData, error) {
-	// 		if ex := recover(); ex != nil {
-	// 			file.Close()
-	// 		}
-	// 		return c, fmt.Errorf("file format error")
-	// 	}()
-	// 	var remarkbuf bytes.Buffer
-	// 	buf := bufio.NewReader(file)
-	// 	for {
-	// 		line, ex := buf.ReadString('\n')
-	// 		if ex != nil || io.EOF == ex {
-	// 			break
-	// 		}
-	// 		line = TrimString(line)
-	// 		if len(line) == 0 {
-	// 			remarkbuf.WriteString("\r\n")
-	// 			continue
-	// 		}
-	// 		if strings.Index(line, "#") > -1 && strings.Index(line, "#") < 5 {
-	// 			remarkbuf.WriteString(line)
-	// 			continue
-	// 		} else {
-	// 			s := strings.SplitN(line, "=", 2)
-	// 			if len(s[1]) > 0 {
-	// 				c.SetItem(s[0], s[1], remarkbuf.String())
-	// 			}
-	// 			remarkbuf.Reset()
-	// 		}
-	// 	}
-	// 	return c, nil
-	// }
 	ex := c.Save()
 	return c, ex
 }
