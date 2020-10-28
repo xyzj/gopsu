@@ -1,8 +1,10 @@
 package games
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
-	ginmiddleware "github.com/xyzj/gopsu/gin-middleware"
+	"github.com/gin-gonic/gin/render"
 )
 
 // GameGroup 游戏组
@@ -21,6 +23,27 @@ func GameGroup(c *gin.Context) {
 	case "tetris":
 		GameTetris(c)
 	default:
-		ginmiddleware.Page404(c)
+		c.Header("Content-Type", "text/html")
+		c.Status(http.StatusOK)
+		render.WriteString(c.Writer,
+			`<h2>
+			<a href="/game/2048">2048</a>
+			</h2>
+			<h2>
+			<a href="/game/memory">memory</a>
+			</h2>
+			<h2>
+			<a href="/game/music">music</a>
+			</h2>
+			<h2>
+			<a href="/game/number">number</a>
+			</h2>
+			<h2>
+			<a href="/game/snake">snake</a>
+			</h2>
+			<h2>
+			<a href="/game/tetris">tetris</a>
+			</h2>`,
+			nil)
 	}
 }
