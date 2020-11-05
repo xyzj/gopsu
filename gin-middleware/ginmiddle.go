@@ -190,7 +190,7 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 		runLook.Wait()
 		goto RUN
 	}()
-	fmt.Fprintf(io.MultiWriter(gin.DefaultWriter, os.Stdout), "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTPS server at :"+strconv.Itoa(port))
+	fmt.Fprintf(io.MultiWriter(gin.DefaultWriter), "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTPS server at :"+strconv.Itoa(port))
 	return s.ListenAndServeTLS("", "")
 }
 

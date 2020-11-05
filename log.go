@@ -19,6 +19,7 @@ const (
 	logSystem   = 90
 	maxFileLife = 15*24*60*60 - 10
 	maxFileSize = 1048576000 // 1G
+	logformater = "%s [%02d] %s"
 )
 
 var (
@@ -81,56 +82,60 @@ type StdLogger struct{}
 
 // Debug Debug
 func (l *StdLogger) Debug(msgs string) {
-	println(msgs)
+	l.writeLog(msgs, 10)
 }
 
 // Info Info
 func (l *StdLogger) Info(msgs string) {
-	println(msgs)
+	l.writeLog(msgs, 20)
 }
 
 // Warning Warning
 func (l *StdLogger) Warning(msgs string) {
-	println(msgs)
+	l.writeLog(msgs, 30)
 }
 
 // Error Error
 func (l *StdLogger) Error(msgs string) {
-	println(msgs)
+	l.writeLog(msgs, 40)
 }
 
 // System System
 func (l *StdLogger) System(msgs string) {
-	println(msgs)
+	l.writeLog(msgs, 90)
 }
 
 // DebugFormat Debug
 func (l *StdLogger) DebugFormat(f string, msg ...interface{}) {
-	println(fmt.Sprintf(f, msg...))
+	l.writeLog(fmt.Sprintf(f, msg...), 10)
 }
 
 // InfoFormat Info
 func (l *StdLogger) InfoFormat(f string, msg ...interface{}) {
-	println(fmt.Sprintf(f, msg...))
+	l.writeLog(fmt.Sprintf(f, msg...), 20)
 }
 
 // WarningFormat Warning
 func (l *StdLogger) WarningFormat(f string, msg ...interface{}) {
-	println(fmt.Sprintf(f, msg...))
+	l.writeLog(fmt.Sprintf(f, msg...), 30)
 }
 
 // ErrorFormat Error
 func (l *StdLogger) ErrorFormat(f string, msg ...interface{}) {
-	println(fmt.Sprintf(f, msg...))
+	l.writeLog(fmt.Sprintf(f, msg...), 40)
 }
 
 // SystemFormat System
 func (l *StdLogger) SystemFormat(f string, msg ...interface{}) {
-	println(fmt.Sprintf(f, msg...))
+	l.writeLog(fmt.Sprintf(f, msg...), 90)
 }
 
 // DefaultWriter 返回日志Writer
 func (l *StdLogger) DefaultWriter() io.Writer { return os.Stdout }
+
+func (l *StdLogger) writeLog(msg string, level int) {
+	println(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), level, msg))
+}
 
 // MxLog mx log
 type MxLog struct {
@@ -291,7 +296,7 @@ func (l *MxLog) writeLog(msg string, level int, lock ...bool) {
 	// }
 
 	if level >= l.logLevel {
-		s := fmt.Sprintf("%s [%02d] %s", time.Now().Format(ShortTimeFormat), level, msg)
+		s := fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), level, msg)
 		if level >= 40 && l.logLevel >= 20 {
 			println(s)
 		}

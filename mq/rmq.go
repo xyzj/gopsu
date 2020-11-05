@@ -150,7 +150,7 @@ func (sessn *Session) connect() bool {
 	if sessn.IsReady() {
 		return true
 	}
-	sessn.logger.Warning("Attempting to connect to " + sessn.addr)
+	// sessn.logger.Warning("Attempting to connect to " + sessn.addr)
 	var err error
 	var conn *amqp.Connection
 	if sessn.tlsConf == nil {
