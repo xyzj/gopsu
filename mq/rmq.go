@@ -160,14 +160,14 @@ func (sessn *Session) connect() bool {
 	}
 
 	if err != nil {
-		sessn.logger.Error("Failed to connnect to " + sessn.addr + "|" + err.Error())
+		sessn.logger.Error("Failed connnect to " + sessn.addr + "|" + err.Error())
 		return false
 	}
 	sessn.connection = conn
 
 	sessn.channel, err = conn.Channel()
 	if err != nil {
-		sessn.logger.Error("Failed to open channel: " + err.Error())
+		sessn.logger.Error("Failed open channel: " + err.Error())
 		return false
 	}
 
@@ -181,11 +181,11 @@ func (sessn *Session) connect() bool {
 		nil,        // arguments
 	)
 	if err != nil {
-		sessn.logger.Error("Failed to declare exchange: " + err.Error())
+		sessn.logger.Error("Failed declare exchange: " + err.Error())
 		return false
 	}
 
-	sessn.logger.System("Success to connect to " + sessn.addr)
+	sessn.logger.System("Success connect to " + sessn.addr)
 	return true
 }
 
@@ -242,7 +242,7 @@ func (sessn *Session) initConsumer() {
 		}, // arguments
 	)
 	if err != nil {
-		sessn.logger.Error("Failed to create queue " + sessn.queueName + ": " + err.Error())
+		sessn.logger.Error("Failed create queue " + sessn.queueName + ": " + err.Error())
 		return
 	}
 	sessn.routingKeys.Range(func(k, v interface{}) bool {
@@ -290,7 +290,7 @@ func (sessn *Session) BindKey(k ...string) error {
 		}
 		return nil
 	}
-	return fmt.Errorf("Failed to bind key, channel not ready")
+	return fmt.Errorf("Failed bind key, channel not ready")
 }
 
 // ClearQueue 清空队列
@@ -323,7 +323,7 @@ func (sessn *Session) UnBindKey(k ...string) error {
 		}
 		return nil
 	}
-	return fmt.Errorf("Failed to Unbind key, channel not ready")
+	return fmt.Errorf("Failed Unbind key, channel not ready")
 }
 
 func (sessn *Session) initProducer() {
