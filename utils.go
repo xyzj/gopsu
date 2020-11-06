@@ -776,61 +776,6 @@ func CountCrc16VB(data *[]byte) []byte {
 	return []byte{crc16lo, crc16hi}
 }
 
-// IPUint2String change ip int64 data to string format
-func IPUint2String(ipnr uint) string {
-	return fmt.Sprintf("%d.%d.%d.%d", (ipnr>>24)&0xFF, (ipnr>>16)&0xFF, (ipnr>>8)&0xFF, ipnr&0xFF)
-}
-
-// IPInt642String change ip int64 data to string format
-func IPInt642String(ipnr int64) string {
-	return fmt.Sprintf("%d.%d.%d.%d", (ipnr)&0xFF, (ipnr>>8)&0xFF, (ipnr>>16)&0xFF, (ipnr>>24)&0xFF)
-}
-
-// IPInt642Bytes change ip int64 data to string format
-func IPInt642Bytes(ipnr int64) []byte {
-	return []byte{byte((ipnr) & 0xFF), byte((ipnr >> 8) & 0xFF), byte((ipnr >> 16) & 0xFF), byte((ipnr >> 24) & 0xFF)}
-}
-
-// IPUint2Bytes change ip int64 data to string format
-func IPUint2Bytes(ipnr int64) []byte {
-	return []byte{byte((ipnr >> 24) & 0xFF), byte((ipnr >> 16) & 0xFF), byte((ipnr >> 8) & 0xFF), byte((ipnr) & 0xFF)}
-}
-
-// IP2Uint change ip string data to int64 format
-func IP2Uint(ipnr string) uint {
-	// ex := errors.New("wrong ip address format")
-	bits := strings.Split(ipnr, ".")
-	if len(bits) != 4 {
-		return 0
-	}
-	var intip uint
-	for k, v := range bits {
-		i, ex := strconv.Atoi(v)
-		if ex != nil || i > 255 || i < 0 {
-			return 0
-		}
-		intip += uint(i) << uint(8*(3-k))
-	}
-	return intip
-}
-
-// IP2Int64 change ip string data to int64 format
-func IP2Int64(ipnr string) int64 {
-	// ex := errors.New("wrong ip address format"
-	bits := strings.Split(ipnr, ".")
-	if len(bits) != 4 {
-		return 0
-	}
-	var intip uint
-	for k, v := range bits {
-		i, ex := strconv.Atoi(v)
-		if ex != nil || i > 255 || i < 0 {
-			return 0
-		}
-		intip += uint(i) << uint(8*(k))
-	}
-	return int64(intip)
-}
 
 // IsExist file is exist or not
 func IsExist(p string) bool {

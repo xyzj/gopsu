@@ -60,11 +60,9 @@ func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile, username, 
 		etcdAddr: etcdaddr,
 		logger:   &gopsu.NilLogger{},
 	}
-	ip, err := gopsu.RealIP()
-	if err == nil {
-		m.realIP = ip
-	}
+	m.realIP = gopsu.RealIP(false)
 	var tlsconf *tls.Config
+	var err error
 	if gopsu.IsExist(certfile) && gopsu.IsExist(keyfile) && gopsu.IsExist(cafile) {
 		tlsconf, err = gopsu.GetClientTLSConfig(certfile, keyfile, cafile)
 		if err != nil {
@@ -88,20 +86,6 @@ func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile, username, 
 	}
 	return m, nil
 }
-
-// func (m *Etcdv3Client) writeLog(s string, l int) {
-// 	s = fmt.Sprintf("%v [%02d] [ETCD] %s", time.Now().Format(gopsu.ShortTimeFormat), l, s)
-// 	if m.etcdLog == nil {
-// 		println(s)
-// 	} else {
-// 		if l >= m.etcdLogLevel {
-// 			fmt.Fprintln(*m.etcdLog, s)
-// 			if l >= 40 && m.etcdLogLevel >= 20 {
-// 				println(s)
-// 			}
-// 		}
-// 	}
-// }
 
 // listServers 查询根路径下所有服务
 func (m *Etcdv3Client) listServers() error {
@@ -196,7 +180,7 @@ func (m *Etcdv3Client) SetLogger(l gopsu.Logger) {
 func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string) {
 	m.svrName = svrname
 	if svrip == "" {
-		svrip, _ = gopsu.ExternalIP()
+		svrip = gopsu.RealIP(false)
 	}
 	js, _ := sjson.Set("", "ip", svrip)
 	js, _ = sjson.Set(js, "port", svrport)
