@@ -68,21 +68,22 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 	gin.DefaultErrorWriter = f.out
 
 	return func(c *gin.Context) {
-		if f.nameNow != "" && !gopsu.IsExist(f.pathNow) {
-			f.fno.Close()
-			// 打开文件
-			f.fno, f.err = os.OpenFile(f.pathNow, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0664)
-			if f.err != nil {
-				ioutil.WriteFile("ginlogerr.log", []byte("Log file reopen error: "+f.err.Error()), 0664)
-				f.out = io.MultiWriter(os.Stdout)
-			} else {
-				if gin.Mode() == "debug" {
-					f.out = io.MultiWriter(f.fno, os.Stdout)
-				} else {
-					f.out = io.MultiWriter(f.fno)
-				}
-			}
-		}
+		// if f.nameNow != "" && !gopsu.IsExist(f.pathNow) {
+		// 	f.fno.Close()
+		// 	// 打开文件
+		// 	f.fno, f.err = os.OpenFile(f.pathNow, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0664)
+		// 	if f.err != nil {
+		// 		ioutil.WriteFile("ginlogerr.log", []byte("Log file reopen error: "+f.err.Error()), 0664)
+		// 		f.out = io.MultiWriter(os.Stdout)
+		// 	} else {
+		// 		if gin.Mode() == "debug" {
+		// 			f.out = io.MultiWriter(f.fno, os.Stdout)
+		// 		} else {
+		// 			f.out = io.MultiWriter(f.fno)
+		// 		}
+		// 	}
+		// }
+
 		// 检查是否需要切分文件
 		if f.rollingFile() {
 			gin.DefaultWriter = f.out
@@ -181,8 +182,6 @@ func (f *ginLogger) rollingFile() bool {
 	if f.nameNow == f.nameOld {
 		return false
 	}
-	// 关闭旧fno
-	f.fno.Close()
 	// 创建新日志
 	f.newFile()
 	// 清理旧日志
@@ -239,6 +238,9 @@ func (f *ginLogger) newFile() {
 	if f.fileDay != t.Day() {
 		f.fileDay = t.Day()
 		f.fileIndex = 0
+	}
+	if f.fno != nil {
+		f.fno.Close()
 	}
 	// 直接写入当日日志
 	f.nameNow = fmt.Sprintf("%s.%v.%d.log", f.fname, t.Format(gopsu.FileTimeFormat), f.fileIndex)
