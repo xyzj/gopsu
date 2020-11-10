@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"sort"
 	"strings"
@@ -36,6 +35,7 @@ type Etcdv3Client struct {
 	svrDetail    string           // 服务信息
 	logger       gopsu.Logger     //  日志接口
 	realIP       string           // 所在电脑ip
+	etcdKey      string
 }
 
 // RegisteredServer 获取到的服务注册信息
@@ -104,6 +104,9 @@ func (m *Etcdv3Client) listServers() error {
 	}
 	for _, v := range resp.Kvs {
 		va := gjson.ParseBytes(v.Value)
+		if !va.Exists() {
+			continue
+		}
 		s := &registeredServer{
 			svrName:       va.Get("name").String(),
 			svrAddr:       fmt.Sprintf("%s:%s", va.Get("ip").String(), va.Get("port").String()),
@@ -144,10 +147,14 @@ func (m *Etcdv3Client) etcdRegister() (*clientv3.LeaseID, bool) {
 	lresp, err := m.etcdClient.Grant(ctx, leaseTimeout)
 	defer cancel()
 	if err != nil {
+		m.logger.Error(fmt.Sprintf("Create lease %s failed: %v", m.etcdAddr, err.Error()))
+		return nil, false
+	}
+	_, err = m.etcdClient.Put(ctx, m.etcdKey, m.svrDetail, clientv3.WithLease(lresp.ID))
+	if err != nil {
 		m.logger.Error(fmt.Sprintf("Registration to %s failed: %v", m.etcdAddr, err.Error()))
 		return nil, false
 	}
-	m.etcdClient.Put(ctx, fmt.Sprintf("/%s/%s/%s_%s", m.etcdRoot, m.svrName, m.svrName, gopsu.GetUUID1()), m.svrDetail, clientv3.WithLease(lresp.ID))
 	m.logger.System(fmt.Sprintf("Registration to %v success.", m.etcdAddr))
 	return &lresp.ID, true
 }
@@ -179,6 +186,7 @@ func (m *Etcdv3Client) SetLogger(l gopsu.Logger) {
 //  error
 func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string) {
 	m.svrName = svrname
+	m.etcdKey = fmt.Sprintf("/%s/%s/%s_%s", m.etcdRoot, m.svrName, m.svrName, gopsu.GetUUID1())
 	if svrip == "" {
 		svrip = gopsu.RealIP(false)
 	}
@@ -196,27 +204,22 @@ func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
-				ioutil.WriteFile("etcdcrash."+time.Now().Format("060102150405")+".log", []byte(errors.WithStack(err.(error)).Error()), 0664)
-				m.logger.Error("etcd register error: " + errors.WithStack(err.(error)).Error())
+				m.logger.Error(fmt.Sprintf("etcd register error: %+v", errors.WithStack(err.(error))))
 			}
 		}()
 		// 注册
-		leaseid, ok := m.etcdRegister()
+		leaseid, _ := m.etcdRegister()
 		for {
-			// 使用2-4s内的随机间隔
-			// t := time.NewTicker(time.Duration(rand.Intn(2000)+2000) * time.Millisecond)
-			// for _ = range t.C {
-			if ok { // 成功注册时发送心跳
-				ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
+			ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
+			if resp, err := m.etcdClient.Get(ctx, m.etcdKey); err != nil || resp.Count == 0 {
+				leaseid, _ = m.etcdRegister()
+			} else {
 				_, err := m.etcdClient.KeepAliveOnce(ctx, *leaseid)
-				cancel()
 				if err != nil {
 					m.logger.Error("Lost connection with etcd server, retrying ...")
-					ok = false
 				}
-			} else { // 注册失败时重新注册
-				leaseid, ok = m.etcdRegister()
 			}
+			cancel()
 			// 使用随机间隔
 			time.Sleep(time.Duration(rand.Intn(2000)+1500) * time.Millisecond)
 		}
