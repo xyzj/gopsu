@@ -68,11 +68,9 @@ func NewGinEngine(logDir, logName string, logDays int, logLevel ...int) *gin.Eng
 
 func getSocketTimeout() time.Duration {
 	var t = 120
-	if gopsu.IsExist(".sockettimeout") {
-		b, err := ioutil.ReadFile(".sockettimeout")
-		if err == nil {
-			t = gopsu.String2Int(string(b), 10)
-		}
+	b, err := ioutil.ReadFile(".sockettimeout")
+	if err == nil {
+		t = gopsu.String2Int(gopsu.TrimString(string(b)), 10)
 	}
 	if t < 120 {
 		t = 120
@@ -98,14 +96,6 @@ func getRoutes(h *gin.Engine) string {
 // port：端口号
 // h： http.hander, like gin.New()
 func ListenAndServe(port int, h *gin.Engine) error {
-	// sss := getRoutes(h)
-	// if sss != "" {
-	// 	h.GET("/showroutes", func(c *gin.Context) {
-	// 		c.Header("Content-Type", "text/html")
-	// 		c.Status(http.StatusOK)
-	// 		render.WriteString(c.Writer, sss, nil)
-	// 	})
-	// }
 	st := getSocketTimeout()
 	s := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
@@ -125,14 +115,6 @@ func ListenAndServe(port int, h *gin.Engine) error {
 // keyfile： key file path
 // clientca: 客户端根证书用于验证客户端合法性
 func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, clientca ...string) error {
-	// sss := getRoutes(h)
-	// if sss != "" {
-	// 	h.GET("/showroutes", func(c *gin.Context) {
-	// 		c.Header("Content-Type", "text/html")
-	// 		c.Status(http.StatusOK)
-	// 		render.WriteString(c.Writer, sss, nil)
-	// 	})
-	// }
 	var tc = &tls.Config{
 		Certificates: make([]tls.Certificate, 1),
 	}
@@ -171,17 +153,12 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 			}()
 			runLook.Add(1)
 			tt := time.NewTicker(time.Hour * 24)
-			oldsign := gopsu.GetMD5(string(s.TLSConfig.Certificates[0].Certificate[0]))
 			for {
 				select {
 				case <-tt.C:
 					newcert, err := tls.LoadX509KeyPair(certfile, keyfile)
 					if err == nil {
-						newsign := gopsu.GetMD5(string(newcert.Certificate[0]))
-						if oldsign != newsign {
-							s.TLSConfig.Certificates[0] = newcert
-							oldsign = newsign
-						}
+						s.TLSConfig.Certificates[0] = newcert
 					}
 				}
 			}

@@ -256,7 +256,7 @@ func (sessn *Session) Recv() (<-chan amqp.Delivery, error) {
 	if !sessn.IsReady() {
 		return nil, fmt.Errorf("not connected")
 	}
-	return sessn.channel.Consume(
+	c, err := sessn.channel.Consume(
 		sessn.queueName,
 		"",    // Consumer
 		true,  // Auto-Ack
@@ -265,6 +265,13 @@ func (sessn *Session) Recv() (<-chan amqp.Delivery, error) {
 		false, // No-Wait
 		nil,   // Args
 	)
+	if err != nil {
+		sessn.channel.Close()
+		sessn.connection.Close()
+		sessn.connection = nil
+		return nil, err
+	}
+	return c, nil
 }
 
 // BindKey 绑定过滤器
