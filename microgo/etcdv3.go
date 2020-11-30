@@ -204,25 +204,56 @@ func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
-				m.logger.Error(fmt.Sprintf("etcd register error: %+v", errors.WithStack(err.(error))))
+				m.logger.Error(fmt.Sprintf("etcd register crash: %+v", errors.WithStack(err.(error))))
 			}
 		}()
 		// 注册
-		leaseid, _ := m.etcdRegister()
+	RUN:
+		var err error
+		var leaseGrantResp *clientv3.LeaseGrantResponse
+		lease := clientv3.NewLease(m.etcdClient)
+		if leaseGrantResp, err = lease.Grant(context.TODO(), leaseTimeout); err != nil {
+			m.logger.Error(fmt.Sprintf("Create lease error: %s", err.Error()))
+			return
+		}
+		leaseid := leaseGrantResp.ID
+		keepRespChan, err := lease.KeepAlive(context.TODO(), leaseid)
+		if err != nil {
+			m.logger.Error(fmt.Sprintf("Keep lease error: %s", err.Error()))
+			return
+		}
+		_, err = m.etcdClient.Put(context.TODO(), m.etcdKey, m.svrDetail, clientv3.WithLease(leaseid))
+		if err != nil {
+			m.logger.Error(fmt.Sprintf("Registration to %s failed: %v", m.etcdAddr, err.Error()))
+			return
+		}
+		m.logger.System(fmt.Sprintf("Registration to %v success.", m.etcdAddr))
 		for {
-			ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
-			if resp, err := m.etcdClient.Get(ctx, m.etcdKey); err != nil || resp.Count == 0 {
-				leaseid, _ = m.etcdRegister()
-			} else {
-				_, err := m.etcdClient.KeepAliveOnce(ctx, *leaseid)
-				if err != nil {
-					m.logger.Error("Lost connection with etcd server, retrying ...")
+			select {
+			case keepResp := <-keepRespChan:
+				if keepResp == nil {
+					m.logger.Error(fmt.Sprintf("Lease failure: %s", err.Error()))
+					time.Sleep(time.Duration(rand.Intn(2000)+1500) * time.Millisecond)
+					goto RUN
 				}
 			}
-			cancel()
-			// 使用随机间隔
-			time.Sleep(time.Duration(rand.Intn(2000)+1500) * time.Millisecond)
 		}
+
+		// leaseid, _ := m.etcdRegister()
+		// for {
+		// 	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
+		// 	if resp, err := m.etcdClient.Get(ctx, m.etcdKey); err != nil || resp.Count == 0 {
+		// 		leaseid, _ = m.etcdRegister()
+		// 	} else {
+		// 		_, err := m.etcdClient.KeepAliveOnce(ctx, *leaseid)
+		// 		if err != nil {
+		// 			m.logger.Error("Lost connection with etcd server, retrying ...")
+		// 		}
+		// 	}
+		// 	cancel()
+		// 	// 使用随机间隔
+		// 	time.Sleep(time.Duration(rand.Intn(2000)+1500) * time.Millisecond)
+		// }
 	}()
 }
 
