@@ -337,8 +337,8 @@ func (sessn *Session) initProducer() {
 }
 
 // Send 发送数据,默认数据有效期10分钟
-func (sessn *Session) Send(f string, d []byte) {
-	sessn.SendCustom(&RabbitMQData{
+func (sessn *Session) Send(f string, d []byte) error {
+	return sessn.SendCustom(&RabbitMQData{
 		RoutingKey: f,
 		Data: &amqp.Publishing{
 			ContentType:  "text/plain",
@@ -359,31 +359,36 @@ func (sessn *Session) Send(f string, d []byte) {
 // 	Timestamp:    time.Now(),
 // 	Body:         []byte("abcd"),
 // },
-func (sessn *Session) SendCustom(d *RabbitMQData) {
+func (sessn *Session) SendCustom(d *RabbitMQData) error {
 	if !sessn.IsReady() {
-		return
+		return fmt.Errorf("MQ Producer not ready")
 	}
-	go func() {
-		defer func() { recover() }()
-		err := sessn.channel.Publish(
-			sessn.name,   // exchange
-			d.RoutingKey, // routing key
-			false,        // mandatory
-			false,        // immediate
-			*d.Data,
-			// amqp.Publishing{
-			// 	ContentType:  "text/plain",
-			// 	DeliveryMode: amqp.Persistent,
-			// 	Expiration:   "300000",
-			// 	Timestamp:    time.Now(),
-			// 	Body:         []byte(msg[1]),
-			// }
-		)
-		if err != nil {
-			sessn.logger.Error("SndErr:" + sessn.addr + "|" + err.Error() + "|" + d.RoutingKey)
-			return
+	// go func() {
+	defer func() {
+		if err := recover(); err != nil {
+			sessn.logger.Error("SndCrash:" + sessn.addr + "|" + err.(error).Error())
 		}
 	}()
+	return sessn.channel.Publish(
+		sessn.name,   // exchange
+		d.RoutingKey, // routing key
+		false,        // mandatory
+		false,        // immediate
+		*d.Data,
+		// amqp.Publishing{
+		// 	ContentType:  "text/plain",
+		// 	DeliveryMode: amqp.Persistent,
+		// 	Expiration:   "300000",
+		// 	Timestamp:    time.Now(),
+		// 	Body:         []byte(msg[1]),
+		// }
+	)
+	// if err != nil {
+	// 	sessn.logger.Error("SndErr:" + sessn.addr + "|" + err.Error() + "|" + d.RoutingKey)
+	// 	return err
+	// }
+	// }()
+	// return nil
 }
 
 // FormatMQBody 格式化日志输出
