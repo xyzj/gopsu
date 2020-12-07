@@ -67,23 +67,28 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 	gin.DefaultWriter = f.out
 	gin.DefaultErrorWriter = f.out
 
+	// 创建写入线程
+	var chanWriteLog = make(chan string, 100)
+	go func() {
+		var locker sync.WaitGroup
+		locker.Add(1)
+	RUN:
+		go func() {
+			defer func() {
+				recover()
+				locker.Done()
+			}()
+			for {
+				select {
+				case s := <-chanWriteLog:
+					fmt.Fprintln(f.out, s)
+				}
+			}
+		}()
+		locker.Wait()
+		goto RUN
+	}()
 	return func(c *gin.Context) {
-		// if f.nameNow != "" && !gopsu.IsExist(f.pathNow) {
-		// 	f.fno.Close()
-		// 	// 打开文件
-		// 	f.fno, f.err = os.OpenFile(f.pathNow, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0664)
-		// 	if f.err != nil {
-		// 		ioutil.WriteFile("ginlogerr.log", []byte("Log file reopen error: "+f.err.Error()), 0664)
-		// 		f.out = io.MultiWriter(os.Stdout)
-		// 	} else {
-		// 		if gin.Mode() == "debug" {
-		// 			f.out = io.MultiWriter(f.fno, os.Stdout)
-		// 		} else {
-		// 			f.out = io.MultiWriter(f.fno)
-		// 		}
-		// 	}
-		// }
-
 		// 检查是否需要切分文件
 		if f.rollingFile() {
 			gin.DefaultWriter = f.out
@@ -97,6 +102,7 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 		}
 
 		c.Next()
+
 		path := c.Request.RequestURI
 		param := &gin.LogFormatterParams{
 			Request: c.Request,
@@ -143,10 +149,11 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 		if param.ErrorMessage != "" {
 			s += " #" + param.ErrorMessage
 		}
-		go func() {
-			defer func() { recover() }()
-			fmt.Fprintln(f.out, s)
-		}()
+		chanWriteLog <- s
+		// go func() {
+		// 	defer func() { recover() }()
+		// 	fmt.Fprintln(f.out, s)
+		// }()
 	}
 }
 

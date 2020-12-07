@@ -776,7 +776,6 @@ func CountCrc16VB(data *[]byte) []byte {
 	return []byte{crc16lo, crc16hi}
 }
 
-
 // IsExist file is exist or not
 func IsExist(p string) bool {
 	_, err := os.Stat(p)
@@ -1519,11 +1518,6 @@ func UnZIPFile(archive, target string) error {
 
 // ZIPFile 压缩文件
 func ZIPFile(d, s string, delold bool) error {
-	// defer func() {
-	// 	if delold {
-	// 		os.Remove(filepath.Join(d, s))
-	// 	}
-	// }()
 	zfile := filepath.Join(d, s+".zip")
 	ofile := filepath.Join(d, s)
 
@@ -1560,7 +1554,10 @@ func ZIPFile(d, s string, delold bool) error {
 		return err
 	}
 	if delold {
-		os.Remove(filepath.Join(d, s))
+		go func(s string) {
+			time.Sleep(time.Second * 10)
+			os.Remove(s)
+		}(filepath.Join(d, s))
 	}
 	return nil
 }

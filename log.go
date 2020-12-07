@@ -22,10 +22,6 @@ const (
 	logformater = "%s [%02d] %s"
 )
 
-var (
-	asyncCache = 1000
-)
-
 // Logger 日志接口
 type Logger interface {
 	Debug(msgs string)
@@ -155,11 +151,7 @@ type MxLog struct {
 	enablegz      bool
 	err           error
 	fileLock      sync.RWMutex
-	chanWrite     chan *logMessage
-	chanClose     chan bool
-	writeAsync    bool
-	asyncLock     sync.WaitGroup
-	chanWatcher   chan string
+	chanWriteLog  chan string
 	out           io.Writer
 	logClassified bool
 	cWorker       *CryptoWorker
@@ -201,73 +193,6 @@ func (l *MxLog) DefaultWriter() io.Writer {
 // 	}
 // }
 
-// SetAsync 设置异步写入参数
-func (l *MxLog) SetAsync(c int) {
-	if c <= 0 {
-		l.writeAsync = false
-	}
-	l.writeAsync = true
-}
-
-func (l *MxLog) coreWatcher() {
-	go func() {
-		defer func() {
-			if err := recover(); err != nil {
-				ioutil.WriteFile(fmt.Sprintf("crash-log-%s.log", time.Now().Format("20060102150405")), []byte(fmt.Sprintf("%v", err.(error))), 0664)
-			}
-		}()
-		closeme := false
-		for {
-			if closeme {
-				break
-			}
-			select {
-			case n := <-l.chanWatcher:
-				time.Sleep(100 * time.Millisecond)
-				switch n {
-				case "mxlog":
-					l.writeLogAsync()
-				}
-			}
-		}
-	}()
-}
-
-// StartWriteLog StartWriteLog
-func (l *MxLog) writeLogAsync() {
-	go func() {
-		defer func() {
-			if err := recover(); err != nil {
-				ioutil.WriteFile(fmt.Sprintf("crash-log-%s.log", time.Now().Format("20060102150405")), []byte(fmt.Sprintf("%v", err.(error))), 0664)
-				time.Sleep(300 * time.Millisecond)
-			}
-			l.chanWatcher <- "mxlog"
-		}()
-		closeme := false
-		// t := time.NewTicker(time.Hour)
-		for {
-			if closeme {
-				break
-			}
-			select {
-			case msg := <-l.chanWrite:
-				l.writeLog(msg.msg, msg.level)
-				// case <-t.C:
-				// fs, ex := os.Stat(l.pathNow)
-				// if ex == nil {
-				// 	if fs.Size() > 1048576000 {
-				// 		if l.fileIndex >= 255 {
-				// 			l.fileIndex = 0
-				// 		} else {
-				// 			l.fileIndex++
-				// 		}
-				// 	}
-				// }
-			}
-		}
-	}()
-}
-
 // WriteLog 写日志
 func (l *MxLog) WriteLog(msg string, level int) {
 	l.writeLog(msg, level)
@@ -289,162 +214,79 @@ func (l *MxLog) writeLog(msg string, level int, lock ...bool) {
 			}
 		}
 	}
-	// if l.writeAsync {
 	l.rollingFile()
-	// } else {
-	// 	l.rollingFileNoLock()
-	// }
-
 	if level >= l.logLevel {
 		s := fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), level, msg)
 		if level >= 40 && l.logLevel >= 20 {
 			println(s)
 		}
-		go func() {
-			defer func() { recover() }()
-			if l.logClassified {
-				s = l.cWorker.EncryptNoTail(s)
-			}
-			fmt.Fprintln(l.out, s)
-		}()
+		if l.logClassified {
+			s = l.cWorker.EncryptNoTail(s)
+		}
+		l.chanWriteLog <- s
+		// go func() {
+		// 	defer func() { recover() }()
+		// 	if l.logClassified {
+		// 		s = l.cWorker.EncryptNoTail(s)
+		// 	}
+		// 	fmt.Fprintln(l.out, s)
+		// }()
 	}
 }
 
 // Debug writelog with level 10
 func (l *MxLog) Debug(msg string) {
-	// if l.writeAsync {
-	// 	l.chanWrite <- &logMessage{
-	// 		msg:   msg,
-	// 		level: logDebug,
-	// 	}
-	// } else {
 	l.writeLog(msg, logDebug)
-	// }
 }
 
 // Info writelog with level 20
 func (l *MxLog) Info(msg string) {
-	// if l.writeAsync {
-	// 	l.chanWrite <- &logMessage{
-	// 		msg:   msg,
-	// 		level: logInfo,
-	// 	}
-	// } else {
 	l.writeLog(msg, logInfo)
-	// }
 }
 
 // Warning writelog with level 30
 func (l *MxLog) Warning(msg string) {
-	// if l.writeAsync {
-	// 	l.chanWrite <- &logMessage{
-	// 		msg:   msg,
-	// 		level: logWarning,
-	// 	}
-	// } else {
 	l.writeLog(msg, logWarning)
-	// }
 }
 
 // Error writelog with level 40
 func (l *MxLog) Error(msg string) {
-	// if l.writeAsync {
-	// 	l.chanWrite <- &logMessage{
-	// 		msg:   msg,
-	// 		level: logError,
-	// 	}
-	// } else {
 	l.writeLog(msg, logError)
-	// }
-	// _, fn, lno, _ := runtime.Caller(1)
-	// go l.writeLog(fmt.Sprintf("[%s:%d] %s", filepath.Base(fn), lno, msg), logError)
 }
 
 // System writelog with level 90
 func (l *MxLog) System(msg string) {
-	// if l.writeAsync {
-	// 	l.chanWrite <- &logMessage{
-	// 		msg:   msg,
-	// 		level: logSystem,
-	// 	}
-	// } else {
 	l.writeLog(msg, logSystem)
-	// }
 }
 
 // DebugFormat writelog with level 10
 func (l *MxLog) DebugFormat(f string, msg ...interface{}) {
-	// if l.writeAsync {
-	// 	l.chanWrite <- &logMessage{
-	// 		msg:   msg,
-	// 		level: logDebug,
-	// 	}
-	// } else {
 	l.writeLog(fmt.Sprintf(f, msg...), logDebug)
-	// }
 }
 
 // InfoFormat writelog with level 20
 func (l *MxLog) InfoFormat(f string, msg ...interface{}) {
-	// if l.writeAsync {
-	// 	l.chanWrite <- &logMessage{
-	// 		msg:   msg,
-	// 		level: logInfo,
-	// 	}
-	// } else {
 	l.writeLog(fmt.Sprintf(f, msg...), logInfo)
-	// }
 }
 
 // WarningFormat writelog with level 30
 func (l *MxLog) WarningFormat(f string, msg ...interface{}) {
-	// if l.writeAsync {
-	// 	l.chanWrite <- &logMessage{
-	// 		msg:   msg,
-	// 		level: logWarning,
-	// 	}
-	// } else {
 	l.writeLog(fmt.Sprintf(f, msg...), logWarning)
-	// }
 }
 
 // ErrorFormat writelog with level 40
 func (l *MxLog) ErrorFormat(f string, msg ...interface{}) {
-	// if l.writeAsync {
-	// 	l.chanWrite <- &logMessage{
-	// 		msg:   msg,
-	// 		level: logError,
-	// 	}
-	// } else {
 	l.writeLog(fmt.Sprintf(f, msg...), logError)
-	// }
-	// _, fn, lno, _ := runtime.Caller(1)
-	// go l.writeLog(fmt.Sprintf("[%s:%d] %s", filepath.Base(fn), lno, msg), logError)
 }
 
 // SystemFormat writelog with level 90
 func (l *MxLog) SystemFormat(f string, msg ...interface{}) {
-	// if l.writeAsync {
-	// 	l.chanWrite <- &logMessage{
-	// 		msg:   msg,
-	// 		level: logSystem,
-	// 	}
-	// } else {
 	l.writeLog(fmt.Sprintf(f, msg...), logSystem)
-	// }
 }
 
 // CurrentFileSize current file size
 // func (l *MxLog) CurrentFileSize() int64 {
 // 	return l.fileSize
-// }
-
-// Close close logger
-// func (l *MxLog) Close() error {
-// 	// if l.writeAsync {
-// 	// 	l.chanClose <- true
-// 	// }
-// 	return l.fno.Close()
 // }
 
 // EnableGZ EnableGZ
@@ -476,10 +318,7 @@ func NewLogger(d, f string, logLevel, logDays int) Logger {
 		fileHour:      t.Hour(),
 		logDir:        d,
 		logLevel:      logLevel,
-		chanWrite:     make(chan *logMessage, 5000),
-		chanClose:     make(chan bool, 2),
-		chanWatcher:   make(chan string, 2),
-		writeAsync:    false,
+		chanWriteLog:  make(chan string, 100),
 		enablegz:      true,
 		logClassified: false,
 		cWorker:       GetNewCryptoWorker(CryptoAES128CBC),
@@ -494,9 +333,28 @@ func NewLogger(d, f string, logLevel, logDays int) Logger {
 			mylog.fileIndex = i
 		}
 	}
-	// mylog.coreWatcher()
-	// mylog.writeLogAsync()
 	mylog.newFile()
+
+	// 创建写入线程
+	go func() {
+		var locker sync.WaitGroup
+		locker.Add(1)
+	RUN:
+		go func() {
+			defer func() {
+				recover()
+				locker.Done()
+			}()
+			for {
+				select {
+				case s := <-mylog.chanWriteLog:
+					fmt.Fprintln(mylog.out, s)
+				}
+			}
+		}()
+		locker.Wait()
+		goto RUN
+	}()
 
 	return mylog
 }
