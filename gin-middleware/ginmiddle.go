@@ -17,12 +17,11 @@ import (
 	"github.com/gin-contrib/cors"
 	gingzip "github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
-	"github.com/gogo/protobuf/proto"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"github.com/unrolled/secure"
 	"github.com/xyzj/gopsu"
-	"github.com/xyzj/gopsu/db"
+	db "github.com/xyzj/gopsu/dbv2"
 )
 
 // NewGinEngine 返回一个新的gin路由
@@ -306,10 +305,10 @@ func ReadCachePB2(mydb db.SQLInterface) gin.HandlerFunc {
 				cacherows := gopsu.String2Int(c.Param("cacherows"), 10)
 				ans := mydb.QueryCachePB2(cachetag, cachestart, cacherows)
 				if ans.Total > 0 {
-					b, _ := proto.Marshal(ans)
+					s, _ := json.MarshalToString(ans)
 					c.Params = append(c.Params, gin.Param{
 						Key:   "_cacheData",
-						Value: string(b),
+						Value: s,
 					})
 				}
 			}

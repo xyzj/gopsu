@@ -1,9 +1,9 @@
 package main
 
 import (
-	"net"
+	"fmt"
 
-	"github.com/xyzj/gopsu"
+	"github.com/buger/jsonparser"
 )
 
 var (
@@ -13,11 +13,24 @@ var (
 
 // 启动文件 main.go
 func main() {
-	println(gopsu.RealIP(true))
-	println(gopsu.RealIP(false))
-	a, b, err := net.SplitHostPort("[240e:e5:8001:1856:4d6a:8a0c:7814:a622]:")
-	if err != nil {
-		println(err.Error())
+	var b = make([]byte, 0)
+	b = []byte("{}")
+	var err error
+	for i := 0; i < 10; i++ {
+		for j := 0; j < 5; j++ {
+			b, err = jsonparser.Set(b, []byte(fmt.Sprintf("%d", 123*i+i)), fmt.Sprintf("key%06d", i), fmt.Sprintf("[%d]", j),"abc")
+			if err != nil {
+				println("---" + err.Error())
+			}
+		}
 	}
-	println(a, "=="+b+"--")
+	// for i := 0; i < 10; i++ {
+	// 	for j := 0; j < 10; j++ {
+	// 		b, err = jsonparser.Set(b, []byte("asldfkalsdfjlasjdflajflsjdfklaj9102830217123jo1hfsahdfalkfd"), fmt.Sprintf("key%06d", i), fmt.Sprintf("subkey%03d", j))
+	// 		if err != nil {
+	// 			println(err.Error())
+	// 		}
+	// 	}
+	// }
+	println(string(b))
 }
