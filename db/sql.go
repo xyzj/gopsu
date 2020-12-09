@@ -1,0 +1,717 @@
+package db
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"time"
+
+	// ms-sql driver
+	_ "github.com/denisenkom/go-mssqldb"
+	"github.com/go-sql-driver/mysql"
+	"github.com/pkg/errors"
+
+	// mysql driver
+	// _ "github.com/siddontang/go-mysql/driver"
+
+	"github.com/tidwall/sjson"
+	"github.com/xyzj/gopsu"
+)
+
+// driveType 数据库驱动类型
+type driveType int
+
+const (
+	// DriverMYSQL mysql
+	DriverMYSQL driveType = iota
+	// DriverMSSQL mssql
+	DriverMSSQL
+)
+
+func (d driveType) string() string {
+	return []string{"mysql", "mssql"}[d]
+}
+
+// SQLInterface 数据库接口
+type SQLInterface interface {
+	New() error
+	IsReady() bool
+	QueryCacheJSON(string, int, int) string
+	QueryCachePB2(string, int, int) *QueryData
+	QueryOne(string, int, ...interface{}) (string, error)
+	QueryPB2(string, int, ...interface{}) (*QueryData, error)
+	QueryJSON(string, int, ...interface{}) (string, error)
+	Exec(string, ...interface{}) (int64, int64, error)
+	ExecPrepare(string, int, ...interface{}) error
+	ExecBatch([]string) error
+}
+
+// SQLPool 数据库连接池
+type SQLPool struct {
+	// 服务地址
+	Server string
+	// 用户名
+	User string
+	// 密码
+	Passwd string
+	// 数据库名称
+	DataBase string
+	// 数据驱动
+	DriverType driveType
+	// IO超时(秒)
+	Timeout int
+	// 最大连接数
+	MaxOpenConns int
+	// 日志
+	Logger gopsu.Logger
+	// 是否启用缓存功能，缓存30分钟有效
+	EnableCache bool
+	// 缓存路径
+	CacheDir string
+	// 缓存文件前缀
+	CacheHead string
+	// connPool 数据库连接池
+	connPool *sql.DB
+	// IsReady 连接池是否就绪
+	isReady bool
+	// 查询锁
+	queryLocker sync.Mutex
+	execLocker  sync.Mutex
+}
+
+// New 初始化
+func (p *SQLPool) New() error {
+	if p.Server == "" || p.User == "" || p.Passwd == "" {
+		return fmt.Errorf("config error")
+	}
+	if p.Timeout > 6000 || p.Timeout < 5 {
+		p.Timeout = 120
+	}
+	if p.MaxOpenConns < 20 || p.MaxOpenConns > 500 {
+		p.MaxOpenConns = 100
+	}
+	if p.CacheDir == "" {
+		p.CacheDir = gopsu.DefaultCacheDir
+	}
+	if p.Logger == nil {
+		p.Logger = &gopsu.NilLogger{}
+	}
+	var connstr string
+	switch p.DriverType {
+	case DriverMSSQL:
+		connstr = fmt.Sprintf("user id=%s;"+
+			"password=%s;"+
+			"server=%s;"+
+			"database=%s;"+
+			"connection timeout=10",
+			p.User, p.Passwd, p.Server, p.DataBase)
+	case DriverMYSQL:
+		sqlcfg := &mysql.Config{
+			Collation:            "utf8mb4_general_ci",
+			Loc:                  time.UTC,
+			MaxAllowedPacket:     4 << 20,
+			AllowNativePasswords: true,
+			CheckConnLiveness:    true,
+			Net:                  "tcp",
+			Addr:                 p.Server,
+			User:                 p.User,
+			Passwd:               p.Passwd,
+			DBName:               p.DataBase,
+			MultiStatements:      true,
+			ParseTime:            true,
+			Timeout:              time.Second * 10,
+			ColumnsWithAlias:     true,
+			ClientFoundRows:      true,
+			InterpolateParams:    true,
+		}
+		connstr = sqlcfg.FormatDSN()
+		// connstr = fmt.Sprintf("%s:%s@tcp(%s)/%s"+
+		// 	"?multiStatements=true"+
+		// 	"&parseTime=true"+
+		// 	"&timeout=10s"+
+		// 	"&charset=utf8"+
+		// 	"&columnsWithAlias=true"+
+		// 	"&clientFoundRows=true",
+		// 	p.User, p.Passwd, p.Server, p.DataBase)
+	}
+
+	if p.CacheHead == "" {
+		p.CacheHead = gopsu.GetMD5(connstr)
+	}
+	db, err := sql.Open(p.DriverType.string(), strings.ReplaceAll(connstr, "\n", ""))
+	if err != nil {
+		return err
+	}
+	db.SetMaxOpenConns(p.MaxOpenConns)
+	db.SetMaxIdleConns(2)
+	db.SetConnMaxLifetime(time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		return err
+	}
+	p.connPool = db
+	if p.EnableCache {
+		go func() {
+			defer func() {
+				if err := recover(); err != nil {
+					p.Logger.Error("SQL Cache file clean error:" + errors.WithStack(err.(error)).Error())
+				}
+			}()
+			for {
+				select {
+				case <-time.After(time.Minute * 5):
+					p.checkCache()
+				}
+			}
+		}()
+	}
+	p.Logger.System("Success connect to server " + p.Server)
+	return nil
+}
+
+// IsReady 检查状态
+func (p *SQLPool) IsReady() bool {
+	if p.connPool == nil {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	if err := p.connPool.PingContext(ctx); err != nil {
+		return false
+	}
+	return true
+
+}
+
+// checkSQL 检查sql语句是否存在注入攻击风险
+//
+// args：
+//  s： sql语句
+// return:
+//  error
+func (p *SQLPool) checkSQL(s string) error {
+	if gopsu.CheckSQLInject(s) {
+		return nil
+	}
+	return fmt.Errorf("SQL statement has risk of injection")
+}
+
+// 维护缓存文件数量
+func (p *SQLPool) checkCache() {
+	files, err := ioutil.ReadDir(p.CacheDir)
+	if err != nil {
+		return
+	}
+	t := time.Now()
+	for _, file := range files {
+		if file.IsDir() || !strings.HasPrefix(file.Name(), p.CacheHead) {
+			continue
+		}
+		if t.Sub(file.ModTime()).Minutes() > 10 {
+			os.Remove(filepath.Join(p.CacheDir, file.Name()))
+		}
+	}
+}
+
+// QueryCacheJSON 查询缓存结果
+//
+// args:
+//  cacheTag: 缓存标签
+//  startIdx: 起始行数
+//  rowCount: 查询的行数
+// return:
+//  json字符串
+func (p *SQLPool) QueryCacheJSON(cacheTag string, startRow, rowsCount int) string {
+	return string(gopsu.PB2Json(p.QueryCachePB2(cacheTag, startRow, rowsCount)))
+}
+
+// QueryCachePB2 查询缓存结果
+//
+// args:
+//  cacheTag: 缓存标签
+//  startIdx: 起始行数
+//  rowCount: 查询的行数
+// return:
+//  &QueryData{}
+func (p *SQLPool) QueryCachePB2(cacheTag string, startRow, rowsCount int) *QueryData {
+	if startRow < 1 {
+		startRow = 1
+	}
+	if rowsCount < 0 {
+		rowsCount = 0
+	}
+	query := &QueryData{CacheTag: cacheTag}
+	if src, err := ioutil.ReadFile(filepath.Join(p.CacheDir, cacheTag)); err == nil {
+		msg := &QueryData{}
+		if ex := msg.Unmarshal(src); ex == nil {
+			query.Total = msg.Total
+			startRow = startRow - 1
+			endRow := startRow + rowsCount
+			if rowsCount == 0 || endRow > len(msg.Rows) {
+				endRow = int(msg.Total)
+			}
+			if startRow >= int(msg.Total) {
+				query.Total = 0
+			} else {
+				query.Total = msg.Total
+				query.Rows = msg.Rows[startRow:endRow]
+				// for k, v := range msg.Rows {
+				// 	if k >= startRow && k < endRow {
+				// 		query.Rows = append(query.Rows, v)
+				// 	}
+				// 	if k >= endRow {
+				// 		break
+				// 	}
+				// }
+			}
+		}
+	}
+	return query
+}
+
+// QueryCacheMultirowPage 查询多行分页缓存结果
+//
+// args:
+//  cacheTag: 缓存标签
+//  startIdx: 起始行数
+//  rowCount: 查询的行数
+// return:
+//  &QueryData{}
+func (p *SQLPool) QueryCacheMultirowPage(cacheTag string, startRow, rowsCount, keyColumeID int) *QueryData {
+	if keyColumeID == -1 {
+		return p.QueryCachePB2(cacheTag, startRow, rowsCount)
+	}
+	if startRow < 1 {
+		startRow = 1
+	}
+	if rowsCount < 0 {
+		rowsCount = 0
+	}
+	query := &QueryData{CacheTag: cacheTag}
+	if src, err := ioutil.ReadFile(filepath.Join(p.CacheDir, cacheTag)); err == nil {
+		msg := &QueryData{}
+		if ex := msg.Unmarshal(src); ex == nil {
+			startRow = startRow - 1
+			query.Total = msg.Total
+			endRow := startRow + rowsCount
+			if rowsCount == 0 {
+				endRow = int(msg.Total)
+			}
+			if startRow >= int(msg.Total) {
+				query.Total = 0
+			} else {
+				query.Total = msg.Total
+				var rowIdx int
+				var keyItem string
+				for _, v := range msg.Rows {
+					if keyItem == "" {
+						keyItem = v.Cells[keyColumeID]
+					}
+					if keyItem != v.Cells[keyColumeID] {
+						keyItem = v.Cells[keyColumeID]
+						rowIdx++
+					}
+					if rowIdx >= startRow && rowIdx < endRow {
+						query.Rows = append(query.Rows, v)
+					}
+				}
+			}
+		}
+	}
+	return query
+}
+
+// QueryOne 执行查询语句，返回首行结果的json字符串，`{row：[...]}`，该方法不缓存结果
+//
+// args:
+//  s: sql占位符语句
+//  colNum: 列数量
+//  params: 查询参数,语句中的参数用`?`占位
+// return:
+//  结果集json字符串，error
+func (p *SQLPool) QueryOne(s string, colNum int, params ...interface{}) (js string, err error) {
+	defer func() (string, error) {
+		if ex := recover(); ex != nil {
+			err = ex.(error)
+			return "", err.(error)
+		}
+		return js, nil
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
+	defer cancel()
+	row := p.connPool.QueryRowContext(ctx, s, params...)
+	if err != nil {
+		return js, err
+	}
+
+	values := make([]interface{}, colNum)
+	scanArgs := make([]interface{}, colNum)
+
+	for i := range values {
+		scanArgs[i] = &values[i]
+	}
+
+	err = row.Scan(scanArgs...)
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return "", nil
+		}
+		return js, err
+	}
+	for i := range scanArgs {
+		v := values[i]
+		b, ok := v.([]byte)
+		if ok {
+			js, _ = sjson.Set(js, "row.-1", string(b))
+		} else {
+			js, _ = sjson.Set(js, "row.-1", v)
+		}
+	}
+	return js, nil
+}
+
+// QueryJSON 执行查询语句，返回结果集的json字符串
+//
+// args:
+//  s: sql占位符语句
+//  rowsCount: 返回数据行数，从第一行开始，0-返回全部
+//  params: 查询参数,语句中的参数用`?`占位
+// return:
+//  结果集json字符串，error
+func (p *SQLPool) QueryJSON(s string, rowsCount int, params ...interface{}) (string, error) {
+	x, ex := p.QueryPB2(s, rowsCount, params...)
+	if ex != nil {
+		return "", ex
+	}
+	return string(gopsu.PB2Json(x)), nil
+}
+
+// QueryPB2 执行查询语句，返回结果集的pb2序列化字节数组
+//
+// args:
+//  s: sql占位符语句
+//  rowsCount: 返回数据行数，从第一行开始，0-返回全部
+//  params: 查询参数,语句中的参数用`?`占位
+// return:
+//  结果集的pb2序列化字节数组，error
+func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (query *QueryData, err error) {
+	p.queryLocker.Lock()
+	defer func() (*QueryData, error) {
+		if ex := recover(); ex != nil {
+			err = ex.(error)
+			return nil, err
+		}
+		p.queryLocker.Unlock()
+		return query, err
+	}()
+
+	query = &QueryData{}
+	queryCache := &QueryData{}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
+	defer cancel()
+	rows, err := p.connPool.QueryContext(ctx, s, params...)
+	if err != nil {
+		return query, err
+	}
+	defer rows.Close()
+
+	columns, err := rows.Columns()
+	if err != nil {
+		return query, err
+	}
+	query.Columns = columns
+	queryCache.Columns = columns
+
+	count := len(columns)
+	values := make([]interface{}, count)
+	scanArgs := make([]interface{}, count)
+
+	for i := range values {
+		scanArgs[i] = &values[i]
+	}
+	query.Rows = make([]*QueryData_Row, 0)
+	queryCache.Rows = make([]*QueryData_Row, 0)
+	var rowIdx = 0
+	for rows.Next() {
+		err := rows.Scan(scanArgs...)
+		if err != nil {
+			return query, err
+		}
+		row := &QueryData_Row{
+			Cells: make([]string, count),
+		}
+		for k, v := range values {
+			if v == nil {
+				row.Cells[k] = ""
+				continue
+			}
+			if b, ok := v.([]byte); ok {
+				row.Cells[k] = string(b)
+			} else {
+				row.Cells[k] = fmt.Sprintf("%v", v)
+			}
+		}
+		queryCache.Rows = append(queryCache.Rows, row)
+		rowIdx++
+	}
+	if err := rows.Err(); err != nil {
+		return query, err
+	}
+	if rowsCount < 0 {
+		rowsCount = 0
+	}
+	if rowsCount == 0 {
+		query.Rows = queryCache.Rows
+	} else {
+		if rowsCount > rowIdx {
+			rowsCount = rowIdx
+		}
+		query.Rows = queryCache.Rows[:rowsCount]
+	}
+	query.Total = int32(rowIdx)
+	queryCache.Total = int32(rowIdx)
+	// 开始缓存，方便导出，有数据即缓存
+	if p.EnableCache && rowsCount > 0 { // && rowsCount < rowIdx {
+		cacheTag := fmt.Sprintf("%s%d-%d", p.CacheHead, time.Now().UnixNano(), rowIdx)
+		query.CacheTag = cacheTag
+		go func(b []byte, err error) {
+			if err == nil {
+				ioutil.WriteFile(filepath.Join(p.CacheDir, cacheTag), b, 0664)
+			}
+		}(queryCache.Marshal())
+	}
+	return query, nil
+}
+
+// QueryMultirowPage 执行查询语句，返回结果集的pb2序列化字节数组，检测多个字段进行换行计数
+//
+// args:
+//  s: sql占位符语句
+//  rowsCount: 返回数据行数，从第一行开始，0-返回全部
+//	keyColumeID: sql语句中用于检测换行的字段序号，从0开始
+//  params: 查询参数,语句中的参数用`?`占位
+// return:
+//  结果集的pb2序列化字节数组，error
+func (p *SQLPool) QueryMultirowPage(s string, rowsCount int, keyColumeID int, params ...interface{}) (query *QueryData, err error) {
+	if keyColumeID == -1 {
+		return p.QueryPB2(s, rowsCount, params...)
+	}
+	p.queryLocker.Lock()
+	defer func() (*QueryData, error) {
+		if ex := recover(); ex != nil {
+			err = ex.(error)
+			return nil, err
+		}
+		p.queryLocker.Unlock()
+		return query, err
+	}()
+	if rowsCount < 0 {
+		rowsCount = 0
+	}
+	query = &QueryData{}
+	queryCache := &QueryData{}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
+	defer cancel()
+	rows, err := p.connPool.QueryContext(ctx, s, params...)
+	if err != nil {
+		return query, err
+	}
+	defer rows.Close()
+
+	columns, err := rows.Columns()
+	if err != nil {
+		return query, err
+	}
+	query.Columns = columns
+	queryCache.Columns = columns
+
+	count := len(columns)
+	values := make([]interface{}, count)
+	scanArgs := make([]interface{}, count)
+
+	for i := range values {
+		scanArgs[i] = &values[i]
+	}
+	query.Rows = make([]*QueryData_Row, 0)
+	queryCache.Rows = make([]*QueryData_Row, 0)
+	var rowIdx = 0
+	var keyItem string
+	for rows.Next() {
+		err := rows.Scan(scanArgs...)
+		if err != nil {
+			return query, err
+		}
+		row := &QueryData_Row{
+			Cells: make([]string, count),
+		}
+		for k, v := range values {
+			if v == nil {
+				row.Cells[k] = ""
+			} else {
+				b, ok := v.([]byte)
+				if ok {
+					row.Cells[k] = string(b)
+				} else {
+					row.Cells[k] = fmt.Sprintf("%v", v)
+				}
+			}
+		}
+		queryCache.Rows = append(queryCache.Rows, row)
+		if keyItem == "" {
+			keyItem = row.Cells[keyColumeID]
+			// rowIdx++
+		}
+		if keyItem != row.Cells[keyColumeID] {
+			keyItem = row.Cells[keyColumeID]
+			rowIdx++
+		}
+		if !(rowsCount > 0 && rowIdx >= rowsCount) {
+			query.Rows = append(query.Rows, row)
+		}
+	}
+	rowIdx++
+	if err := rows.Err(); err != nil {
+		return query, err
+	}
+	query.Total = int32(rowIdx)
+	queryCache.Total = int32(rowIdx)
+	// 开始缓存，方便导出，有数据即缓存
+	if p.EnableCache && rowsCount > 0 { // && rowsCount < rowIdx {
+		cacheTag := fmt.Sprintf("%s%d-%d", p.CacheHead, time.Now().UnixNano(), rowIdx)
+		query.CacheTag = cacheTag
+		go func(b []byte, err error) {
+			if err == nil {
+				ioutil.WriteFile(filepath.Join(p.CacheDir, cacheTag), b, 0664)
+			}
+		}(queryCache.Marshal())
+	}
+	return query, nil
+}
+
+// Exec 执行语句（insert，delete，update）,返回（影响行数,insertId,error）,使用官方的语句参数分离写法
+//
+// args:
+//  s: sql占位符语句
+//  param: 参数,语句中的参数用`?`占位
+// return:
+//   影响行数，insert的id，error
+func (p *SQLPool) Exec(s string, params ...interface{}) (rowAffected, insertID int64, err error) {
+	p.execLocker.Lock()
+	defer func() (int64, int64, error) {
+		if ex := recover(); ex != nil {
+			err = ex.(error)
+			return 0, 0, err.(error)
+		}
+		p.execLocker.Unlock()
+		return rowAffected, insertID, nil
+	}()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
+	defer cancel()
+	res, err := p.connPool.ExecContext(ctx, s, params...)
+	if err != nil {
+		return 0, 0, err
+	}
+	insertID, _ = res.LastInsertId()
+	rowAffected, _ = res.RowsAffected()
+	return rowAffected, insertID, nil
+}
+
+// ExecPrepare 批量执行占位符语句（insert，delete，update），使用官方的语句参数分离写法，只能批量执行相同的语句
+//
+// args:
+//  s: sql占位符语句
+//  paramNum: 占位符数量,为0时自动计算sql语句中`?`的数量
+//  params: 语句参数 `d := make([]interface{}, 0);d=append(d,xxx)`
+// return:
+//  error
+func (p *SQLPool) ExecPrepare(s string, paramNum int, params ...interface{}) (err error) {
+	p.execLocker.Lock()
+	defer func() error {
+		if ex := recover(); ex != nil {
+			err = ex.(error)
+			return err.(error)
+		}
+		p.execLocker.Unlock()
+		return nil
+	}()
+	if paramNum == 0 {
+		paramNum = strings.Count(s, "?")
+	}
+
+	l := len(params)
+	if l%paramNum != 0 {
+		return fmt.Errorf("not enough params")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
+	defer cancel()
+	// 开启事务
+	st, err := p.connPool.PrepareContext(ctx, s)
+	// tx, err := p.connPool.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	for i := 0; i < l; i += paramNum {
+		_, err := st.ExecContext(ctx, params[i:i+paramNum]...)
+		// _, err = tx.ExecContext(ctx, s, params[i:i+paramNum]...)
+		if err != nil {
+			return err
+		}
+	}
+	// err = tx.Commit()
+	// if err != nil {
+	// 	tx.Rollback()
+	// 	return err
+	// }
+	return nil
+}
+
+// ExecBatch (maybe unsafe)事务执行语句（insert，delete，update）
+//
+// args：
+//  s： sql语句组
+// return:
+//  error
+func (p *SQLPool) ExecBatch(s []string) (err error) {
+	p.execLocker.Lock()
+	defer func() error {
+		if ex := recover(); ex != nil {
+			err = ex.(error)
+			return err.(error)
+		}
+		p.execLocker.Unlock()
+		return nil
+	}()
+	// 检查语句，有任意语句存在风险，全部语句均不执行
+	for _, v := range s {
+		if err := p.checkSQL(v); err != nil {
+			return err
+		}
+	}
+	// 开启事务
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
+	defer cancel()
+	tx, err := p.connPool.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	for _, v := range s {
+		_, err = tx.ExecContext(ctx, v)
+		if err != nil {
+			return err
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	return nil
+}

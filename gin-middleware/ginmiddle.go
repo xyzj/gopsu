@@ -21,7 +21,7 @@ import (
 	"github.com/tidwall/sjson"
 	"github.com/unrolled/secure"
 	"github.com/xyzj/gopsu"
-	db "github.com/xyzj/gopsu/dbv2"
+	db "github.com/xyzj/gopsu/db"
 )
 
 // NewGinEngine 返回一个新的gin路由

@@ -1,0 +1,14 @@
+syntax = "proto3";
+package db;
+
+option optimize_for = SPEED;
+
+message QueryData {
+    int32 total = 1; // 记录总数
+    string cache_tag = 2; // 缓存标签
+    repeated Row rows = 3; // 数据行
+    repeated string columns = 4; // 数据列名
+    message Row {
+        repeated string cells = 1; // 数据列
+    }
+}
