@@ -261,14 +261,6 @@ func (p *SQLPool) QueryCachePB2(cacheTag string, startRow, rowsCount int) *Query
 			} else {
 				query.Total = msg.Total
 				query.Rows = msg.Rows[startRow:endRow]
-				// for k, v := range msg.Rows {
-				// 	if k >= startRow && k < endRow {
-				// 		query.Rows = append(query.Rows, v)
-				// 	}
-				// 	if k >= endRow {
-				// 		break
-				// 	}
-				// }
 			}
 		}
 	}
@@ -377,6 +369,28 @@ func (p *SQLPool) QueryOne(s string, colNum int, params ...interface{}) (js stri
 	return js, nil
 }
 
+// QueryLimit 执行查询语句，限制返回行数
+//
+// args:
+//  s: sql占位符语句
+//  startRow: 起始行号，0开始
+//  rowsCount: 返回数据行数，0-返回全部
+//  params: 查询参数,语句中的参数用`?`占位
+// return:
+//  QueryData结构，error
+func (p *SQLPool) QueryLimit(s string, startRow, rowsCount int, params ...interface{}) (*QueryData, error) {
+	if startRow+rowsCount == 0 {
+		return p.QueryPB2(s, rowsCount, params...)
+	}
+	switch p.DriverType {
+	case DriverMSSQL:
+		s += fmt.Sprintf(" between %d and %d", startRow, startRow+rowsCount)
+	case DriverMYSQL:
+		s += fmt.Sprintf(" limit %d,%d", startRow, rowsCount)
+	}
+	return p.QueryPB2(s, 0, params...)
+}
+
 // QueryJSON 执行查询语句，返回结果集的json字符串
 //
 // args:
@@ -400,7 +414,7 @@ func (p *SQLPool) QueryJSON(s string, rowsCount int, params ...interface{}) (str
 //  rowsCount: 返回数据行数，从第一行开始，0-返回全部
 //  params: 查询参数,语句中的参数用`?`占位
 // return:
-//  结果集的pb2序列化字节数组，error
+//  QueryData结构，error
 func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (query *QueryData, err error) {
 	p.queryLocker.Lock()
 	defer func() (*QueryData, error) {
