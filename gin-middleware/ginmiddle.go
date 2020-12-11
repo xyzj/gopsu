@@ -103,7 +103,13 @@ func ListenAndServe(port int, h *gin.Engine) error {
 		WriteTimeout: st,
 		IdleTimeout:  st,
 	}
-	fmt.Fprintf(gin.DefaultWriter, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTP server at :"+strconv.Itoa(port))
+	var writer io.Writer
+	if gin.Mode() == gin.ReleaseMode {
+		writer = io.MultiWriter(gin.DefaultWriter, os.Stdout)
+	} else {
+		writer = io.MultiWriter(gin.DefaultWriter)
+	}
+	fmt.Fprintf(writer, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTP server at :"+strconv.Itoa(port))
 	return s.ListenAndServe()
 }
 
@@ -166,7 +172,13 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 		runLook.Wait()
 		goto RUN
 	}()
-	fmt.Fprintf(io.MultiWriter(gin.DefaultWriter), "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTPS server at :"+strconv.Itoa(port))
+	var writer io.Writer
+	if gin.Mode() == gin.ReleaseMode {
+		writer = io.MultiWriter(gin.DefaultWriter, os.Stdout)
+	} else {
+		writer = io.MultiWriter(gin.DefaultWriter)
+	}
+	fmt.Fprintf(writer, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTPS server at :"+strconv.Itoa(port))
 	return s.ListenAndServeTLS("", "")
 }
 

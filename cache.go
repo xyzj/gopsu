@@ -1,19 +1,19 @@
 package gopsu
 
 import (
+	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 // XCache 可设置超时的缓存字典
 type XCache struct {
 	m       map[interface{}]*xCacheData
-	len     int
+	len     int64
 	chanSet chan *xCacheData
-	// chanSetTimeo chan *xCacheData
-	chanReq  chan int
-	chanGet  chan interface{}
-	chanResp chan interface{}
+	am       sync.Map
+	amIdx    int64
 }
 
 // xCacheData 可设置超时的缓存字典数据结构
@@ -25,15 +25,11 @@ type xCacheData struct {
 
 // NewCache 创建新的缓存字典
 //	l：字典大小,0-不限制
-func NewCache(l int) *XCache {
+func NewCache(l int64) *XCache {
 	xc := &XCache{
 		m:       make(map[interface{}]*xCacheData, l),
 		len:     l,
 		chanSet: make(chan *xCacheData),
-		// chanSetTimeo: make(chan *xCacheData),
-		chanReq:  make(chan int),
-		chanGet:  make(chan interface{}),
-		chanResp: make(chan interface{}),
 	}
 	go xc.run()
 	return xc
@@ -44,16 +40,19 @@ func NewCache(l int) *XCache {
 //	v: value
 //	expire: 超时时间（ms）,0-不超时
 func (xc *XCache) Set(k, v interface{}, expire int64) bool {
+	if xc.amIdx >= xc.len {
+		return false
+	}
 	if expire <= 0 {
 		expire = 316224000000
 	}
-	xc.chanSet <- &xCacheData{
+	xc.am.Store(k, &xCacheData{
 		key:    k,
 		value:  v,
 		expire: time.Now().UnixNano()/1000000 + expire,
-	}
-	b := <-xc.chanResp
-	return b.(bool)
+	})
+	atomic.AddInt64(&xc.amIdx, 1)
+	return true
 }
 
 // SetWithHold 设置缓存数据
@@ -62,22 +61,13 @@ func (xc *XCache) Set(k, v interface{}, expire int64) bool {
 //	expire: 超时时间（ms）,0-不超时
 //	timeout: 写入超时，ms，0-始终等待
 func (xc *XCache) SetWithHold(k, v interface{}, expire, timeout int64) bool {
-	if expire <= 0 {
-		expire = 316224000000
-	}
-	if xc.Set(k, v, expire) {
-		return true
-	}
-	// 插入失败，hold并重试
-	if timeout <= 0 {
-		timeout = 316224000000
-	}
-	t := time.NewTicker(time.Millisecond * time.Duration(timeout))
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Millisecond*time.Duration(timeout))
+	defer cancel()
 	for {
 		select {
-		case <-t.C:
+		case <-ctx.Done():
 			return false
-		case <-time.After(time.Millisecond * 7):
+		case <-time.After(time.Millisecond * 3):
 			if xc.Set(k, v, expire) {
 				return true
 			}
@@ -87,21 +77,25 @@ func (xc *XCache) SetWithHold(k, v interface{}, expire, timeout int64) bool {
 
 // Get 读取缓存数据
 func (xc *XCache) Get(k interface{}) (interface{}, bool) {
-	xc.chanGet <- k
-	v := <-xc.chanResp
-	return v, true
+	v, ok := xc.am.Load(k)
+	if ok {
+		return v.(*xCacheData).value, true
+	}
+	return nil, false
 }
 
 // Clear 清空缓存
 func (xc *XCache) Clear() {
-	xc.chanReq <- 1
+	xc.am.Range(func(key interface{}, value interface{}) bool {
+		xc.am.Delete(key)
+		atomic.AddInt64(&xc.amIdx, -1)
+		return true
+	})
 }
 
 // Len 获取缓存数量
-func (xc *XCache) Len() int {
-	xc.chanReq <- 0
-	l := <-xc.chanResp
-	return l.(int)
+func (xc *XCache) Len() int64 {
+	return xc.amIdx
 }
 
 func (xc *XCache) run() {
@@ -116,33 +110,15 @@ RUN:
 		}()
 		for {
 			select {
-			case set := <-xc.chanSet:
-				if xc.len == 0 || len(xc.m) < xc.len {
-					xc.m[set.key] = set
-					xc.chanResp <- true
-				} else {
-					xc.chanResp <- false
-				}
-			case a := <-xc.chanReq:
-				switch a {
-				case 0: // 获取长度
-					xc.chanResp <- len(xc.m)
-				case 1: // 清空
-					xc.m = make(map[interface{}]*xCacheData, xc.len)
-				}
-			case key := <-xc.chanGet:
-				if v, ok := xc.m[key]; ok {
-					xc.chanResp <- v
-				} else {
-					xc.chanResp <- nil
-				}
 			case <-t.C:
 				tt := time.Now().UnixNano() / 1000000
-				for k, v := range xc.m {
-					if v.expire <= tt { // 过期
-						delete(xc.m, k)
+				xc.am.Range(func(key interface{}, value interface{}) bool {
+					if value.(*xCacheData).expire <= tt {
+						xc.am.Delete(key)
+						atomic.AddInt64(&xc.amIdx, -1)
 					}
-				}
+					return true
+				})
 			}
 		}
 	}()
