@@ -208,26 +208,26 @@ func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string
 			}
 		}()
 		// 注册
-	RUN:
 		var err error
 		var leaseGrantResp *clientv3.LeaseGrantResponse
+	RUN:
 		lease := clientv3.NewLease(m.etcdClient)
 		if leaseGrantResp, err = lease.Grant(context.TODO(), leaseTimeout); err != nil {
 			m.logger.Error(fmt.Sprintf("Create lease error: %s", err.Error()))
 			return
 		}
 		leaseid := leaseGrantResp.ID
-		keepRespChan, err := lease.KeepAlive(context.TODO(), leaseid)
-		if err != nil {
-			m.logger.Error(fmt.Sprintf("Keep lease error: %s", err.Error()))
-			return
-		}
 		_, err = m.etcdClient.Put(context.TODO(), m.etcdKey, m.svrDetail, clientv3.WithLease(leaseid))
 		if err != nil {
 			m.logger.Error(fmt.Sprintf("Registration to %s failed: %v", m.etcdAddr, err.Error()))
 			return
 		}
 		m.logger.System(fmt.Sprintf("Registration to %v success.", m.etcdAddr))
+		keepRespChan, err := lease.KeepAlive(context.TODO(), leaseid)
+		if err != nil {
+			m.logger.Error(fmt.Sprintf("Keep lease error: %s", err.Error()))
+			return
+		}
 		for {
 			select {
 			case keepResp := <-keepRespChan:
