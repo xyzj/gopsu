@@ -80,7 +80,7 @@ func NewProducer(name, connstr string, debug bool) *Session {
 
 // Start Start
 func (sessn *Session) Start() bool {
-	go sessn.handleReconnect()
+	sessn.handleReconnect()
 	return sessn.WaitReady(5)
 	// if sessn.connect() {
 	// 	switch sessn.sessnType {
@@ -120,29 +120,38 @@ func (sessn *Session) handleReconnect() {
 			sessn.initProducer()
 		}
 	}
-	for {
-		if sessn.closeMe {
-			break
-		}
-		select {
-		case <-sessn.done:
-			sessn.closeMe = true
-			sessn.channel.Close()
-			sessn.connection.Close()
-		case <-time.After(10 * time.Second):
-			if sessn.IsReady() {
-				continue
+	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				println(sessn.sessnType + " crash" + errors.WithStack(err.(error)).Error())
+				sessn.logger.Error(errors.WithStack(err.(error)).Error())
 			}
-			if sessn.connect() {
-				switch sessn.sessnType {
-				case "consumer":
-					sessn.initConsumer()
-				case "producer":
-					sessn.initProducer()
+		}()
+		for {
+			if sessn.closeMe {
+				break
+			}
+			select {
+			case <-sessn.done:
+				sessn.closeMe = true
+				sessn.channel.Close()
+				sessn.connection.Close()
+				sessn.connection = nil
+			case <-time.After(7 * time.Second):
+				if sessn.IsReady() {
+					continue
+				}
+				if sessn.connect() {
+					switch sessn.sessnType {
+					case "consumer":
+						sessn.initConsumer()
+					case "producer":
+						sessn.initProducer()
+					}
 				}
 			}
 		}
-	}
+	}()
 }
 
 // connect 建立连接
@@ -152,25 +161,21 @@ func (sessn *Session) connect() bool {
 	}
 	// sessn.logger.Warning("Attempting to connect to " + sessn.addr)
 	var err error
-	var conn *amqp.Connection
 	if sessn.tlsConf == nil {
-		conn, err = amqp.Dial(sessn.connStr)
+		sessn.connection, err = amqp.Dial(sessn.connStr)
 	} else {
-		conn, err = amqp.DialTLS(sessn.connStr, sessn.tlsConf)
+		sessn.connection, err = amqp.DialTLS(sessn.connStr, sessn.tlsConf)
 	}
 
 	if err != nil {
 		sessn.logger.Error("Failed connnect to " + sessn.addr + "|" + err.Error())
 		return false
 	}
-	sessn.connection = conn
-
-	sessn.channel, err = conn.Channel()
+	sessn.channel, err = sessn.connection.Channel()
 	if err != nil {
 		sessn.logger.Error("Failed open channel: " + err.Error())
 		return false
 	}
-
 	err = sessn.channel.ExchangeDeclare(
 		sessn.name, // name
 		"topic",    // type
@@ -184,7 +189,6 @@ func (sessn *Session) connect() bool {
 		sessn.logger.Error("Failed declare exchange: " + err.Error())
 		return false
 	}
-
 	sessn.logger.System("Success connect to " + sessn.addr)
 	return true
 }
@@ -268,7 +272,7 @@ func (sessn *Session) Recv() (<-chan amqp.Delivery, error) {
 	if err != nil {
 		sessn.channel.Close()
 		sessn.connection.Close()
-		sessn.connection = nil
+		// sessn.connection = nil
 		return nil, err
 	}
 	return c, nil
@@ -285,13 +289,12 @@ func (sessn *Session) BindKey(k ...string) error {
 	if sessn.IsReady() {
 		var err error
 		var s = make([]string, 0)
-		sessn.routingKeys.Range(func(key, value interface{}) bool {
-			err = sessn.channel.QueueBind(sessn.queueName, key.(string), sessn.name, false, nil)
+		for _, v := range k {
+			err = sessn.channel.QueueBind(sessn.queueName, v, sessn.name, false, nil)
 			if err != nil {
-				s = append(s, key.(string))
+				s = append(s, v)
 			}
-			return true
-		})
+		}
 		if len(s) > 0 {
 			return fmt.Errorf(strings.Join(s, ",") + " bind error:" + err.Error())
 		}
@@ -369,26 +372,19 @@ func (sessn *Session) SendCustom(d *RabbitMQData) error {
 			sessn.logger.Error("SndCrash:" + sessn.addr + "|" + err.(error).Error())
 		}
 	}()
-	return sessn.channel.Publish(
+	err := sessn.channel.Publish(
 		sessn.name,   // exchange
 		d.RoutingKey, // routing key
 		false,        // mandatory
 		false,        // immediate
 		*d.Data,
-		// amqp.Publishing{
-		// 	ContentType:  "text/plain",
-		// 	DeliveryMode: amqp.Persistent,
-		// 	Expiration:   "300000",
-		// 	Timestamp:    time.Now(),
-		// 	Body:         []byte(msg[1]),
-		// }
 	)
-	// if err != nil {
-	// 	sessn.logger.Error("SndErr:" + sessn.addr + "|" + err.Error() + "|" + d.RoutingKey)
-	// 	return err
-	// }
-	// }()
-	// return nil
+	if err != nil {
+		sessn.channel.Close()
+		sessn.connection.Close()
+		// sessn.connection = nil
+	}
+	return err
 }
 
 // FormatMQBody 格式化日志输出

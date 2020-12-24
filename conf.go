@@ -121,6 +121,15 @@ func (c *ConfData) GetItem(key string) (string, error) {
 	return "", fmt.Errorf("Key does not exist")
 }
 
+// GetItemDetail 获取配置项的value
+func (c *ConfData) GetItemDetail(key string) (string, string, error) {
+	v, ok := c.items.Load(key)
+	if ok {
+		return v.(*confItem).value, v.(*confItem).remark, nil
+	}
+	return "", "", fmt.Errorf("Key does not exist")
+}
+
 // GetKeys 获取所有配置项的key
 func (c *ConfData) GetKeys() []string {
 	var keys = make([]string, 0)
