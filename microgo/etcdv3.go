@@ -232,7 +232,7 @@ func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string
 			select {
 			case keepResp := <-keepRespChan:
 				if keepResp == nil {
-					m.logger.Error(fmt.Sprintf("Lease failure: %s", err.Error()))
+					m.logger.Error("Lease failure, try to reboot.")
 					time.Sleep(time.Duration(rand.Intn(2000)+1500) * time.Millisecond)
 					goto RUN
 				}
