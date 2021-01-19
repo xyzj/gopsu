@@ -33,6 +33,10 @@ const (
 	DriverMSSQL
 )
 
+const (
+	emptyCacheTag = "00000-0"
+)
+
 func (d driveType) string() string {
 	return []string{"mysql", "mssql"}[d]
 }
@@ -240,6 +244,9 @@ func (p *SQLPool) QueryCacheJSON(cacheTag string, startRow, rowsCount int) strin
 // return:
 //  &QueryData{}
 func (p *SQLPool) QueryCachePB2(cacheTag string, startRow, rowsCount int) *QueryData {
+	if cacheTag == emptyCacheTag {
+		return nil
+	}
 	if startRow < 1 {
 		startRow = 1
 	}
@@ -276,6 +283,9 @@ func (p *SQLPool) QueryCachePB2(cacheTag string, startRow, rowsCount int) *Query
 // return:
 //  &QueryData{}
 func (p *SQLPool) QueryCacheMultirowPage(cacheTag string, startRow, rowsCount, keyColumeID int) *QueryData {
+	if cacheTag == emptyCacheTag {
+		return nil
+	}
 	if keyColumeID == -1 {
 		return p.QueryCachePB2(cacheTag, startRow, rowsCount)
 	}
@@ -388,7 +398,33 @@ func (p *SQLPool) QueryLimit(s string, startRow, rowsCount int, params ...interf
 	case DriverMYSQL:
 		s += fmt.Sprintf(" limit %d,%d", startRow, rowsCount)
 	}
-	return p.QueryPB2(s, 0, params...)
+	query, err := p.QueryPB2(s, 0, params...)
+	if err != nil {
+		return nil, err
+	}
+	query.CacheTag = emptyCacheTag
+	return query, nil
+}
+
+// QueryPB2New 可尝试用于大数据集的首页查询，一定程度加快速度，原查询时间在2s内的没必要使用该方法
+//
+// args:
+//  s: sql占位符语句
+//  startRow: 起始行号，0开始
+//  rowsCount: 返回数据行数，从第一行开始，0-返回全部
+//  params: 查询参数,语句中的参数用`?`占位
+// return:
+//  QueryData结构，error
+func (p *SQLPool) QueryPB2Big(s string, startRow, rowsCount int, params ...interface{}) (*QueryData, error) {
+	ss := strings.Replace(s, "select ", "select count(*),", 1)
+	queryCount, err := p.QueryPB2(ss, 1, params...)
+	if err != nil {
+		p.Logger.Error("QueryPB2New Err: " + err.Error())
+		return p.QueryPB2(s, rowsCount, params...)
+	}
+	query, err := p.QueryLimit(s, startRow, rowsCount, params...)
+	query.Total = gopsu.String2Int32(queryCount.Rows[0].Cells[0], 10)
+	return query, err
 }
 
 // QueryJSON 执行查询语句，返回结果集的json字符串
