@@ -406,7 +406,7 @@ func (p *SQLPool) QueryLimit(s string, startRow, rowsCount int, params ...interf
 	return query, nil
 }
 
-// QueryPB2New 可尝试用于大数据集的首页查询，一定程度加快速度，原查询时间在2s内的没必要使用该方法
+// QueryPB2Big 可尝试用于大数据集的首页查询，一定程度加快速度，原查询时间在2s内的没必要使用该方法
 //
 // args:
 //  s: sql占位符语句
