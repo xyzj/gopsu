@@ -10,9 +10,9 @@ import (
 
 // GbkToUtf8 gbk编码转utf8
 func GbkToUtf8(s []byte) ([]byte, error) {
-	if !isGBK(s) {
-		return s, nil
-	}
+	// if !isGBK(s) {
+	// 	return s, nil
+	// }
 	reader := transform.NewReader(bytes.NewReader(s), simplifiedchinese.GBK.NewDecoder())
 	d, e := ioutil.ReadAll(reader)
 	if e != nil {
@@ -23,9 +23,9 @@ func GbkToUtf8(s []byte) ([]byte, error) {
 
 // Utf8ToGbk utf8编码转gbk
 func Utf8ToGbk(s []byte) ([]byte, error) {
-	if !isUtf8(s) {
-		return s, nil
-	}
+	// if !isUtf8(s) {
+	// 	return s, nil
+	// }
 	reader := transform.NewReader(bytes.NewReader(s), simplifiedchinese.GBK.NewEncoder())
 	d, e := ioutil.ReadAll(reader)
 	if e != nil {
