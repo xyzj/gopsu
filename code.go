@@ -3,6 +3,7 @@ package gopsu
 import (
 	"bytes"
 	"io/ioutil"
+	"unicode/utf8"
 
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
@@ -10,9 +11,9 @@ import (
 
 // GbkToUtf8 gbk编码转utf8
 func GbkToUtf8(s []byte) ([]byte, error) {
-	// if !isGBK(s) {
-	// 	return s, nil
-	// }
+	if utf8.Valid(s) {
+		return s, nil
+	}
 	reader := transform.NewReader(bytes.NewReader(s), simplifiedchinese.GBK.NewDecoder())
 	d, e := ioutil.ReadAll(reader)
 	if e != nil {
