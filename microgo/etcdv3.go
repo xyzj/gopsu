@@ -14,7 +14,7 @@ import (
 
 	"github.com/tidwall/sjson"
 	"github.com/xyzj/gopsu"
-	clientv3 "go.etcd.io/etcd/client/v3"
+	clientv3 "go.etcd.io/etcd/clientv3"
 )
 
 const (
