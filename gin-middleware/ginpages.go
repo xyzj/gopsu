@@ -54,15 +54,13 @@ func init() {
 // Page403 Page403
 func Page403(c *gin.Context) {
 	c.Header("Content-Type", "text/html")
-	c.Status(http.StatusNotFound)
-	render.WriteString(c.Writer, template403, nil)
+	c.String(200, template403)
 }
 
 // Page404 Page404
 func Page404(c *gin.Context) {
 	c.Header("Content-Type", "text/html")
-	c.Status(http.StatusNotFound)
-	render.WriteString(c.Writer, template404, nil)
+	c.String(200, template404)
 }
 
 // Page405 Page405
@@ -76,8 +74,7 @@ func PageDefault(c *gin.Context) {
 	case "GET":
 		if c.Request.RequestURI == "/" {
 			c.Header("Content-Type", "text/html")
-			c.Status(http.StatusOK)
-			render.WriteString(c.Writer, templateHelloWorld, nil)
+			c.String(200, templateHelloWorld)
 		} else {
 			c.String(200, "ok")
 		}
@@ -97,9 +94,10 @@ func PageRuntime(c *gin.Context) {
 			}
 		}
 	}
+	runtimeInfo["time"] = time.Now().Format("2006-01-02 15:04:05 Mon")
 	switch c.Request.Method {
 	case "GET":
-		// c.Header("Content-Type", "text/html")
+		c.Header("Content-Type", "text/html")
 		// c.Status(http.StatusOK)
 		// render.WriteString(c.Writer, templateRuntime, nil)
 		t, _ := template.New("runtime").Parse(templateRuntime)
