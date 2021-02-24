@@ -1623,6 +1623,55 @@ func BcdBytes2Float64(b []byte, decimal int, unsigned bool) float64 {
 	return f
 }
 
+// Float642BcdBytesBigOrder 浮点转bcd字节数组（大端序）
+// 	v：十进制浮点数值
+// 	f：格式化的字符串，如"%07.03f","%03.0f"
+func Float642BcdBytesBigOrder(v float64, f string) []byte {
+	s := strings.ReplaceAll(fmt.Sprintf(f, math.Abs(v)), ".", "")
+	var b bytes.Buffer
+	if len(s)%2 != 0 {
+		s = "0" + s
+	}
+	for i := 0; i < len(s); i += 2 {
+		if i == 2 {
+			if v > 0 {
+				b.WriteByte(String2Int8(s[i:i+2], 16))
+			} else {
+				b.WriteByte(String2Int8(s[i:i+2], 16) + 0x80)
+			}
+		} else {
+			b.WriteByte(String2Int8(s[i:i+2], 16))
+		}
+	}
+	return b.Bytes()
+}
+
+// BcdBytes2Float64BigOrder bcd数组转浮点(大端序)
+// 	b:bcd数组
+// 	d：小数位数
+// 	Unsigned：无符号的
+func BcdBytes2Float64BigOrder(b []byte, decimal int, unsigned bool) float64 {
+	var negative = false
+	var s string
+	for k, v := range b {
+		if k == len(b)-1 { // 最后一位，判正负
+			if !unsigned {
+				if v >= 128 {
+					v = v - 0x80
+					negative = true
+				}
+			}
+		}
+		s += fmt.Sprintf("%02x", v)
+	}
+	s = s[:len(s)-decimal] + "." + s[len(s)-decimal:]
+	f, _ := strconv.ParseFloat(s, 16)
+	if negative {
+		f = f * -1
+	}
+	return f
+}
+
 // Bcd2STime bcd转hh*60+mm
 func Bcd2STime(b []byte) int32 {
 	return String2Int32(fmt.Sprintf("%02x", b[0]), 10)*60 + String2Int32(fmt.Sprintf("%02x", b[1]), 10)

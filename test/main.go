@@ -1,8 +1,9 @@
 package main
 
 import (
-	"encoding/base64"
-	"io/ioutil"
+	"fmt"
+
+	"github.com/xyzj/gopsu"
 )
 
 var (
@@ -12,7 +13,9 @@ var (
 
 // 启动文件 main.go
 func main() {
-	b, _ := ioutil.ReadFile("/home/xy/Pictures/b.png")
-	s := base64.RawStdEncoding.EncodeToString(b)
-	println(s, len(b), len(s))
+	a := float64(331907000000)
+	b := gopsu.Float642BcdBytesBigOrder(a, "%12.0f")
+	println(gopsu.Bytes2String(b, "-"))
+	c := gopsu.BcdBytes2Float64BigOrder(b, 0, true)
+	println(fmt.Sprintf("%12.0f,%12.0f", a, c))
 }
