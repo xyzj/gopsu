@@ -1679,7 +1679,8 @@ func Bcd2STime(b []byte) int32 {
 
 // STime2Bcd hh*60+mm转BCD
 func STime2Bcd(t int32) []byte {
-	return []byte{Bcd2Int8(byte(t / 60)), Bcd2Int8(byte(t % 60))}
+	// return []byte{Bcd2Int8(byte(t / 60)), Bcd2Int8(byte(t % 60))}
+	return []byte{Int82Bcd(byte(t / 60)), Int82Bcd(byte(t % 60))}
 }
 
 // Byte2SignedInt32 转有符号整型
@@ -1712,6 +1713,9 @@ func BcdDT2Stamp(d []byte) int64 {
 
 // Stamp2BcdDT unix时间戳转bcd,6字节，第一字节为秒
 func Stamp2BcdDT(dt int64) []byte {
+	if dt == 0 {
+		return []byte{0, 0, 0, 0, 0, 0}
+	}
 	return Float642BcdBytes(String2Float64(Stamp2Time(dt, "060102150405")), "%12.0f")
 }
 
