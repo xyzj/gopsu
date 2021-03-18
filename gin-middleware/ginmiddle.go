@@ -77,19 +77,20 @@ func getSocketTimeout() time.Duration {
 	return time.Second * time.Duration(t)
 }
 
-func getRoutes(h *gin.Engine) string {
-	var sss string
-	for _, v := range h.Routes() {
-		if strings.ContainsAny(v.Path, "*") && !strings.HasSuffix(v.Path, "filepath") {
-			return ""
-		}
-		if v.Path == "/" || v.Method == "HEAD" || strings.HasSuffix(v.Path, "*filepath") {
-			continue
-		}
-		sss += fmt.Sprintf(`<a>%s: %s</a><br><br>`, v.Method, v.Path)
-	}
-	return sss
-}
+// 遍历所有路由
+// func getRoutes(h *gin.Engine) string {
+// 	var sss string
+// 	for _, v := range h.Routes() {
+// 		if strings.ContainsAny(v.Path, "*") && !strings.HasSuffix(v.Path, "filepath") {
+// 			return ""
+// 		}
+// 		if v.Path == "/" || v.Method == "HEAD" || strings.HasSuffix(v.Path, "*filepath") {
+// 			continue
+// 		}
+// 		sss += fmt.Sprintf(`<a>%s: %s</a><br><br>`, v.Method, v.Path)
+// 	}
+// 	return sss
+// }
 
 // ListenAndServe 启用监听
 // port：端口号
@@ -158,14 +159,15 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 			}()
 			runLook.Add(1)
 			tt := time.NewTicker(time.Hour * 24)
-			for {
-				select {
-				case <-tt.C:
-					newcert, err := tls.LoadX509KeyPair(certfile, keyfile)
-					if err == nil {
-						s.TLSConfig.Certificates[0] = newcert
-					}
+			for range tt.C {
+				// for {
+				// 	select {
+				// 	case <-tt.C:
+				newcert, err := tls.LoadX509KeyPair(certfile, keyfile)
+				if err == nil {
+					s.TLSConfig.Certificates[0] = newcert
 				}
+				// }
 			}
 		}()
 		time.Sleep(time.Second)

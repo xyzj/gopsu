@@ -78,11 +78,8 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 				recover()
 				locker.Done()
 			}()
-			for {
-				select {
-				case s := <-chanWriteLog:
-					fmt.Fprintln(f.out, s)
-				}
+			for s := range chanWriteLog {
+				fmt.Fprintln(f.out, s)
 			}
 		}()
 		locker.Wait()
