@@ -81,8 +81,6 @@ type SQLPool struct {
 	CacheHead string
 	// connPool 数据库连接池
 	connPool *sql.DB
-	// IsReady 连接池是否就绪
-	isReady bool
 	// 查询锁
 	queryLocker sync.Mutex
 	execLocker  sync.Mutex
@@ -167,11 +165,8 @@ func (p *SQLPool) New() error {
 					p.Logger.Error("SQL Cache file clean error:" + errors.WithStack(err.(error)).Error())
 				}
 			}()
-			for {
-				select {
-				case <-time.After(time.Minute * 5):
-					p.checkCache()
-				}
+			for range time.After(time.Minute * 5) {
+				p.checkCache()
 			}
 		}()
 	}

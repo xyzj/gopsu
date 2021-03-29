@@ -80,10 +80,7 @@ func (p *SQLPool) MergeTable(tableName string, maxSubTables int) error {
 	gjson.Parse(ans).Get("rows").ForEach(func(key, value gjson.Result) bool {
 		subTablelist[i] = value.Get("cells.0").String()
 		i++
-		if i == maxSubTables {
-			return false
-		}
-		return true
+		return i != maxSubTables
 	})
 	if i == 0 {
 		return fmt.Errorf("no sub tables found")

@@ -56,8 +56,8 @@ func NewGinEngine(logDir, logName string, logDays int, logLevel ...int) *gin.Eng
 	r.HandleMethodNotAllowed = true
 	r.NoMethod(Page405)
 	r.NoRoute(Page404)
-	r.GET("/", PageDefault)
-	r.POST("/", PageDefault)
+	// r.GET("/", PageDefault)
+	// r.POST("/", PageDefault)
 	r.GET("/health", PageDefault)
 	r.GET("/clearlog", CheckRequired("name"), Clearlog)
 	r.GET("/runtime", PageRuntime)
@@ -97,6 +97,16 @@ func getSocketTimeout() time.Duration {
 // h： http.hander, like gin.New()
 func ListenAndServe(port int, h *gin.Engine) error {
 	st := getSocketTimeout()
+	var findRoot = false
+	for _, v := range h.Routes() {
+		if v.Path == "/" {
+			findRoot = true
+			break
+		}
+	}
+	if !findRoot {
+		h.GET("/", PageDefault)
+	}
 	s := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
 		Handler:      h,
@@ -138,6 +148,16 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 			tc.ClientAuth = tls.RequireAndVerifyClientCert
 		}
 	}
+	var findRoot = false
+	for _, v := range h.Routes() {
+		if v.Path == "/" {
+			findRoot = true
+			break
+		}
+	}
+	if !findRoot {
+		h.GET("/", PageDefault)
+	}
 	st := getSocketTimeout()
 	s := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
@@ -150,6 +170,7 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 	go func() {
 		var runLook sync.WaitGroup
 	RUN:
+		runLook.Add(1)
 		go func() {
 			defer func() {
 				if err := recover(); err != nil {
@@ -157,17 +178,12 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 				}
 				runLook.Done()
 			}()
-			runLook.Add(1)
 			tt := time.NewTicker(time.Hour * 24)
 			for range tt.C {
-				// for {
-				// 	select {
-				// 	case <-tt.C:
 				newcert, err := tls.LoadX509KeyPair(certfile, keyfile)
 				if err == nil {
 					s.TLSConfig.Certificates[0] = newcert
 				}
-				// }
 			}
 		}()
 		time.Sleep(time.Second)

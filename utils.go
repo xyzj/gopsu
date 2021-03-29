@@ -1424,6 +1424,20 @@ func EncodeUTF16BE(s string) []byte {
 	return b.Bytes()
 }
 
+// String2Unicode 字符串转4位unicode编码
+func String2Unicode(s string) string {
+	var str string
+	for _, v := range s {
+		str += fmt.Sprintf("%04X", v)
+	}
+	return str
+}
+
+// SMSUnicode 编码短信
+func SMSUnicode(s string) []string {
+	return SplitStringWithLen(String2Unicode(s), 67*4)
+}
+
 // TrimString 去除字符串末尾的空格，\r\n
 func TrimString(s string) string {
 	r := strings.NewReplacer("\r", "", "\n", "", "\000", "")
