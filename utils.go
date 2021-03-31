@@ -25,6 +25,7 @@ import (
 	"io/ioutil"
 	"math"
 	"math/rand"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -35,7 +36,6 @@ import (
 	"time"
 	"unicode/utf16"
 
-	"github.com/golang/snappy"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 )
@@ -80,7 +80,6 @@ type CryptoWorker struct {
 	cryptoType   byte
 	cryptoHash   hash.Hash
 	cryptoLocker sync.Mutex
-	cryptoKey    []byte
 	cryptoIV     []byte
 	cryptoBlock  cipher.Block
 }
@@ -172,7 +171,7 @@ func (h *CryptoWorker) SetKey(key, iv string) error {
 		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:32])
 		h.cryptoIV = []byte(iv)[:32]
 	default:
-		return fmt.Errorf("Not yet supported")
+		return fmt.Errorf("not yet supported")
 	}
 	return nil
 }
@@ -276,8 +275,6 @@ const (
 	ArchiveZlib = iota
 	// ArchiveGZip gzip压缩/解压缩
 	ArchiveGZip
-	// ArchiveSnappy snappy压缩/解压缩
-	ArchiveSnappy
 )
 
 // ArchiveWorker 压缩管理器，避免重复New
@@ -290,8 +287,6 @@ type ArchiveWorker struct {
 	gzipWriter       *gzip.Writer
 	zlibReader       io.ReadCloser
 	zlibWriter       *zlib.Writer
-	snappyReader     *snappy.Reader
-	snappyWriter     *snappy.Writer
 	compressLocker   sync.Mutex
 	uncompressLocker sync.Mutex
 }
@@ -306,9 +301,6 @@ func GetNewArchiveWorker(archiveType byte) *ArchiveWorker {
 	case ArchiveGZip:
 		a.gzipReader, _ = gzip.NewReader(a.in)
 		a.gzipWriter = gzip.NewWriter(&a.code)
-	case ArchiveSnappy:
-		a.snappyReader = snappy.NewReader(a.in)
-		a.snappyWriter = snappy.NewWriter(&a.code)
 	default:
 		a.zlibReader, _ = zlib.NewReader(a.in)
 		a.zlibWriter = zlib.NewWriter(&a.code)
@@ -326,8 +318,6 @@ func (a *ArchiveWorker) Compress(src []byte) []byte {
 		a.gzipWriter.Reset(&a.code)
 		a.gzipWriter.Write(src)
 		a.gzipWriter.Close()
-	case ArchiveSnappy:
-		a.code.Write(snappy.Encode(nil, src))
 	default: // zlib
 		a.zlibWriter.Reset(&a.code)
 		a.zlibWriter.Write(src)
@@ -346,11 +336,6 @@ func (a *ArchiveWorker) Uncompress(src []byte) []byte {
 		b := bytes.NewReader(src)
 		r, _ := gzip.NewReader(b)
 		io.Copy(&a.decode, r)
-	case ArchiveSnappy:
-		b, err := snappy.Decode(nil, src)
-		if err == nil {
-			a.decode.Write(b)
-		}
 	default: // zlib
 		a.in.Reset(src)
 		a.zlibReader, _ = zlib.NewReader(a.in)
@@ -367,8 +352,6 @@ func CompressData(src []byte, t byte) []byte {
 		w := gzip.NewWriter(&in)
 		w.Write(src)
 		w.Close()
-	case ArchiveSnappy:
-		in.Write(snappy.Encode(nil, src))
 	default: // zlib
 		w := zlib.NewWriter(&in)
 		w.Write(src)
@@ -385,11 +368,6 @@ func UncompressData(src []byte, t byte, dstlen ...interface{}) []byte {
 		b := bytes.NewReader(src)
 		r, _ := gzip.NewReader(b)
 		io.Copy(&out, r)
-	case ArchiveSnappy:
-		b, err := snappy.Decode(nil, src)
-		if err == nil {
-			out.Write(b)
-		}
 	default: // zlib
 		b := bytes.NewReader(src)
 		r, _ := zlib.NewReader(b)
@@ -712,10 +690,7 @@ func CheckLrc(d []byte) bool {
 	lrcdata := d[len(d)-1]
 
 	c := CountLrc(&rowdata)
-	if c == lrcdata {
-		return true
-	}
-	return false
+	return c == lrcdata
 }
 
 // CountLrc count lrc data
@@ -840,8 +815,7 @@ func Time2Stampf(s, fmt string, tz float32) int64 {
 		_, t := time.Now().Zone()
 		tz = float32(t / 3600)
 	}
-	var loc *time.Location
-	loc = time.FixedZone("", int((time.Duration(tz) * time.Hour).Seconds()))
+	var loc = time.FixedZone("", int((time.Duration(tz) * time.Hour).Seconds()))
 	tm, ex := time.ParseInLocation(fmt, s, loc)
 	if ex != nil {
 		return 0
@@ -1788,8 +1762,7 @@ func SlicesUnion(slice1, slice2 []string) []string {
 	}
 
 	for _, v := range slice2 {
-		times, _ := m[v]
-		if times == 0 {
+		if times := m[v]; times == 0 {
 			slice1 = append(slice1, v)
 		}
 	}
@@ -1805,8 +1778,7 @@ func SlicesIntersect(slice1, slice2 []string) []string {
 	}
 
 	for _, v := range slice2 {
-		times, _ := m[v]
-		if times == 1 {
+		if times := m[v]; times == 1 {
 			nn = append(nn, v)
 		}
 	}
@@ -1823,8 +1795,7 @@ func SlicesDifference(slice1, slice2 []string) []string {
 	}
 
 	for _, value := range slice1 {
-		times, _ := m[value]
-		if times == 0 {
+		if times := m[value]; times == 0 {
 			nn = append(nn, value)
 		}
 	}
@@ -1839,4 +1810,26 @@ func CalcCRC32String(b []byte) string {
 // CalcCRC32 计算crc32，返回[]byte
 func CalcCRC32(b []byte, bigorder bool) []byte {
 	return HexString2Bytes(strconv.FormatUint(uint64(crc32.ChecksumIEEE(b)), 16), bigorder)
+}
+
+// GetTCPPort 获取随机可用端口
+func GetTCPPort() (int, error) {
+	address, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:0", "0.0.0.0"))
+	if err != nil {
+		return 0, err
+	}
+	var listener *net.TCPListener
+	var found = false
+	for i := 0; i < 100; i++ {
+		listener, err = net.ListenTCP("tcp", address)
+		if err != nil {
+			continue
+		}
+		found = true
+	}
+	defer listener.Close()
+	if !found {
+		return 0, fmt.Errorf("could not find a useful port")
+	}
+	return listener.Addr().(*net.TCPAddr).Port, nil
 }
