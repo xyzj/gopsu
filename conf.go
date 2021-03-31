@@ -47,7 +47,7 @@ func (c *ConfData) Reload() error {
 				remarkbuf.WriteString("\r\n")
 				continue
 			}
-			if strings.Index(line, "#") > -1 && strings.Index(line, "#") < 5 {
+			if strings.Contains(line, "#") && strings.Index(line, "#") < 5 {
 				remarkbuf.WriteString(line)
 				continue
 			} else {
@@ -91,7 +91,7 @@ func (c *ConfData) SetItem(key, value, remark string) bool {
 	// defer return false
 	key = TrimString(key)
 	value = TrimString(value)
-	if strings.HasPrefix(remark, "#") == false {
+	if !strings.HasPrefix(remark, "#") {
 		remark = fmt.Sprintf("#%s", TrimString(remark))
 	}
 	c.items.Store(key, &confItem{
@@ -118,7 +118,7 @@ func (c *ConfData) GetItem(key string) (string, error) {
 	if ok {
 		return v.(*confItem).value, nil
 	}
-	return "", fmt.Errorf("Key does not exist")
+	return "", fmt.Errorf("key does not exist")
 }
 
 // GetItemDetail 获取配置项的value
@@ -127,7 +127,7 @@ func (c *ConfData) GetItemDetail(key string) (string, string, error) {
 	if ok {
 		return v.(*confItem).value, v.(*confItem).remark, nil
 	}
-	return "", "", fmt.Errorf("Key does not exist")
+	return "", "", fmt.Errorf("key does not exist")
 }
 
 // GetKeys 获取所有配置项的key

@@ -135,8 +135,8 @@ func (l *StdLogger) writeLog(msg string, level int) {
 
 // MxLog mx log
 type MxLog struct {
-	pathNow       string
-	fileSize      int64
+	pathNow string
+	// fileSize      int64
 	expired       int64
 	fileMaxSize   int64
 	fname         string
@@ -157,10 +157,10 @@ type MxLog struct {
 	cWorker       *CryptoWorker
 }
 
-type logMessage struct {
-	msg   string
-	level int
-}
+// type logMessage struct {
+// 	msg   string
+// 	level int
+// }
 
 // SetMaxFileLife set max day log file keep
 // func (l *MxLog) SetMaxFileLife(c int64) {
@@ -345,11 +345,8 @@ func NewLogger(d, f string, logLevel, logDays int) Logger {
 				recover()
 				locker.Done()
 			}()
-			for {
-				select {
-				case s := <-mylog.chanWriteLog:
-					fmt.Fprintln(mylog.out, s)
-				}
+			for s := range mylog.chanWriteLog {
+				fmt.Fprintln(mylog.out, s)
 			}
 		}()
 		locker.Wait()

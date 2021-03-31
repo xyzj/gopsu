@@ -12,8 +12,8 @@ type XCache struct {
 	m       map[interface{}]*xCacheData
 	len     int64
 	chanSet chan *xCacheData
-	am       sync.Map
-	amIdx    int64
+	am      sync.Map
+	amIdx   int64
 }
 
 // xCacheData 可设置超时的缓存字典数据结构
@@ -108,18 +108,15 @@ RUN:
 			recover()
 			exlocker.Done()
 		}()
-		for {
-			select {
-			case <-t.C:
-				tt := time.Now().UnixNano() / 1000000
-				xc.am.Range(func(key interface{}, value interface{}) bool {
-					if value.(*xCacheData).expire <= tt {
-						xc.am.Delete(key)
-						atomic.AddInt64(&xc.amIdx, -1)
-					}
-					return true
-				})
-			}
+		for range t.C {
+			tt := time.Now().UnixNano() / 1000000
+			xc.am.Range(func(key interface{}, value interface{}) bool {
+				if value.(*xCacheData).expire <= tt {
+					xc.am.Delete(key)
+					atomic.AddInt64(&xc.amIdx, -1)
+				}
+				return true
+			})
 		}
 	}()
 	time.Sleep(time.Second)

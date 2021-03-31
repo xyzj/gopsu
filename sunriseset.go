@@ -46,8 +46,8 @@ func (p *SunrisesetParams) Calculation() bool {
 	var faultCount int32
 	var days int32
 	for i := 1; i <= 366; i++ {
+		lock.Add(1)
 		go func() {
-			lock.Add(1)
 			defer lock.Done()
 			dd := int(atomic.AddInt32(&days, 1))
 			tt := time.Date(p.Year, time.January, dd, 0, 0, 0, 0, time.Local)
@@ -399,22 +399,22 @@ func round(value float64) int {
 func GetSunriseSunset(latitude float64, longitude float64, utcOffset float64, date time.Time) (sunrise time.Time, sunset time.Time, err error) {
 	// Check latitude
 	if !checkLatitude(latitude) {
-		err = errors.New("Invalid latitude")
+		err = errors.New("invalid latitude")
 		return
 	}
 	// Check longitude
 	if !checkLongitude(longitude) {
-		err = errors.New("Invalid longitude")
+		err = errors.New("invalid longitude")
 		return
 	}
 	// Check UTC offset
 	if !checkUtcOffset(utcOffset) {
-		err = errors.New("Invalid UTC offset")
+		err = errors.New("invalid UTC offset")
 		return
 	}
 	// Check date
 	if !checkDate(date) {
-		err = errors.New("Invalid date")
+		err = errors.New("invalid date")
 		return
 	}
 

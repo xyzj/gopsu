@@ -90,8 +90,8 @@ var (
 		"ǔ": "ǚ",
 		"ù": "ǜ",
 	}
-	reFinalExceptions  = regexp.MustCompile("^(j|q|x)(ū|ú|ǔ|ù)$")
-	reFinal2Exceptions = regexp.MustCompile("^(j|q|x)u(\\d?)$")
+	reFinalExceptions  = regexp.MustCompile(`^(j|q|x)(ū|ú|ǔ|ù)$`)
+	reFinal2Exceptions = regexp.MustCompile(`^(j|q|x)u(\d?)$`)
 )
 
 // Pinyin 拼音转汉字
@@ -168,8 +168,7 @@ func (p *Pinyin) final(s string) string {
 	matches := reFinalExceptions.FindStringSubmatch(s)
 	// jū -> jǖ
 	if len(matches) == 3 && matches[1] != "" && matches[2] != "" {
-		v, _ := finalExceptionsMap[matches[2]]
-		return v
+		return finalExceptionsMap[matches[2]]
 	}
 	// ju -> jv, ju1 -> jv1
 	s = reFinal2Exceptions.ReplaceAllString(s, "${1}v$2")
@@ -201,7 +200,7 @@ func (p *Pinyin) toFixed(s string) string {
 
 	// 替换拼音中的带声调字符
 	py := rePhoneticSymbol.ReplaceAllStringFunc(s, func(m string) string {
-		symbol, _ := phoneticSymbol[m]
+		symbol := phoneticSymbol[m]
 		switch p.Style {
 		// 不包含声调
 		case Normal, FirstLetter, Finals:
