@@ -14,6 +14,7 @@ import (
 	// ms-sql driver
 	_ "github.com/denisenkom/go-mssqldb"
 	"github.com/go-sql-driver/mysql"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
 
 	// mysql driver
@@ -22,6 +23,36 @@ import (
 	"github.com/tidwall/sjson"
 	"github.com/xyzj/gopsu"
 )
+
+var (
+	codeGzip = gopsu.GetNewArchiveWorker(gopsu.ArchiveGZip)
+	json     = jsoniter.Config{}.Froze()
+)
+
+func qdMarshal(qd *QueryData) ([]byte, error) {
+	if b, err := json.Marshal(qd); err == nil {
+		return codeGzip.Compress(b), nil
+	} else {
+		return nil, err
+	}
+}
+func qdUnmarshal(b []byte) *QueryData {
+	qd := &QueryData{}
+	if err := json.UnmarshalFromString(string(codeGzip.Uncompress(b)), qd); err != nil {
+		return nil
+	}
+	return qd
+}
+
+type QueryDataRow struct {
+	Cells []string
+}
+type QueryData struct {
+	Total    int32           `json:"total,omitempty"`
+	CacheTag string          `json:"cache_tag,omitempty"`
+	Rows     []*QueryDataRow `json:"rows,omitempty"`
+	Columns  []string        `json:"columns,omitempty"`
+}
 
 // driveType 数据库驱动类型
 type driveType int
@@ -250,8 +281,7 @@ func (p *SQLPool) QueryCachePB2(cacheTag string, startRow, rowsCount int) *Query
 	}
 	query := &QueryData{CacheTag: cacheTag}
 	if src, err := ioutil.ReadFile(filepath.Join(p.CacheDir, cacheTag)); err == nil {
-		msg := &QueryData{}
-		if ex := msg.Unmarshal(src); ex == nil {
+		if msg := qdUnmarshal(src); msg != nil {
 			query.Total = msg.Total
 			startRow = startRow - 1
 			endRow := startRow + rowsCount
@@ -292,8 +322,7 @@ func (p *SQLPool) QueryCacheMultirowPage(cacheTag string, startRow, rowsCount, k
 	}
 	query := &QueryData{CacheTag: cacheTag}
 	if src, err := ioutil.ReadFile(filepath.Join(p.CacheDir, cacheTag)); err == nil {
-		msg := &QueryData{}
-		if ex := msg.Unmarshal(src); ex == nil {
+		if msg := qdUnmarshal(src); msg != nil {
 			startRow = startRow - 1
 			query.Total = msg.Total
 			endRow := startRow + rowsCount
@@ -481,15 +510,15 @@ func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (quer
 	for i := range values {
 		scanArgs[i] = &values[i]
 	}
-	query.Rows = make([]*QueryData_Row, 0)
-	queryCache.Rows = make([]*QueryData_Row, 0)
+	query.Rows = make([]*QueryDataRow, 0)
+	queryCache.Rows = make([]*QueryDataRow, 0)
 	var rowIdx = 0
 	for rows.Next() {
 		err := rows.Scan(scanArgs...)
 		if err != nil {
 			return query, err
 		}
-		row := &QueryData_Row{
+		row := &QueryDataRow{
 			Cells: make([]string, count),
 		}
 		for k, v := range values {
@@ -530,7 +559,7 @@ func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (quer
 			if err == nil {
 				ioutil.WriteFile(filepath.Join(p.CacheDir, cacheTag), b, 0664)
 			}
-		}(queryCache.Marshal())
+		}(qdMarshal(queryCache))
 	}
 	return query, nil
 }
@@ -584,8 +613,8 @@ func (p *SQLPool) QueryMultirowPage(s string, rowsCount int, keyColumeID int, pa
 	for i := range values {
 		scanArgs[i] = &values[i]
 	}
-	query.Rows = make([]*QueryData_Row, 0)
-	queryCache.Rows = make([]*QueryData_Row, 0)
+	query.Rows = make([]*QueryDataRow, 0)
+	queryCache.Rows = make([]*QueryDataRow, 0)
 	var rowIdx = 0
 	var keyItem string
 	for rows.Next() {
@@ -593,7 +622,7 @@ func (p *SQLPool) QueryMultirowPage(s string, rowsCount int, keyColumeID int, pa
 		if err != nil {
 			return query, err
 		}
-		row := &QueryData_Row{
+		row := &QueryDataRow{
 			Cells: make([]string, count),
 		}
 		for k, v := range values {
@@ -635,7 +664,7 @@ func (p *SQLPool) QueryMultirowPage(s string, rowsCount int, keyColumeID int, pa
 			if err == nil {
 				ioutil.WriteFile(filepath.Join(p.CacheDir, cacheTag), b, 0664)
 			}
-		}(queryCache.Marshal())
+		}(qdMarshal(queryCache))
 	}
 	return query, nil
 }
