@@ -93,7 +93,9 @@ var (
 	DefaultConfDir = filepath.Join(GetExecDir(), "..", "conf")
 )
 
-var json = jsoniter.Config{}.Froze()
+var (
+	json = jsoniter.Config{}.Froze()
+)
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
@@ -516,6 +518,23 @@ func (mq *Queue) Len() int64 {
 // Empty check if empty
 func (mq *Queue) Empty() bool {
 	return mq.q.Len() == 0
+}
+
+// CacheMarshal 将数据进行序列化后压缩，可做数据缓存
+func CacheMarshal(v interface{}) ([]byte, error) {
+	if b, err := json.Marshal(v); err == nil {
+		return CompressData(b, ArchiveGZip), nil
+	} else {
+		return nil, err
+	}
+}
+
+// CacheUnmarshal 将压缩的数据反序列化，参数v必须专递结构地址
+func CacheUnmarshal(b []byte, v interface{}) error {
+	if err := json.Unmarshal(UncompressData(b, ArchiveGZip), v); err != nil {
+		return err
+	}
+	return nil
 }
 
 // GetAddrFromString get addr from config string

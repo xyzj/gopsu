@@ -28,6 +28,5 @@ func GetAvailablePort() (int, error) {
 
 // 启动文件 main.go
 func main() {
-	a, _ := GetAvailablePort()
-	println(a)
+
 }
