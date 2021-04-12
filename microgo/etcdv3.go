@@ -25,16 +25,16 @@ const (
 // Etcdv3Client 微服务结构体
 type Etcdv3Client struct {
 	// etcdLog      *io.Writer       // 日志
-	etcdLogLevel int              // 日志等级
-	etcdRoot     string           // etcd注册根路经
-	etcdAddr     []string         // etcd服务地址
-	etcdClient   *clientv3.Client // 连接实例
-	svrName      string           // 服务名称
-	svrPool      sync.Map         // 线程安全服务信息字典
-	svrDetail    string           // 服务信息
-	logger       gopsu.Logger     //  日志接口
-	realIP       string           // 所在电脑ip
-	etcdKey      string
+	// etcdLogLevel int              // 日志等级
+	etcdRoot   string           // etcd注册根路经
+	etcdAddr   []string         // etcd服务地址
+	etcdClient *clientv3.Client // 连接实例
+	svrName    string           // 服务名称
+	svrPool    sync.Map         // 线程安全服务信息字典
+	svrDetail  string           // 服务信息
+	logger     gopsu.Logger     //  日志接口
+	realIP     string           // 所在电脑ip
+	etcdKey    string
 }
 
 // RegisteredServer 获取到的服务注册信息
@@ -96,7 +96,7 @@ func (m *Etcdv3Client) listServers() error {
 	// 	return nil
 	// }()
 	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
-	resp, err := m.etcdClient.Get(ctx, fmt.Sprintf("/%s", m.etcdRoot), clientv3.WithPrefix())
+	resp, err := m.etcdClient.Get(ctx, fmt.Sprintf("/%s/", m.etcdRoot), clientv3.WithPrefix())
 	cancel()
 	if err != nil {
 		return err
@@ -141,22 +141,22 @@ func (m *Etcdv3Client) addPickTimes(k string, r *registeredServer) {
 }
 
 // 服务注册
-func (m *Etcdv3Client) etcdRegister() (*clientv3.LeaseID, bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
-	lresp, err := m.etcdClient.Grant(ctx, leaseTimeout)
-	defer cancel()
-	if err != nil {
-		m.logger.Error(fmt.Sprintf("Create lease %s failed: %v", m.etcdAddr, err.Error()))
-		return nil, false
-	}
-	_, err = m.etcdClient.Put(ctx, m.etcdKey, m.svrDetail, clientv3.WithLease(lresp.ID))
-	if err != nil {
-		m.logger.Error(fmt.Sprintf("Registration to %s failed: %v", m.etcdAddr, err.Error()))
-		return nil, false
-	}
-	m.logger.System(fmt.Sprintf("Registration to %v success.", m.etcdAddr))
-	return &lresp.ID, true
-}
+// func (m *Etcdv3Client) etcdRegister() (*clientv3.LeaseID, bool) {
+// 	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
+// 	lresp, err := m.etcdClient.Grant(ctx, leaseTimeout)
+// 	defer cancel()
+// 	if err != nil {
+// 		m.logger.Error(fmt.Sprintf("Create lease %s failed: %v", m.etcdAddr, err.Error()))
+// 		return nil, false
+// 	}
+// 	_, err = m.etcdClient.Put(ctx, m.etcdKey, m.svrDetail, clientv3.WithLease(lresp.ID))
+// 	if err != nil {
+// 		m.logger.Error(fmt.Sprintf("Registration to %s failed: %v", m.etcdAddr, err.Error()))
+// 		return nil, false
+// 	}
+// 	m.logger.System(fmt.Sprintf("Registration to %v success.", m.etcdAddr))
+// 	return &lresp.ID, true
+// }
 
 // SetRoot 自定义根路径
 //
@@ -273,14 +273,12 @@ func (m *Etcdv3Client) Watcher(model ...byte) error {
 	switch mo {
 	default: // 默认采用定时主动获取
 		go func() {
-			for {
+			for range time.After(time.Second * 3) {
 				if m.etcdClient.ActiveConnection() == nil {
 					return
 				}
-				select {
-				case <-time.After(time.Second * 3):
-					m.listServers()
-				}
+
+				m.listServers()
 			}
 		}()
 	}
@@ -372,7 +370,7 @@ func (m *Etcdv3Client) Picker(svrname string, intfc ...string) (string, error) {
 		m.addPickTimes(listSvr[0][2], svr)
 		return svr.svrAddr, nil
 	}
-	return "", fmt.Errorf(`No matching server was found with the name %s`, svrname)
+	return "", fmt.Errorf(`no matching server was found with the name %s`, svrname)
 }
 
 // PickerDetail 服务选择,如果是http服务，同时返回协议头如http(s)://ip:port
@@ -398,7 +396,7 @@ func (m *Etcdv3Client) PickerDetail(svrname string, intfc ...string) (string, er
 		}
 		return svr.svrAddr, nil
 	}
-	return "", fmt.Errorf(`No matching server was found with the name %s`, svrname)
+	return "", fmt.Errorf(`no matching server was found with the name %s`, svrname)
 }
 
 // ReportDeadServer 报告无法访问的服务，从缓存中删除
