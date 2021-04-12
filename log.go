@@ -303,9 +303,9 @@ func InitNewLogger(p string) Logger {
 // 日志保存路径，日志文件名，日志级别，日志保留天数
 func NewLogger(d, f string, logLevel, logDays int) Logger {
 	switch logLevel {
-	case -1:
-		return &NilLogger{}
 	case 0:
+		return &NilLogger{}
+	case 1:
 		return &StdLogger{}
 	}
 	t := time.Now()

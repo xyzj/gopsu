@@ -86,6 +86,9 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 		goto RUN
 	}()
 	return func(c *gin.Context) {
+		if f.maxDays <= 0 {
+			return
+		}
 		// 检查是否需要切分文件
 		if f.rollingFile() {
 			gin.DefaultWriter = f.out
@@ -147,10 +150,6 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 			s += " #" + param.ErrorMessage
 		}
 		chanWriteLog <- s
-		// go func() {
-		// 	defer func() { recover() }()
-		// 	fmt.Fprintln(f.out, s)
-		// }()
 	}
 }
 
