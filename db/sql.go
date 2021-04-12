@@ -45,7 +45,7 @@ func qdUnmarshal(b []byte) *QueryData {
 }
 
 type QueryDataRow struct {
-	Cells []string
+	Cells []string `json:"cells,omitempty"`
 }
 type QueryData struct {
 	Total    int32           `json:"total,omitempty"`
