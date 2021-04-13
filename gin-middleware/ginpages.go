@@ -110,13 +110,11 @@ func PageRuntime(c *gin.Context) {
 			}
 		}
 	}
-	runtimeInfo["time"] = time.Now().Format("2006-01-02 15:04:05 Mon")
+	runtimeInfo["timer"] = time.Now().Format("2006-01-02 15:04:05 Mon")
 	runtimeInfo["key"] = "服务运行信息"
 	switch c.Request.Method {
 	case "GET":
 		c.Header("Content-Type", "text/html")
-		// c.Status(http.StatusOK)
-		// render.WriteString(c.Writer, templateRuntime, nil)
 		t, _ := template.New("runtime").Parse(templateRuntime)
 		h := render.HTML{
 			Name:     "runtime",
