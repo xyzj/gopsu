@@ -66,7 +66,6 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 	// 设置io
 	gin.DefaultWriter = f.out
 	gin.DefaultErrorWriter = f.out
-	println("-------------------------")
 	// 创建写入线程
 	var chanWriteLog = make(chan string, 100)
 	go func() {
@@ -78,30 +77,39 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 				recover()
 				locker.Done()
 			}()
-			for s := range chanWriteLog {
-				fmt.Fprintln(f.out, s)
+			tc := time.NewTicker(time.Minute * 10)
+			for {
+				select {
+				case s := <-chanWriteLog:
+					fmt.Fprintln(f.out, s)
+				case <-tc.C:
+					// 检查是否需要切分文件
+					if f.rollingFile() {
+						gin.DefaultWriter = f.out
+						gin.DefaultErrorWriter = f.out
+					}
+				}
 			}
 		}()
 		locker.Wait()
 		goto RUN
 	}()
 	return func(c *gin.Context) {
-		// if f.maxDays <= 0 {
-		// 	println("go return")
-		// 	return
-		// }
-		// 检查是否需要切分文件
-		if f.rollingFile() {
-			gin.DefaultWriter = f.out
-			gin.DefaultErrorWriter = f.out
+		if f.maxDays <= 0 {
+			// println("go return")
+			return
 		}
+		// 检查是否需要切分文件
+		// if f.rollingFile() {
+		// 	gin.DefaultWriter = f.out
+		// 	gin.DefaultErrorWriter = f.out
+		// }
 		start := time.Now()
 
 		token := c.GetHeader("User-Token")
 		if len(token) == 36 {
 			token = md5worker.Hash([]byte(token))
 		}
-
 		c.Next()
 
 		path := c.Request.RequestURI

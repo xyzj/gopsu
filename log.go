@@ -199,6 +199,7 @@ func (l *MxLog) WriteLog(msg string, level int) {
 }
 
 func (l *MxLog) writeLog(msg string, level int, lock ...bool) {
+	// 文件名不同调整writer
 	if l.fname != "" && !IsExist(l.pathNow) {
 		l.fno.Close()
 		// 打开文件
@@ -214,7 +215,9 @@ func (l *MxLog) writeLog(msg string, level int, lock ...bool) {
 			}
 		}
 	}
-	l.rollingFile()
+	// 更新文件
+	// l.rollingFile()
+	// 写日志
 	if level >= l.logLevel {
 		s := fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), level, msg)
 		if level >= 40 && l.logLevel >= 20 {
@@ -345,8 +348,14 @@ func NewLogger(d, f string, logLevel, logDays int) Logger {
 				recover()
 				locker.Done()
 			}()
-			for s := range mylog.chanWriteLog {
-				fmt.Fprintln(mylog.out, s)
+			tc := time.NewTicker(time.Minute * 10)
+			for {
+				select {
+				case s := <-mylog.chanWriteLog:
+					fmt.Fprintln(mylog.out, s)
+				case <-tc.C:
+					mylog.rollingFile()
+				}
 			}
 		}()
 		locker.Wait()
