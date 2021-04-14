@@ -54,6 +54,9 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 		pathOld:  filepath.Join(logdir, fmt.Sprintf("%s.current.log", filename)),
 		enablegz: true,
 	}
+	if f.maxDays <= 1 {
+		f.fname = ""
+	}
 	// 搜索最后一个文件名
 	for i := byte(255); i > 0; i-- {
 		if gopsu.IsExist(filepath.Join(f.logDir, fmt.Sprintf("%s.%v.%d.log", filename, t.Format(gopsu.FileTimeFormat), i))) {
@@ -96,7 +99,6 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 	}()
 	return func(c *gin.Context) {
 		if f.maxDays <= 0 {
-			// println("go return")
 			return
 		}
 		// 检查是否需要切分文件
