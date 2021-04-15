@@ -22,6 +22,7 @@ import (
 	"github.com/unrolled/secure"
 	"github.com/xyzj/gopsu"
 	db "github.com/xyzj/gopsu/db"
+	"golang.org/x/time/rate"
 )
 
 // NewGinEngine 返回一个新的gin路由
@@ -397,6 +398,31 @@ func TLSRedirect() gin.HandlerFunc {
 			return
 		}
 
+		c.Next()
+	}
+}
+
+// RateLimit 限流器，基于官方库
+// 当前设定最小单位毫秒
+func RateLimit(r, b int) gin.HandlerFunc {
+	limiter := rate.NewLimiter(rate.Every(time.Millisecond*time.Duration(1000/r)), b)
+	return func(c *gin.Context) {
+		if !limiter.Allow() {
+			c.AbortWithStatus(http.StatusTooManyRequests)
+			return
+		}
+		c.Next()
+	}
+}
+
+// RateLimitX 限流器，基于channel，精度不够，不推荐
+func RateLimitX(r, b int) gin.HandlerFunc {
+	limiter := gopsu.NewLimiter(r, b)
+	return func(c *gin.Context) {
+		if !limiter.Allow() {
+			c.AbortWithStatus(http.StatusTooManyRequests)
+			return
+		}
 		c.Next()
 	}
 }
