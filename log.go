@@ -199,22 +199,6 @@ func (l *MxLog) WriteLog(msg string, level int) {
 }
 
 func (l *MxLog) writeLog(msg string, level int, lock ...bool) {
-	// 文件名不同调整writer
-	if l.fname != "" && !IsExist(l.pathNow) {
-		l.fno.Close()
-		// 打开文件
-		l.fno, l.err = os.OpenFile(l.pathNow, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0664)
-		if l.err != nil {
-			ioutil.WriteFile("logerr.log", []byte("Log file reopen error: "+l.err.Error()), 0664)
-			l.out = io.MultiWriter(os.Stdout)
-		} else {
-			if l.logLevel <= 10 {
-				l.out = io.MultiWriter(l.fno, os.Stdout)
-			} else {
-				l.out = io.MultiWriter(l.fno)
-			}
-		}
-	}
 	// 更新文件
 	// l.rollingFile()
 	// 写日志
