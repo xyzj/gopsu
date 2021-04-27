@@ -61,7 +61,6 @@ func NewGinEngine(logDir, logName string, logDays int, logLevel ...int) *gin.Eng
 	// r.POST("/", PageDefault)
 	r.GET("/health", PageDefault)
 	r.GET("/clearlog", CheckRequired("name"), Clearlog)
-	r.GET("/runtime", PageRuntime)
 	r.Static("/static", gopsu.JoinPathFromHere("static"))
 	return r
 }
@@ -403,11 +402,39 @@ func TLSRedirect() gin.HandlerFunc {
 }
 
 // RateLimit 限流器，基于官方库
-// 当前设定最小单位毫秒
+//  r: 每秒可访问次数,1-1000
+//  b: 缓冲区大小
 func RateLimit(r, b int) gin.HandlerFunc {
-	limiter := rate.NewLimiter(rate.Every(time.Millisecond*time.Duration(1000/r)), b)
+	if r < 1 {
+		r = 1
+	}
+	if r > 1000 {
+		r = 1000
+	}
+	var limiter = rate.NewLimiter(rate.Every(time.Millisecond*time.Duration(1000/r)), b)
 	return func(c *gin.Context) {
 		if !limiter.Allow() {
+			c.AbortWithStatus(http.StatusTooManyRequests)
+			return
+		}
+		c.Next()
+	}
+}
+
+// RateLimitWithIP ip限流器，基于官方库
+//  r: 每秒可访问次数,1-1000
+//  b: 缓冲区大小
+func RateLimitWithIP(r, b int) gin.HandlerFunc {
+	if r < 1 {
+		r = 1
+	}
+	if r > 1000 {
+		r = 1000
+	}
+	var cliMap sync.Map
+	return func(c *gin.Context) {
+		limiter, _ := cliMap.LoadOrStore(c.ClientIP(), rate.NewLimiter(rate.Every(time.Millisecond*time.Duration(1000/r)), b))
+		if !limiter.(*rate.Limiter).Allow() {
 			c.AbortWithStatus(http.StatusTooManyRequests)
 			return
 		}

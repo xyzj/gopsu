@@ -36,6 +36,8 @@ import (
 	"time"
 	"unicode/utf16"
 
+	"github.com/tidwall/sjson"
+
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 )
@@ -1039,7 +1041,14 @@ func SwapCase(s string) string {
 // 	pl: platform info
 // 	a: auth name
 func VersionInfo(p, v, gv, bd, pl, a string) string {
-	return fmt.Sprintf("\n%s\r\nVersion:\t%s\r\nGo version:\t%s\r\nBuild date:\t%s\r\nBuild OS:\t%s\r\nCode by:\t%s\r\nStart with:\t%s", p, v, gv, pl, bd, a, strings.Join(os.Args[1:], " "))
+	js, _ := sjson.Set("", "name", p)
+	js, _ = sjson.Set(js, "version", v)
+	js, _ = sjson.Set(js, "go_version", gv)
+	js, _ = sjson.Set(js, "build_date", bd)
+	js, _ = sjson.Set(js, "build_os", pl)
+	js, _ = sjson.Set(js, "code_by", a)
+	js, _ = sjson.Set(js, "start_with", strings.Join(os.Args[1:], " "))
+	return js
 }
 
 // WriteVersionInfo write version info to .ver file

@@ -2,18 +2,14 @@ package ginmiddleware
 
 import (
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/render"
 	"github.com/xyzj/gopsu"
 )
 
@@ -34,23 +30,14 @@ var (
 </head>
 
 <body>
-    <h3>服务器时间：</h3><a>{{.timer}}</a>
+    <h3>服务器系统时间：</h3><a>{{.timer}}</a>
+    <h3>服务启动时间：</h3><a>{{.startat}}</a>
     <h3>{{.key}}：</h3><a>{{range $idx, $elem := .value}}
-        {{$elem}} <br>
-        {{end}}</a>
+	{{$elem}}<br>
+	{{end}}</a>
 </body>
 </html>`
 )
-
-var (
-	runtimeInfo map[string]interface{}
-)
-
-func init() {
-	runtimeInfo = make(map[string]interface{})
-	runtimeInfo["timer"] = time.Now().Format("2006-01-02 15:04:05 Mon")
-	runtimeInfo["value"] = []string{}
-}
 
 // GetTemplateRuntime 返回runtime模板
 func GetTemplateRuntime() string {
@@ -99,35 +86,6 @@ func PageDefault(c *gin.Context) {
 	}
 }
 
-// PageRuntime 启动信息显示
-func PageRuntime(c *gin.Context) {
-	if len(runtimeInfo["value"].([]string)) == 0 {
-		_, fn, _, ok := runtime.Caller(0)
-		if ok {
-			b, err := ioutil.ReadFile(path.Base(fn) + ".ver")
-			if err == nil {
-				runtimeInfo["value"] = strings.Split(string(b), "\n")
-			}
-		}
-	}
-	runtimeInfo["timer"] = time.Now().Format("2006-01-02 15:04:05 Mon")
-	runtimeInfo["key"] = "服务运行信息"
-	switch c.Request.Method {
-	case "GET":
-		c.Header("Content-Type", "text/html")
-		t, _ := template.New("runtime").Parse(templateRuntime)
-		h := render.HTML{
-			Name:     "runtime",
-			Data:     runtimeInfo,
-			Template: t,
-		}
-		h.WriteContentType(c.Writer)
-		h.Render(c.Writer)
-	case "POST":
-		c.PureJSON(200, runtimeInfo)
-	}
-}
-
 // Clearlog 日志清理
 func Clearlog(c *gin.Context) {
 	if c.Param("pwd") != "xyissogood" {
@@ -159,9 +117,4 @@ func Clearlog(c *gin.Context) {
 		}
 	}
 	c.PureJSON(200, c.Keys)
-}
-
-// SetVersionInfo 设置服务版本信息
-func SetVersionInfo(ver string) {
-	runtimeInfo["ver"] = strings.Split(ver, "\n")[1:]
 }
