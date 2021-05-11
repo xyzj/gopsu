@@ -96,7 +96,8 @@ var (
 )
 
 var (
-	json = jsoniter.Config{}.Froze()
+	json         = jsoniter.Config{}.Froze()
+	trimReplacer = strings.NewReplacer("\r", "", "\n", "", "\000", "", "\t", " ")
 )
 
 func init() {
@@ -1442,8 +1443,7 @@ func SMSUnicode(s string) []string {
 
 // TrimString 去除字符串末尾的空格，\r\n
 func TrimString(s string) string {
-	r := strings.NewReplacer("\r", "", "\n", "", "\000", "", "\t", " ")
-	return r.Replace(strings.TrimSpace(s))
+	return trimReplacer.Replace(strings.TrimSpace(s))
 }
 
 // ZIPFiles 压缩多个文件
