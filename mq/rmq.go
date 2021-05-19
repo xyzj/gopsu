@@ -36,7 +36,6 @@ type Session struct {
 	debug        bool
 	connStr      string
 	addr         string
-	queue        amqp.Queue
 	routingKeys  sync.Map    // 过滤器
 	queueName    string      // 队列名
 	queueDurable bool        // 队列是否持久化
@@ -46,7 +45,7 @@ type Session struct {
 }
 
 // NewConsumer 初始化消费者实例
-// exchangename,connstr,queuename,logger,durable,autodel,debug
+// exchangename,connstr,queuename,durable,autodel,debug
 func NewConsumer(name, connstr, queuename string, durable, autodel, debug bool) *Session {
 	sessn := &Session{
 		sessnType:    "consumer",
@@ -159,6 +158,8 @@ func (sessn *Session) connect() bool {
 	if sessn.IsReady() {
 		return true
 	}
+	var exAutoDel = false
+CONN:
 	// sessn.logger.Warning("Attempting to connect to " + sessn.addr)
 	var err error
 	if sessn.tlsConf == nil {
@@ -180,17 +181,21 @@ func (sessn *Session) connect() bool {
 		sessn.name, // name
 		"topic",    // type
 		true,       // durable
-		true,       // auto-deleted
+		exAutoDel,  // auto-deleted
 		false,      // internal
 		false,      // no-wait
 		nil,        // arguments
 	)
-	if err != nil {
-		sessn.logger.Error("Failed declare exchange: " + err.Error())
-		return false
+	if err == nil {
+		sessn.logger.System("Success connect to " + sessn.addr)
+		return true
 	}
-	sessn.logger.System("Success connect to " + sessn.addr)
-	return true
+	if strings.Contains(err.Error(), "auto_delete") && !exAutoDel {
+		exAutoDel = true
+		goto CONN
+	}
+	sessn.logger.Error("Failed declare exchange: " + err.Error())
+	return false
 }
 
 // IsReady 是否就绪
@@ -300,7 +305,7 @@ func (sessn *Session) BindKey(k ...string) error {
 		}
 		return nil
 	}
-	return fmt.Errorf("Failed bind key, channel not ready")
+	return fmt.Errorf("failed bind key, channel not ready")
 }
 
 // ClearQueue 清空队列
@@ -333,7 +338,7 @@ func (sessn *Session) UnBindKey(k ...string) error {
 		}
 		return nil
 	}
-	return fmt.Errorf("Failed Unbind key, channel not ready")
+	return fmt.Errorf("failed Unbind key, channel not ready")
 }
 
 func (sessn *Session) initProducer() {
