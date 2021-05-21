@@ -130,6 +130,16 @@ func (m *Etcdv3Client) listServers() error {
 	return nil
 }
 
+// AllServices 返回所有注册服务的信息
+func (m *Etcdv3Client) AllServices() string {
+	var s string
+	m.svrPool.Range(func(key interface{}, value interface{}) bool {
+		s, _ = sjson.Set(s, key.(string), value.(*registeredServer).svrInterface+"://"+value.(*registeredServer).svrAddr)
+		return true
+	})
+	return s
+}
+
 // addPickTimes 增加计数器
 func (m *Etcdv3Client) addPickTimes(k string, r *registeredServer) {
 	if r.svrPickTimes >= 0xffffff { // 防止溢出

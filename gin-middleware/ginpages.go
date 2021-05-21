@@ -19,30 +19,7 @@ var (
 	template403        = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>403 Forbidden Console</title><meta name="viewport"content="width=device-width, initial-scale=1"><style>@import url("https://fonts.googleapis.com/css?family=Share+Tech+Mono|Montserrat:700");*{margin:0;padding:0;border:0;font-size:100%;font:inherit;vertical-align:baseline;box-sizing:border-box;color:inherit}body{background-image:linear-gradient(120deg,#4f0088 0%,#000000 100%);height:100vh}h1{font-size:45vw;text-align:center;position:fixed;width:100vw;z-index:1;color:#ffffff26;text-shadow:0 0 50px rgba(0,0,0,0.07);top:50%;-webkit-transform:translateY(-50%);transform:translateY(-50%);font-family:"Montserrat",monospace}div{background:rgba(0,0,0,0);width:70vw;position:relative;top:50%;-webkit-transform:translateY(-50%);transform:translateY(-50%);margin:0 auto;padding:30px 30px 10px;box-shadow:0 0 150px-20px rgba(0,0,0,0.5);z-index:3}P{font-family:"Share Tech Mono",monospace;color:#f5f5f5;margin:0 0 20px;font-size:17px;line-height:1.2}span{color:#f0c674}i{color:#8abeb7}div a{text-decoration:none}b{color:#81a2be}a.avatar{position:fixed;bottom:15px;right:-100px;-webkit-animation:slide 0.5s 4.5s forwards;animation:slide 0.5s 4.5s forwards;display:block;z-index:4}a.avatar img{border-radius:100%;width:44px;border:2px solid white}@-webkit-keyframes slide{from{right:-100px;-webkit-transform:rotate(360deg);transform:rotate(360deg);opacity:0}to{right:15px;-webkit-transform:rotate(0deg);transform:rotate(0deg);opacity:1}}@keyframes slide{from{right:-100px;-webkit-transform:rotate(360deg);transform:rotate(360deg);opacity:0}to{right:15px;-webkit-transform:rotate(0deg);transform:rotate(0deg);opacity:1}}</style></head><body><!--partial:index.partial.html--><h1>403</h1><div><p>><span>ERROR CODE</span>:"<i>HTTP 403 Forbidden</i>"</p><p>><span>ERROR DESCRIPTION</span>:"<i>Access Denied. You Do Not Have The Permission To Access Here On This Server</i>"</p><p>><span>ERROR POSSIBLY CAUSED BY</span>:[<b>execute access forbidden,read access forbidden,write access forbidden,ssl required,ssl 128 required,ip address rejected,client certificate required,site access denied,too many users,invalid configuration,password change,mapper denied access,client certificate revoked,directory listing denied,client access licenses exceeded,client certificate is untrusted or invalid,client certificate has expired or is not yet valid,passport logon failed,source access denied,infinite depth is denied,too many requests from the same client ip</b>...]</p><p>><span>SOME PAGES ON THIS SERVER THAT YOU DO HAVE PERMISSION TO ACCESS</span>:[<a href="/">Home Page</a>]</p><p>><span>HAVE A NICE DAY SIR:-)</span></p></div><!--partial--><script>var str=document.getElementsByTagName('div')[0].innerHTML.toString();var i=0;document.getElementsByTagName('div')[0].innerHTML="";setTimeout(function(){var se=setInterval(function(){i++;document.getElementsByTagName('div')[0].innerHTML=str.slice(0,i)+"|";if(i==str.length){clearInterval(se);document.getElementsByTagName('div')[0].innerHTML=str}},10)},0);</script></body></html>`
 	template404        = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>404</title><style>@import url(https://fonts.googleapis.com/css?family=Exo+2:200i);:root{font-size:10px;--neon-text-color:#f40;--neon-border-color:#08f}body{display:flex;margin:0;padding:0;min-height:100vh;border:0;background:#000;font-size:100%;font-family:'Exo 2',sans-serif;line-height:1;justify-content:center;align-items:center}h1{padding:4rem 6rem 5.5rem;border:.4rem solid #fff;border-radius:2rem;color:#fff;text-transform:uppercase;font-weight:200;font-style:italic;font-size:13rem;animation:flicker 1s infinite alternate}h1::-moz-selection{background-color:var(--neon-border-color);color:var(--neon-text-color)}h1::selection{background-color:var(--neon-border-color);color:var(--neon-text-color)}h1:focus{outline:0}.flicker-text-fast{animation:flicker-text 1.5s infinite alternate}.flicker-text-slow{animation:flicker-text 4.4s infinite alternate}@keyframes flicker{0%{box-shadow:0 0 .5rem #fff,inset 0 0 .5rem #fff,0 0 2rem var(--neon-border-color),inset 0 0 2rem var(--neon-border-color),0 0 4rem var(--neon-border-color),inset 0 0 4rem var(--neon-border-color);text-shadow:-.2rem -.2rem 1rem #fff,.2rem .2rem 1rem #fff,0 0 2rem var(--neon-text-color),0 0 4rem var(--neon-text-color),0 0 6rem var(--neon-text-color),0 0 8rem var(--neon-text-color),0 0 10rem var(--neon-text-color)}100%{box-shadow:0 0 .5rem #fff,inset 0 0 .5rem #fff,0 0 2rem var(--neon-border-color),inset 0 0 2rem var(--neon-border-color),0 0 4rem var(--neon-border-color),inset 0 0 4rem var(--neon-border-color);text-shadow:-.2rem -.2rem 1rem #fff,.2rem .2rem 1rem #fff,0 0 2rem var(--neon-text-color),0 0 4rem var(--neon-text-color),0 0 6rem var(--neon-text-color),0 0 8rem var(--neon-text-color),0 0 10rem var(--neon-text-color)}}@keyframes flicker-text{0%,100%,19%,21%,23%,25%,54%,56%{box-shadow:none;text-shadow:-.2rem -.2rem 1rem #fff,.2rem .2rem 1rem #fff,0 0 2rem var(--neon-text-color),0 0 4rem var(--neon-text-color),0 0 6rem var(--neon-text-color),0 0 8rem var(--neon-text-color),0 0 10rem var(--neon-text-color)}20%,24%,55%{box-shadow:none;text-shadow:none}}</style></head><body><h1 contenteditable spellcheck="false"><span class="flicker-text-slow">40</span><span class="flicker-text-fast">4</span></h1></body></html>`
 	templateHelloWorld = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Aloha</title><style>@import url(https://fonts.googleapis.com/css?family=Montserrat:700);body{margin:0;width:100%;height:100vh;overflow:hidden;background:hsla(0,5%,5%,1);background-repeat:no-repeat;background-attachment:fixed;background-image:-webkit-gradient(linear,left bottom,right top,from(hsla(0,5%,15%,0.5)),to(hsla(0,5%,5%,1)));background-image:linear-gradient(to right top,hsla(0,5%,15%,0.5),hsla(0,5%,5%,1))}svg{width:100%}</style></head><body><svg width="100%" height="100%" viewBox="30 -50 600 500" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1"><path id="path"><animate attributeName="d" from="m0,110 h0" to="m0,110 h1100" dur="7s" begin="0.5s" repeatCount="indefinite"/></path><text font-size="30" font-family="Montserrat" fill='hsla(36, 95%, 85%, 1)'><textPath xlink:href="#path"> 𝓣𝓱𝓲𝓼 𝓲𝓼 𝓽𝓱𝓮 𝔀𝓪𝔂 … </textPath></text></svg></body></html>`
-	templateRuntime    = `<html lang="zh-cn">
-<head>
-    <meta content="text/html; charset=utf-8" http-equiv="content-type" />
-    <!-- <script language="JavaScript">
-			function myrefresh(){window.location.reload()}
-	    	setTimeout('myrefresh()',180000); //指定180s刷新一次
-	    </script> -->
-    <style type="text/css">a{color:#4183C4;font-size:16px;}h1,h2,h3,h4,h5,h6{margin:20px 0 10px;padding:0;font-weight:bold;-webkit-font-smoothing:antialiased;cursor:text;position:relative;}h1{font-size:28px;color:black;}h2{font-size:24px;border-bottom:1px solid #cccccc;color:black;}h3{font-size:18px;}h4{font-size:16px;}h5{font-size:14px;}h6{color:#777777;font-size:14px;}table{padding:0;}table tr{border-top:1px solid #cccccc;background-color:white;margin:0;padding:0;}table tr:nth-child(2n){background-color:#f8f8f8;}table tr th{font-weight:bold;border:1px solid #cccccc;text-align:center;margin:0;padding:6px 13px;}table tr td{border:1px solid #cccccc;text-align:center;margin:0;padding:6px 13px;}table tr th:first-child,table tr td:first-child{margin-top:0;}table tr th:last-child,table tr td:last-child{margin-bottom:0;}</style>
-</head>
-
-<body>
-    <h3>服务器系统时间：</h3><a>{{.timer}}</a>
-    <h3>服务启动时间：</h3><a>{{.startat}}</a>
-    <h3>{{.key}}：</h3><a>{{range $idx, $elem := .value}}
-	{{$elem}}<br>
-	{{end}}</a>
-</body>
-</html>`
 )
-
-// GetTemplateRuntime 返回runtime模板
-func GetTemplateRuntime() string {
-	return templateRuntime
-}
 
 // Page403 Page403
 func Page403(c *gin.Context) {
@@ -57,12 +34,12 @@ func Page404(c *gin.Context) {
 		c.String(http.StatusNotFound, template404)
 		return
 	}
-	c.String(http.StatusNotFound, "nothing here.")
+	c.String(http.StatusNotFound, "nothing here")
 }
 
 // Page405 Page405
 func Page405(c *gin.Context) {
-	c.String(http.StatusMethodNotAllowed, "method not allowed")
+	c.String(http.StatusMethodNotAllowed, c.Request.Method+" is not allowed")
 }
 
 // Page500 Page500
