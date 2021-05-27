@@ -35,6 +35,7 @@ type ginLogger struct {
 	out       io.Writer    // io写入
 	err       error        // 错误信息
 	enablegz  bool         // 是否允许gzip压缩旧日志文件
+	skipPath  []string     // 不记录日志的路由
 }
 
 // LoggerWithRolling 滚动日志
@@ -42,6 +43,9 @@ type ginLogger struct {
 // filename：日志文件名。
 // maxdays：日志文件最大保存天数。
 func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
+	return LoggerWithRollingSkip(logdir, filename, maxdays, []string{"/static"})
+}
+func LoggerWithRollingSkip(logdir, filename string, maxdays int, skippath []string) gin.HandlerFunc {
 	t := time.Now()
 	// 初始化
 	f := &ginLogger{
@@ -53,6 +57,7 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 		fileDay:  t.Day(),
 		pathOld:  filepath.Join(logdir, fmt.Sprintf("%s.current.log", filename)),
 		enablegz: true,
+		skipPath: skippath,
 	}
 	if f.maxDays <= 1 {
 		f.fname = ""
@@ -63,7 +68,6 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 			f.fileIndex = i
 		}
 	}
-	f.pathNow = filepath.Join(logdir, fmt.Sprintf("%s.%v.%d.log", filename, t.Format(gopsu.FileTimeFormat), f.fileIndex))
 	// 创建新日志
 	f.newFile()
 	// 设置io
@@ -72,15 +76,13 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 	// 创建写入线程
 	var chanWriteLog = make(chan string, 100)
 	go func() {
-		var locker sync.WaitGroup
-		locker.Add(1)
+		tc := time.NewTicker(time.Minute * 10)
 	RUN:
-		go func() {
+		func() {
 			defer func() {
 				recover()
-				locker.Done()
 			}()
-			tc := time.NewTicker(time.Minute * 10)
+			time.Sleep(time.Second * 3)
 			for {
 				select {
 				case s := <-chanWriteLog:
@@ -94,20 +96,18 @@ func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
 				}
 			}
 		}()
-		locker.Wait()
 		goto RUN
 	}()
 	return func(c *gin.Context) {
 		if f.maxDays <= 0 {
 			return
 		}
-		// 检查是否需要切分文件
-		// if f.rollingFile() {
-		// 	gin.DefaultWriter = f.out
-		// 	gin.DefaultErrorWriter = f.out
-		// }
+		for _, v := range f.skipPath {
+			if strings.HasPrefix(c.Request.RequestURI, v) {
+				return
+			}
+		}
 		start := time.Now()
-
 		token := c.GetHeader("User-Token")
 		if len(token) == 36 {
 			token = md5worker.Hash([]byte(token))
@@ -186,6 +186,9 @@ func (f *ginLogger) rolledWithFileSize() bool {
 
 // 按日期切分文件
 func (f *ginLogger) rollingFile() bool {
+	if f.fname == "" {
+		return false
+	}
 	f.flock.Lock()
 	defer f.flock.Unlock()
 
@@ -206,7 +209,7 @@ func (f *ginLogger) rollingFile() bool {
 
 // 压缩旧日志
 func (f *ginLogger) zipFile(s string) {
-	if !f.enablegz || len(s) == 0 || !gopsu.IsExist(filepath.Join(f.logDir, s)) {
+	if f.fname == "" || !f.enablegz || len(s) == 0 || !gopsu.IsExist(filepath.Join(f.logDir, s)) {
 		return
 	}
 	go func(s string) {
@@ -221,7 +224,7 @@ func (f *ginLogger) zipFile(s string) {
 // 清理旧日志
 func (f *ginLogger) cleanFile() {
 	// 若未设置超时，则不清理
-	if f.expired == 0 {
+	if f.fname == "" || f.expired == 0 {
 		return
 	}
 	go func() {
@@ -248,6 +251,10 @@ func (f *ginLogger) cleanFile() {
 
 // 创建新日志文件
 func (f *ginLogger) newFile() {
+	if f.fname == "" {
+		f.out = io.MultiWriter(os.Stdout)
+		return
+	}
 	t := time.Now()
 	if f.fileDay != t.Day() {
 		f.fileDay = t.Day()
@@ -260,25 +267,22 @@ func (f *ginLogger) newFile() {
 	f.nameNow = fmt.Sprintf("%s.%v.%d.log", f.fname, t.Format(gopsu.FileTimeFormat), f.fileIndex)
 	f.pathNow = filepath.Join(f.logDir, f.nameNow)
 	f.pathOld = f.pathNow
-	if f.fname == "" {
+
+	// 打开文件
+	f.fno, f.err = os.OpenFile(f.pathOld, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0664)
+	if f.err != nil {
+		ioutil.WriteFile("ginlogerr.log", []byte("Log file open error: "+f.err.Error()), 0664)
 		f.out = io.MultiWriter(os.Stdout)
 	} else {
-		// 打开文件
-		f.fno, f.err = os.OpenFile(f.pathOld, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0664)
-		if f.err != nil {
-			ioutil.WriteFile("ginlogerr.log", []byte("Log file open error: "+f.err.Error()), 0664)
-			f.out = io.MultiWriter(os.Stdout)
+		if gin.Mode() == "debug" {
+			f.out = io.MultiWriter(f.fno, os.Stdout)
 		} else {
-			if gin.Mode() == "debug" {
-				f.out = io.MultiWriter(f.fno, os.Stdout)
-			} else {
-				f.out = io.MultiWriter(f.fno)
-			}
+			f.out = io.MultiWriter(f.fno)
 		}
-		// 判断是否压缩旧日志
-		if f.enablegz {
-			f.zipFile(f.nameOld)
-		}
+	}
+	// 判断是否压缩旧日志
+	if f.enablegz {
+		f.zipFile(f.nameOld)
 	}
 	f.nameOld = f.nameNow
 }
