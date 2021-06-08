@@ -27,6 +27,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -697,7 +698,7 @@ func String2Int64(s string, t int) int64 {
 
 // String2Float64 convert string 2 float64
 func String2Float64(s string) float64 {
-	x, _ := strconv.ParseFloat(s, 0)
+	x, _ := strconv.ParseFloat(s, 64)
 	return x
 }
 
@@ -787,6 +788,15 @@ func GetExecDir() string {
 		execdir, _ = filepath.Abs(".")
 	}
 	return execdir
+}
+
+// GetExecName 获取可执行文件的名称
+func GetExecName() string {
+	exe, _ := os.Executable()
+	if exe == "" {
+		return ""
+	}
+	return path.Base(exe)
 }
 
 //SplitDateTime SplitDateTime
@@ -1632,7 +1642,7 @@ func BcdBytes2Float64(b []byte, decimal int, unsigned bool) float64 {
 		s = fmt.Sprintf("%02x", v) + s
 	}
 	s = s[:len(s)-decimal] + "." + s[len(s)-decimal:]
-	f, _ := strconv.ParseFloat(s, 16)
+	f, _ := strconv.ParseFloat(s, 64)
 	if negative {
 		f = f * -1
 	}
@@ -1681,7 +1691,7 @@ func BcdBytes2Float64BigOrder(b []byte, decimal int, unsigned bool) float64 {
 		s += fmt.Sprintf("%02x", v)
 	}
 	s = s[:len(s)-decimal] + "." + s[len(s)-decimal:]
-	f, _ := strconv.ParseFloat(s, 16)
+	f, _ := strconv.ParseFloat(s, 64)
 	if negative {
 		f = f * -1
 	}
