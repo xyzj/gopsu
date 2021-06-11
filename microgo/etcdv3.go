@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 
 	"github.com/tidwall/sjson"
@@ -88,19 +89,23 @@ func NewEtcdv3ClientTLS(etcdaddr []string, certfile, keyfile, cafile, username, 
 
 // listServers 查询根路径下所有服务
 func (m *Etcdv3Client) listServers() error {
-	// defer func() error {
-	// 	if err := recover(); err != nil {
-	// 		m.logger.Error("etcd list error: " + errors.WithStack(err.(error)).Error())
-	// 		return err.(error)
-	// 	}
-	// 	return nil
-	// }()
+	defer func() error {
+		if err := recover(); err != nil {
+			m.logger.Error("etcd list error: " + errors.WithStack(err.(error)).Error())
+			return err.(error)
+		}
+		return nil
+	}()
 	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
 	resp, err := m.etcdClient.Get(ctx, fmt.Sprintf("/%s/", m.etcdRoot), clientv3.WithPrefix())
 	cancel()
 	if err != nil {
 		return err
 	}
+	m.svrPool.Range(func(key interface{}, value interface{}) bool {
+		m.svrPool.Delete(key)
+		return true
+	})
 	for _, v := range resp.Kvs {
 		va := gjson.ParseBytes(v.Value)
 		if !va.Exists() {
@@ -241,19 +246,23 @@ RUN:
 		m.logger.Error(fmt.Sprintf("Keep lease error: %s", err.Error()))
 		return
 	}
-	t := time.NewTicker(time.Second * 3)
-	for {
-		select {
-		case keepResp := <-keepRespChan:
-			if keepResp == nil {
-				m.logger.Error("Lease failure, try to reboot.")
-				time.Sleep(time.Duration(rand.Intn(2000)+1500) * time.Millisecond)
-				goto RUN
+	func() {
+		defer func() { recover() }()
+		t := time.NewTicker(time.Second * 3)
+		for {
+			select {
+			case keepResp := <-keepRespChan:
+				if keepResp == nil {
+					m.logger.Error("Lease failure, try to reboot.")
+					return
+				}
+			case <-t.C:
+				m.listServers()
 			}
-		case <-t.C:
-			m.listServers()
 		}
-	}
+	}()
+	time.Sleep(time.Duration(rand.Intn(2000)+1500) * time.Millisecond)
+	goto RUN
 
 	// leaseid, _ := m.etcdRegister()
 	// for {
