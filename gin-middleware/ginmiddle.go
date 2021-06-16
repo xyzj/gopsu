@@ -259,47 +259,71 @@ func HideParams(params ...string) gin.HandlerFunc {
 func ReadParams() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ct = strings.Split(c.GetHeader("Content-Type"), ";")[0]
-		var x = url.Values{}
 		switch ct {
-		case "", "application/x-www-form-urlencoded", "application/json", "multipart/form-data":
-			x, _ = url.ParseQuery(c.Request.URL.RawQuery)
-			if ct == "multipart/form-data" {
-				break
-			}
-			b, err := ioutil.ReadAll(c.Request.Body)
-			if err == nil {
-				if len(b) > 0 {
-					c.Params = append(c.Params, gin.Param{
-						Key:   "_body",
-						Value: string(b),
-					})
-					ans := gjson.ParseBytes(b)
-					if ans.IsObject() {
-						// if ct == "application/json" {
-						// 	gjson.ParseBytes(b).ForEach(func(key, value gjson.Result) bool {
-						ans.ForEach(func(key, value gjson.Result) bool {
-							x.Add(key.String(), value.String())
-							return true
-						})
-					} else {
-						xx, _ := url.ParseQuery(string(b))
-						for k, v := range xx {
-							x.Add(k, v[0])
-						}
+		case "":
+			fallthrough
+		case "application/x-www-form-urlencoded":
+			x, _ := url.ParseQuery(c.Request.URL.RawQuery)
+			if len(x.Encode()) > 0 {
+				c.Params = append(c.Params, gin.Param{
+					Key:   "_body",
+					Value: x.Encode(),
+				})
+				for k := range x {
+					if strings.HasPrefix(k, "_") {
+						continue
 					}
+					c.Params = append(c.Params, gin.Param{
+						Key:   k,
+						Value: x.Get(k),
+					})
 				}
+				return
 			}
-		}
-
-		if len(x.Encode()) > 0 {
-			for k := range x {
-				if strings.HasPrefix(k, "_") {
-					continue
+			fallthrough
+		case "application/json":
+			if b, err := ioutil.ReadAll(c.Request.Body); err == nil {
+				if len(b) == 0 {
+					return
 				}
 				c.Params = append(c.Params, gin.Param{
-					Key:   k,
-					Value: x.Get(k),
+					Key:   "_body",
+					Value: string(b),
 				})
+				ans := gjson.ParseBytes(b)
+				if ans.IsObject() {
+					ans.ForEach(func(key, value gjson.Result) bool {
+						if strings.HasPrefix(key.String(), "_") {
+							return true
+						}
+						c.Params = append(c.Params, gin.Param{
+							Key:   key.String(),
+							Value: value.String(),
+						})
+						return true
+					})
+				}
+			}
+		case "multipart/form-data":
+			if mf, err := c.MultipartForm(); err == nil {
+				if len(mf.Value) == 0 {
+					return
+				}
+				if b, err := json.MarshalToString(mf.Value); err == nil {
+					c.Params = append(c.Params, gin.Param{
+						Key:   "_body",
+						Value: b,
+					})
+				}
+				for k, v := range mf.Value {
+					if strings.HasPrefix(k, "_") {
+						continue
+					}
+					c.Params = append(c.Params, gin.Param{
+						Key:   k,
+						Value: strings.Join(v, ","),
+					})
+				}
 			}
 		}
 	}
