@@ -198,7 +198,7 @@ func (m *Etcdv3Client) SetLogger(l gopsu.Logger) {
 //  svrport: 服务端口
 // return:
 //  error
-func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string) {
+func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string) error {
 	m.svrName = svrname
 	m.etcdKey = fmt.Sprintf("/%s/%s/%s_%s", m.etcdRoot, m.svrName, m.svrName, gopsu.GetUUID1())
 	if svrip == "" {
@@ -226,25 +226,25 @@ func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string
 	var leaseGrantResp *clientv3.LeaseGrantResponse
 RUN:
 	if m.etcdClient.ActiveConnection() == nil {
-		return
+		return fmt.Errorf("connection not active")
 	}
 	m.listServers()
 	lease := clientv3.NewLease(m.etcdClient)
 	if leaseGrantResp, err = lease.Grant(context.TODO(), leaseTimeout); err != nil {
 		m.logger.Error(fmt.Sprintf("Create lease error: %s", err.Error()))
-		return
+		return fmt.Errorf("create lease error: %s", err.Error())
 	}
 	leaseid := leaseGrantResp.ID
 	_, err = m.etcdClient.Put(context.TODO(), m.etcdKey, m.svrDetail, clientv3.WithLease(leaseid))
 	if err != nil {
 		m.logger.Error(fmt.Sprintf("Registration to %s failed: %v", m.etcdAddr, err.Error()))
-		return
+		return fmt.Errorf("registration to %s failed: %v", m.etcdAddr, err.Error())
 	}
 	m.logger.System(fmt.Sprintf("Registration to %v success.", m.etcdAddr))
 	keepRespChan, err := lease.KeepAlive(context.TODO(), leaseid)
 	if err != nil {
 		m.logger.Error(fmt.Sprintf("Keep lease error: %s", err.Error()))
-		return
+		return fmt.Errorf("keep lease error: %s", err.Error())
 	}
 	func() {
 		defer func() { recover() }()
