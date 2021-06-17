@@ -264,6 +264,11 @@ func ReadParams() gin.HandlerFunc {
 			fallthrough
 		case "application/x-www-form-urlencoded":
 			x, _ := url.ParseQuery(c.Request.URL.RawQuery)
+			if len(x.Encode()) == 0 {
+				if b, err := ioutil.ReadAll(c.Request.Body); err == nil {
+					x, _ = url.ParseQuery(string(b))
+				}
+			}
 			if len(x.Encode()) > 0 {
 				c.Params = append(c.Params, gin.Param{
 					Key:   "_body",

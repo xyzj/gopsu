@@ -145,7 +145,7 @@ func (p *SQLPool) New() error {
 			p.User, p.Passwd, p.Server, p.DataBase)
 	case DriverMYSQL:
 		sqlcfg := &mysql.Config{
-			Collation:            "utf8mb4_general_ci",
+			Collation:            "utf8_general_ci",
 			Loc:                  time.UTC,
 			MaxAllowedPacket:     4 << 20,
 			AllowNativePasswords: true,
@@ -365,7 +365,7 @@ func (p *SQLPool) QueryOne(s string, colNum int, params ...interface{}) (js stri
 	defer func() (string, error) {
 		if ex := recover(); ex != nil {
 			err = ex.(error)
-			return "", err.(error)
+			return "", err
 		}
 		return js, nil
 	}()
@@ -681,7 +681,7 @@ func (p *SQLPool) Exec(s string, params ...interface{}) (rowAffected, insertID i
 	defer func() (int64, int64, error) {
 		if ex := recover(); ex != nil {
 			err = ex.(error)
-			return 0, 0, err.(error)
+			return 0, 0, err
 		}
 		p.execLocker.Unlock()
 		return rowAffected, insertID, nil
@@ -710,7 +710,7 @@ func (p *SQLPool) ExecPrepare(s string, paramNum int, params ...interface{}) (er
 	defer func() error {
 		if ex := recover(); ex != nil {
 			err = ex.(error)
-			return err.(error)
+			return err
 		}
 		p.execLocker.Unlock()
 		return nil
@@ -758,7 +758,7 @@ func (p *SQLPool) ExecBatch(s []string) (err error) {
 	defer func() error {
 		if ex := recover(); ex != nil {
 			err = ex.(error)
-			return err.(error)
+			return err
 		}
 		p.execLocker.Unlock()
 		return nil
