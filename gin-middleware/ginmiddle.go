@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -64,7 +65,9 @@ func NewGinEngine(logDir, logName string, logDays int, logLevel ...int) *gin.Eng
 	r.Static("/static", gopsu.JoinPathFromHere("static"))
 	return r
 }
-
+func GetSocketTimeout() time.Duration {
+	return getSocketTimeout()
+}
 func getSocketTimeout() time.Duration {
 	var t = 120
 	b, err := ioutil.ReadFile(".sockettimeout")
@@ -96,7 +99,17 @@ func getSocketTimeout() time.Duration {
 // port：端口号
 // h： http.hander, like gin.New()
 func ListenAndServe(port int, h *gin.Engine) error {
-	st := getSocketTimeout()
+	return ListenAndServeTLS(port, h, "", "")
+}
+
+// ListenAndServeTLS 启用TLS监听
+// port：端口号
+// h： http.hander, like gin.New()
+// certfile： cert file path
+// keyfile： key file path
+// clientca: 客户端根证书用于验证客户端合法性
+func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, clientca ...string) error {
+	// 路由处理
 	var findRoot = false
 	for _, v := range h.Routes() {
 		if v.Path == "/" {
@@ -107,6 +120,9 @@ func ListenAndServe(port int, h *gin.Engine) error {
 	if !findRoot {
 		h.GET("/", PageDefault)
 	}
+	// 设置全局超时
+	st := getSocketTimeout()
+	// 初始化
 	s := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
 		Handler:      h,
@@ -114,23 +130,19 @@ func ListenAndServe(port int, h *gin.Engine) error {
 		WriteTimeout: st,
 		IdleTimeout:  st,
 	}
+	// 设置日志
 	var writer io.Writer
 	if gin.Mode() == gin.ReleaseMode {
 		writer = io.MultiWriter(gin.DefaultWriter, os.Stdout)
 	} else {
 		writer = io.MultiWriter(gin.DefaultWriter)
 	}
-	fmt.Fprintf(writer, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTP server at :"+strconv.Itoa(port))
-	return s.ListenAndServe()
-}
-
-// ListenAndServeTLS 启用TLS监听
-// port：端口号
-// h： http.hander, like gin.New()
-// certfile： cert file path
-// keyfile： key file path
-// clientca: 客户端根证书用于验证客户端合法性
-func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, clientca ...string) error {
+	// 启动http服务
+	if strings.TrimSpace(certfile)+strings.TrimSpace(keyfile) == "" {
+		fmt.Fprintf(writer, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTP server at :"+strconv.Itoa(port))
+		return s.ListenAndServe()
+	}
+	// 初始化证书
 	var tc = &tls.Config{
 		Certificates: make([]tls.Certificate, 1),
 	}
@@ -148,56 +160,32 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 			tc.ClientAuth = tls.RequireAndVerifyClientCert
 		}
 	}
-	var findRoot = false
-	for _, v := range h.Routes() {
-		if v.Path == "/" {
-			findRoot = true
-			break
-		}
-	}
-	if !findRoot {
-		h.GET("/", PageDefault)
-	}
-	st := getSocketTimeout()
-	s := &http.Server{
-		Addr:         fmt.Sprintf(":%d", port),
-		Handler:      h,
-		ReadTimeout:  st,
-		WriteTimeout: st,
-		IdleTimeout:  st,
-		TLSConfig:    tc,
-	}
-	go func() {
-		var runLook sync.WaitGroup
-	RUN:
-		runLook.Add(1)
-		go func() {
-			defer func() {
-				if err := recover(); err != nil {
-					fmt.Fprintf(io.MultiWriter(gin.DefaultWriter, os.Stdout), "cert update crash: %s\n", err.(error).Error())
-				}
-				runLook.Done()
-			}()
-			tt := time.NewTicker(time.Hour * 24)
-			for range tt.C {
-				newcert, err := tls.LoadX509KeyPair(certfile, keyfile)
-				if err == nil {
-					s.TLSConfig.Certificates[0] = newcert
-				}
-			}
-		}()
-		time.Sleep(time.Second)
-		runLook.Wait()
-		goto RUN
-	}()
-	var writer io.Writer
-	if gin.Mode() == gin.ReleaseMode {
-		writer = io.MultiWriter(gin.DefaultWriter, os.Stdout)
-	} else {
-		writer = io.MultiWriter(gin.DefaultWriter)
-	}
+	s.TLSConfig = tc
+	// 启动证书维护线程
+	go renewCA(s, certfile, keyfile)
+	// 启动https
 	fmt.Fprintf(writer, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTPS server at :"+strconv.Itoa(port))
 	return s.ListenAndServeTLS("", "")
+}
+
+// 后台更新证书
+func renewCA(s *http.Server, certfile, keyfile string) {
+RUN:
+	func() {
+		defer func() {
+			if err := recover(); err != nil {
+				fmt.Fprintf(io.MultiWriter(gin.DefaultWriter, os.Stdout), "cert update crash: %s\n", err.(error).Error())
+			}
+		}()
+		for range time.After(time.Hour * time.Duration(1+rand.Int31n(5))) {
+			newcert, err := tls.LoadX509KeyPair(certfile, keyfile)
+			if err == nil {
+				s.TLSConfig.Certificates[0] = newcert
+			}
+		}
+	}()
+	time.Sleep(time.Second)
+	goto RUN
 }
 
 // CheckRequired 检查必填参数
