@@ -746,15 +746,13 @@ func (p *SQLPool) ExecPrepare(s string, paramNum int, params ...interface{}) (er
 	// }
 	return nil
 }
-func (p *SQLPool) ExecPrepareV2(s string, paramNum int, params ...interface{}) (rowAffected int64, insertID []int64, err error) {
+func (p *SQLPool) ExecPrepareV2(s string, paramNum int, params ...interface{}) (int64, []int64, error) {
 	p.execLocker.Lock()
-	defer func() error {
-		if ex := recover(); ex != nil {
-			err = ex.(error)
-			return err
+	defer func() {
+		if err := recover(); err != nil {
+			p.Logger.Error("ExecPrepareV2 Err: " + err.(error).Error())
 		}
 		p.execLocker.Unlock()
-		return nil
 	}()
 	if paramNum == 0 {
 		paramNum = strings.Count(s, "?")
@@ -773,12 +771,16 @@ func (p *SQLPool) ExecPrepareV2(s string, paramNum int, params ...interface{}) (
 		return 0, nil, err
 	}
 	defer st.Close()
-	insertID = make([]int64, len(params)/paramNum)
+	rowAffected := int64(0)
+	var ex error
+	insertID := make([]int64, len(params)/paramNum)
 	idx := 0
 	for i := 0; i < l; i += paramNum {
 		ans, err := st.ExecContext(ctx, params[i:i+paramNum]...)
 		if err != nil {
-			return rowAffected, insertID, err
+			ex = err
+			continue
+			// return rowAffected, insertID, err
 		}
 		rows, err := ans.RowsAffected()
 		if err == nil {
@@ -790,7 +792,7 @@ func (p *SQLPool) ExecPrepareV2(s string, paramNum int, params ...interface{}) (
 		}
 		idx++
 	}
-	return rowAffected, insertID, nil
+	return rowAffected, insertID, ex
 }
 
 // ExecBatch (maybe unsafe)事务执行语句（insert，delete，update）
