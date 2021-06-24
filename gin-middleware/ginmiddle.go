@@ -248,20 +248,35 @@ func ReadParams() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ct = strings.Split(c.GetHeader("Content-Type"), ";")[0]
 		switch ct {
-		case "":
-			fallthrough
-		case "application/x-www-form-urlencoded":
+		case "", "application/x-www-form-urlencoded", "application/json":
 			x, _ := url.ParseQuery(c.Request.URL.RawQuery)
-			if len(x.Encode()) == 0 {
-				if b, err := ioutil.ReadAll(c.Request.Body); err == nil {
-					x, _ = url.ParseQuery(string(b))
-				}
-			}
-			if len(x.Encode()) > 0 {
+			if len(x.Encode()) > 0 && len(c.Request.URL.RawQuery) > 0 { // 尝试urlencoded
 				c.Params = append(c.Params, gin.Param{
 					Key:   "_body",
 					Value: x.Encode(),
 				})
+			} else {
+				if b, err := ioutil.ReadAll(c.Request.Body); err == nil {
+					ans := gjson.ParseBytes(b)
+					if ans.IsObject() {
+						ans.ForEach(func(key gjson.Result, value gjson.Result) bool {
+							x.Set(key.String(), value.String())
+							return true
+						})
+						c.Params = append(c.Params, gin.Param{
+							Key:   "_body",
+							Value: ans.String(),
+						})
+					} else {
+						x, _ = url.ParseQuery(string(b))
+						c.Params = append(c.Params, gin.Param{
+							Key:   "_body",
+							Value: x.Encode(),
+						})
+					}
+				}
+			}
+			if len(x.Encode()) > 0 {
 				for k := range x {
 					if strings.HasPrefix(k, "_") {
 						continue
@@ -272,30 +287,6 @@ func ReadParams() gin.HandlerFunc {
 					})
 				}
 				return
-			}
-			fallthrough
-		case "application/json":
-			if b, err := ioutil.ReadAll(c.Request.Body); err == nil {
-				if len(b) == 0 {
-					return
-				}
-				c.Params = append(c.Params, gin.Param{
-					Key:   "_body",
-					Value: string(b),
-				})
-				ans := gjson.ParseBytes(b)
-				if ans.IsObject() {
-					ans.ForEach(func(key, value gjson.Result) bool {
-						if strings.HasPrefix(key.String(), "_") {
-							return true
-						}
-						c.Params = append(c.Params, gin.Param{
-							Key:   key.String(),
-							Value: value.String(),
-						})
-						return true
-					})
-				}
 			}
 		case "multipart/form-data":
 			if mf, err := c.MultipartForm(); err == nil {
