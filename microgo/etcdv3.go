@@ -155,24 +155,6 @@ func (m *Etcdv3Client) addPickTimes(k string, r *registeredServer) {
 	m.svrPool.Store(k, r)
 }
 
-// 服务注册
-// func (m *Etcdv3Client) etcdRegister() (*clientv3.LeaseID, bool) {
-// 	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
-// 	lresp, err := m.etcdClient.Grant(ctx, leaseTimeout)
-// 	defer cancel()
-// 	if err != nil {
-// 		m.logger.Error(fmt.Sprintf("Create lease %s failed: %v", m.etcdAddr, err.Error()))
-// 		return nil, false
-// 	}
-// 	_, err = m.etcdClient.Put(ctx, m.etcdKey, m.svrDetail, clientv3.WithLease(lresp.ID))
-// 	if err != nil {
-// 		m.logger.Error(fmt.Sprintf("Registration to %s failed: %v", m.etcdAddr, err.Error()))
-// 		return nil, false
-// 	}
-// 	m.logger.System(fmt.Sprintf("Registration to %v success.", m.etcdAddr))
-// 	return &lresp.ID, true
-// }
-
 // SetRoot 自定义根路径
 //
 // args:
@@ -215,33 +197,30 @@ func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string
 	m.svrDetail = js
 
 	// 监视线程，在etcd崩溃并重启时重新注册
-	// go func() {
-	// 	defer func() {
-	// 		if err := recover(); err != nil {
-	// 			m.logger.Error(fmt.Sprintf("etcd register crash: %+v", errors.WithStack(err.(error))))
-	// 		}
-	// 	}()
 	// 注册
 	var err error
 	var leaseGrantResp *clientv3.LeaseGrantResponse
+	var lease clientv3.Lease
+	var leaseid clientv3.LeaseID
+	var keepRespChan <-chan *clientv3.LeaseKeepAliveResponse
 RUN:
 	if m.etcdClient.ActiveConnection() == nil {
 		return fmt.Errorf("connection not active")
 	}
 	m.listServers()
-	lease := clientv3.NewLease(m.etcdClient)
+	lease = clientv3.NewLease(m.etcdClient)
 	if leaseGrantResp, err = lease.Grant(context.TODO(), leaseTimeout); err != nil {
 		m.logger.Error(fmt.Sprintf("Create lease error: %s", err.Error()))
 		return fmt.Errorf("create lease error: %s", err.Error())
 	}
-	leaseid := leaseGrantResp.ID
+	leaseid = leaseGrantResp.ID
 	_, err = m.etcdClient.Put(context.TODO(), m.etcdKey, m.svrDetail, clientv3.WithLease(leaseid))
 	if err != nil {
 		m.logger.Error(fmt.Sprintf("Registration to %s failed: %v", m.etcdAddr, err.Error()))
 		return fmt.Errorf("registration to %s failed: %v", m.etcdAddr, err.Error())
 	}
 	m.logger.System(fmt.Sprintf("Registration to %v as `%s://%s:%s/%s` success.", m.etcdAddr, intfc, svrip, svrport, svrname))
-	keepRespChan, err := lease.KeepAlive(context.TODO(), leaseid)
+	keepRespChan, err = lease.KeepAlive(context.TODO(), leaseid)
 	if err != nil {
 		m.logger.Error(fmt.Sprintf("Keep lease error: %s", err.Error()))
 		return fmt.Errorf("keep lease error: %s", err.Error())
@@ -263,23 +242,6 @@ RUN:
 	}()
 	time.Sleep(time.Duration(rand.Intn(2000)+1500) * time.Millisecond)
 	goto RUN
-
-	// leaseid, _ := m.etcdRegister()
-	// for {
-	// 	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
-	// 	if resp, err := m.etcdClient.Get(ctx, m.etcdKey); err != nil || resp.Count == 0 {
-	// 		leaseid, _ = m.etcdRegister()
-	// 	} else {
-	// 		_, err := m.etcdClient.KeepAliveOnce(ctx, *leaseid)
-	// 		if err != nil {
-	// 			m.logger.Error("Lost connection with etcd server, retrying ...")
-	// 		}
-	// 	}
-	// 	cancel()
-	// 	// 使用随机间隔
-	// 	time.Sleep(time.Duration(rand.Intn(2000)+1500) * time.Millisecond)
-	// }
-	// }()
 }
 
 // Watcher 监视服务信息变化

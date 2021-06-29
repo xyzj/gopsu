@@ -1121,19 +1121,24 @@ func GetRandomASCII(l int64) []byte {
 	var rs bytes.Buffer
 	// r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i := int64(0); i < l; i++ {
-		rs.WriteByte(byte(rand.Int31n(256) + 1))
+		rs.WriteByte(byte(rand.Int31n(255) + 1))
 	}
 	return rs.Bytes()
 }
 
 // GetRandomString 生成随机字符串
-func GetRandomString(l int64) string {
+func GetRandomString(l int64, letteronly ...bool) string {
 	str := "!#%&()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}"
+	if len(letteronly) > 0 && letteronly[0] {
+		str = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	}
 	bb := []byte(str)
-	var rs bytes.Buffer
+	var rs strings.Builder
+	// var rs bytes.Buffer
 	// r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i := int64(0); i < l; i++ {
 		rs.WriteByte(bb[rand.Intn(len(bb))])
+		// rs.WriteByte(bb[rand.Intn(len(bb))])
 	}
 	return rs.String()
 }
