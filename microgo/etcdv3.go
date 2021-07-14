@@ -209,18 +209,18 @@ RUN:
 	}
 	m.listServers()
 	lease = clientv3.NewLease(m.etcdClient)
-	if leaseGrantResp, err = lease.Grant(context.TODO(), leaseTimeout); err != nil {
+	if leaseGrantResp, err = lease.Grant(context.Background(), leaseTimeout); err != nil {
 		m.logger.Error(fmt.Sprintf("Create lease error: %s", err.Error()))
 		return fmt.Errorf("create lease error: %s", err.Error())
 	}
 	leaseid = leaseGrantResp.ID
-	_, err = m.etcdClient.Put(context.TODO(), m.etcdKey, m.svrDetail, clientv3.WithLease(leaseid))
+	_, err = m.etcdClient.Put(context.Background(), m.etcdKey, m.svrDetail, clientv3.WithLease(leaseid))
 	if err != nil {
 		m.logger.Error(fmt.Sprintf("Registration to %s failed: %v", m.etcdAddr, err.Error()))
 		return fmt.Errorf("registration to %s failed: %v", m.etcdAddr, err.Error())
 	}
 	m.logger.System(fmt.Sprintf("Registration to %v as `%s://%s:%s/%s` success.", m.etcdAddr, intfc, svrip, svrport, svrname))
-	keepRespChan, err = lease.KeepAlive(context.TODO(), leaseid)
+	keepRespChan, err = lease.KeepAlive(context.Background(), leaseid)
 	if err != nil {
 		m.logger.Error(fmt.Sprintf("Keep lease error: %s", err.Error()))
 		return fmt.Errorf("keep lease error: %s", err.Error())

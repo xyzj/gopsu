@@ -114,7 +114,7 @@ func LoggerWithRollingSkip(logdir, filename string, maxdays int, skippath []stri
 		}
 		c.Next()
 
-		path := c.Request.RequestURI
+		path := c.Request.URL.Path
 		param := &gin.LogFormatterParams{
 			Request: c.Request,
 			Keys:    c.Keys,

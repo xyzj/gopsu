@@ -9,27 +9,27 @@ import (
 
 // XCache 可设置超时的缓存字典
 type XCache struct {
-	m       map[interface{}]*xCacheData
-	len     int64
-	chanSet chan *xCacheData
-	am      sync.Map
-	amIdx   int64
+	len   int64
+	am    sync.Map
+	amIdx int64
 }
 
-// xCacheData 可设置超时的缓存字典数据结构
-type xCacheData struct {
+// XCacheData 可设置超时的缓存字典数据结构
+type XCacheData struct {
 	key    interface{}
 	value  interface{}
 	expire int64
+}
+
+func (xcd *XCacheData) Value() interface{} {
+	return xcd.value
 }
 
 // NewCache 创建新的缓存字典
 //	l：字典大小,0-不限制
 func NewCache(l int64) *XCache {
 	xc := &XCache{
-		m:       make(map[interface{}]*xCacheData, l),
-		len:     l,
-		chanSet: make(chan *xCacheData),
+		len: l,
 	}
 	go xc.run()
 	return xc
@@ -40,13 +40,13 @@ func NewCache(l int64) *XCache {
 //	v: value
 //	expire: 超时时间（ms）,0-不超时
 func (xc *XCache) Set(k, v interface{}, expire int64) bool {
-	if xc.amIdx >= xc.len {
+	if xc.len > 0 && xc.amIdx >= xc.len {
 		return false
 	}
 	if expire <= 0 {
 		expire = 316224000000
 	}
-	xc.am.Store(k, &xCacheData{
+	xc.am.Store(k, &XCacheData{
 		key:    k,
 		value:  v,
 		expire: time.Now().UnixNano()/1000000 + expire,
@@ -79,9 +79,14 @@ func (xc *XCache) SetWithHold(k, v interface{}, expire, timeout int64) bool {
 func (xc *XCache) Get(k interface{}) (interface{}, bool) {
 	v, ok := xc.am.Load(k)
 	if ok {
-		return v.(*xCacheData).value, true
+		return v.(*XCacheData).value, true
 	}
 	return nil, false
+}
+
+// Range 遍历缓存
+func (xc *XCache) Range(f func(key, value interface{}) bool) {
+	xc.am.Range(f)
 }
 
 // Clear 清空缓存
@@ -99,19 +104,19 @@ func (xc *XCache) Len() int64 {
 }
 
 func (xc *XCache) run() {
-	var exlocker sync.WaitGroup
+	// var exlocker sync.WaitGroup
 	var t = time.NewTicker(time.Millisecond * 10)
 RUN:
-	exlocker.Add(1)
-	go func() {
+	// exlocker.Add(1)
+	func() {
 		defer func() {
 			recover()
-			exlocker.Done()
+			// exlocker.Done()
 		}()
 		for range t.C {
 			tt := time.Now().UnixNano() / 1000000
 			xc.am.Range(func(key interface{}, value interface{}) bool {
-				if value.(*xCacheData).expire <= tt {
+				if value.(*XCacheData).expire <= tt {
 					xc.am.Delete(key)
 					atomic.AddInt64(&xc.amIdx, -1)
 				}
@@ -120,6 +125,6 @@ RUN:
 		}
 	}()
 	time.Sleep(time.Second)
-	exlocker.Wait()
+	// exlocker.Wait()
 	goto RUN
 }
