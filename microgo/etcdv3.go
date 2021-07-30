@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"math/rand"
 	"sort"
 	"strings"
 	"sync"
@@ -203,7 +202,7 @@ func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string
 	var lease clientv3.Lease
 	var leaseid clientv3.LeaseID
 	var keepRespChan <-chan *clientv3.LeaseKeepAliveResponse
-RUN:
+	// RUN:
 	if m.etcdClient.ActiveConnection() == nil {
 		return fmt.Errorf("connection not active")
 	}
@@ -225,23 +224,24 @@ RUN:
 		m.logger.Error(fmt.Sprintf("Keep lease error: %s", err.Error()))
 		return fmt.Errorf("keep lease error: %s", err.Error())
 	}
-	func() {
-		defer func() { recover() }()
-		t := time.NewTicker(time.Second * 3)
-		for {
-			select {
-			case keepResp := <-keepRespChan:
-				if keepResp == nil {
-					m.logger.Error("Lease failure, try to reboot.")
-					return
-				}
-			case <-t.C:
-				m.listServers()
+	// func() {
+	// 	defer func() { recover() }()
+	t := time.NewTicker(time.Second * 3)
+	for {
+		select {
+		case keepResp := <-keepRespChan:
+			if keepResp == nil {
+				m.logger.Error("Lease failure, try to reboot.")
+				return fmt.Errorf("lease failure, try to reboot")
 			}
+		case <-t.C:
+			m.listServers()
 		}
-	}()
-	time.Sleep(time.Duration(rand.Intn(2000)+1500) * time.Millisecond)
-	goto RUN
+	}
+	// }()
+	// time.Sleep(time.Duration(rand.Intn(2000)+1500) * time.Millisecond)
+	// goto RUN
+	return nil
 }
 
 // Watcher 监视服务信息变化

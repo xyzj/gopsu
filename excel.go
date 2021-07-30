@@ -2,6 +2,8 @@ package gopsu
 
 import (
 	"fmt"
+	"io"
+	"strings"
 
 	"github.com/tealeg/xlsx"
 )
@@ -65,14 +67,24 @@ func (e *excelData) SetColume(columeName ...string) {
 	}
 }
 
+// Write 将excel数据写入到writer
+// w： io.writer
+func (e *excelData) Write(w io.Writer) error {
+	return e.xlsxFile.Write(w)
+}
+
 // Save 保存excel数据到文件
 // 返回保存的完整文件名，错误
 func (e *excelData) Save() (string, error) {
-	err := e.xlsxFile.Save(e.fileName)
+	fn := e.fileName
+	if strings.HasSuffix(fn, ".xlsx") {
+		fn += ".xlsx"
+	}
+	err := e.xlsxFile.Save(fn)
 	if err != nil {
 		return "", fmt.Errorf("excel-文件保存失败:" + err.Error())
 	} else {
-		return e.fileName, nil
+		return fn, nil
 	}
 }
 
