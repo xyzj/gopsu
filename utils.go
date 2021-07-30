@@ -276,16 +276,18 @@ func HashData(b []byte, cryptoType byte) string {
 	return ""
 }
 
-const (
+type ArchiveType byte
+
+var (
 	// ArchiveZlib zlib压缩/解压缩
-	ArchiveZlib = iota
+	ArchiveZlib ArchiveType = 1
 	// ArchiveGZip gzip压缩/解压缩
-	ArchiveGZip
+	ArchiveGZip ArchiveType = 2
 )
 
 // ArchiveWorker 压缩管理器，避免重复New
 type ArchiveWorker struct {
-	archiveType      byte
+	archiveType      ArchiveType
 	in               *bytes.Reader
 	code             bytes.Buffer
 	decode           bytes.Buffer
@@ -298,7 +300,7 @@ type ArchiveWorker struct {
 }
 
 // GetNewArchiveWorker 获取新的压缩管理器
-func GetNewArchiveWorker(archiveType byte) *ArchiveWorker {
+func GetNewArchiveWorker(archiveType ArchiveType) *ArchiveWorker {
 	a := &ArchiveWorker{
 		archiveType: archiveType,
 		in:          bytes.NewReader(nil),
@@ -351,7 +353,7 @@ func (a *ArchiveWorker) Uncompress(src []byte) []byte {
 }
 
 // CompressData 使用gzip，zlib压缩数据
-func CompressData(src []byte, t byte) []byte {
+func CompressData(src []byte, t ArchiveType) []byte {
 	var in bytes.Buffer
 	switch t {
 	case ArchiveGZip:
@@ -367,7 +369,7 @@ func CompressData(src []byte, t byte) []byte {
 }
 
 // UncompressData 使用gzip，zlib解压缩数据
-func UncompressData(src []byte, t byte, dstlen ...interface{}) []byte {
+func UncompressData(src []byte, t ArchiveType, dstlen ...interface{}) []byte {
 	var out bytes.Buffer
 	switch t {
 	case ArchiveGZip:
@@ -1875,4 +1877,13 @@ func GetTCPPort() (int, error) {
 		return 0, fmt.Errorf("could not find a useful port")
 	}
 	return listener.Addr().(*net.TCPAddr).Port, nil
+}
+
+// LastSlice 返回切片的最后一个元素
+func LastSlice(s, sep string) string {
+	ss := strings.Split(s, sep)
+	if len(ss) > 0 {
+		return ss[len(ss)-1]
+	}
+	return s
 }
