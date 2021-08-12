@@ -45,6 +45,23 @@ type registeredServer struct {
 	svrProtocol   string // 服务使用数据格式
 	svrInterface  string // 服务发布的接口类型
 	svrActiveTime int64  // 服务查询时间
+	svrKey        string // 服务注册key
+}
+
+func (rs *registeredServer) addPickTimes() {
+	if rs.svrPickTimes >= 0xffffff {
+		rs.svrPickTimes = 0
+	} else {
+		rs.svrPickTimes++
+	}
+}
+
+func (rs *registeredServer) updateActive() {
+	rs.svrActiveTime = time.Now().Unix()
+}
+
+func (rs *registeredServer) expired(now int64) bool {
+	return now-rs.svrActiveTime >= 5
 }
 
 // NewEtcdv3Client 获取新的微服务结构
@@ -101,35 +118,43 @@ func (m *Etcdv3Client) listServers() error {
 	if err != nil {
 		return err
 	}
-	m.svrPool.Range(func(key interface{}, value interface{}) bool {
-		m.svrPool.Delete(key)
-		return true
-	})
+	// 先清理
+	// m.svrPool.Range(func(key interface{}, value interface{}) bool {
+	// 	m.svrPool.Delete(key)
+	// 	return true
+	// })
+	// 重新添加
 	for _, v := range resp.Kvs {
 		va := gjson.ParseBytes(v.Value)
 		if !va.Exists() {
 			continue
 		}
-		s := &registeredServer{
-			svrName:       va.Get("name").String(),
-			svrAddr:       fmt.Sprintf("%s:%s", va.Get("ip").String(), va.Get("port").String()),
-			svrPickTimes:  0,
-			svrProtocol:   va.Get("protocol").String(),
-			svrInterface:  va.Get("INTFC").String(),
-			svrActiveTime: time.Now().Unix(),
-		}
-		if s.svrName == "" {
-			x := strings.Split(string(v.Key), "/")
-			if len(x) > 2 {
-				s.svrName = x[1]
+		if ss, ok := m.svrPool.Load(string(v.Key)); !ok { // 未记录该服务
+			s := &registeredServer{
+				svrName:       va.Get("name").String(),
+				svrAddr:       fmt.Sprintf("%s:%s", va.Get("ip").String(), va.Get("port").String()),
+				svrPickTimes:  0,
+				svrProtocol:   va.Get("protocol").String(),
+				svrInterface:  va.Get("INTFC").String(),
+				svrActiveTime: time.Now().Unix(),
+				svrKey:        string(v.Key),
 			}
+			if s.svrName == "" {
+				x := strings.Split(s.svrKey, "/")
+				if len(x) > 2 {
+					s.svrName = x[1]
+				}
+			}
+			m.svrPool.Store(s.svrKey, s)
+		} else {
+			ss.(*registeredServer).updateActive()
 		}
-		a, ok := m.svrPool.LoadOrStore(string(v.Key), s)
-		if ok {
-			s := a.(*registeredServer)
-			s.svrActiveTime = time.Now().Unix()
-			m.svrPool.Store(string(v.Key), s)
-		}
+		// a, ok := m.svrPool.LoadOrStore(s.svrKey, s)
+		// if ok {
+		// 	s := a.(*registeredServer)
+		// 	s.svrActiveTime = time.Now().Unix()
+		// 	m.svrPool.Store(s.svrKey, s)
+		// }
 	}
 	return nil
 }
@@ -137,7 +162,12 @@ func (m *Etcdv3Client) listServers() error {
 // AllServices 返回所有注册服务的信息
 func (m *Etcdv3Client) AllServices() string {
 	var s string
+	var t = time.Now().Unix()
 	m.svrPool.Range(func(key interface{}, value interface{}) bool {
+		if value.(*registeredServer).expired(t) {
+			m.svrPool.Delete(key)
+			return true
+		}
 		s, _ = sjson.Set(s, key.(string), value.(*registeredServer).svrInterface+"://"+value.(*registeredServer).svrAddr)
 		return true
 	})
@@ -145,14 +175,14 @@ func (m *Etcdv3Client) AllServices() string {
 }
 
 // addPickTimes 增加计数器
-func (m *Etcdv3Client) addPickTimes(k string, r *registeredServer) {
-	if r.svrPickTimes >= 0xffffff { // 防止溢出
-		r.svrPickTimes = 0
-	} else {
-		r.svrPickTimes++
-	}
-	m.svrPool.Store(k, r)
-}
+// func (m *Etcdv3Client) addPickTimes(k string, r *registeredServer) {
+// 	if r.svrPickTimes >= 0xffffff { // 防止溢出
+// 		r.svrPickTimes = 0
+// 	} else {
+// 		r.svrPickTimes++
+// 	}
+// 	m.svrPool.Store(k, r)
+// }
 
 // SetRoot 自定义根路径
 //
@@ -265,54 +295,74 @@ func (m *Etcdv3Client) Watcher(model ...byte) error {
 	}
 	return nil
 }
-
-func (m *Etcdv3Client) pickerList(svrname string, intfc ...string) [][]string {
+func (m *Etcdv3Client) pickerList(svrname string, intfc ...string) []*registeredServer {
 	t := time.Now().Unix()
-	listSvr := make([][]string, 0)
-	// 找到所有同名服务
-	switch len(intfc) {
-	case 1: // 匹配服务名称和接口类型
-		m.svrPool.Range(func(k, v interface{}) bool {
-			s := v.(*registeredServer)
-			// 删除无效服务信息
-			if t-s.svrActiveTime >= 5 {
-				m.svrPool.Delete(k)
-				return true
-			}
-			if s.svrName == svrname && s.svrInterface == intfc[0] {
-				listSvr = append(listSvr, []string{fmt.Sprintf("%012d", s.svrPickTimes), s.svrAddr, k.(string)})
-			}
+	listSvr := make([]*registeredServer, 0)
+	m.svrPool.Range(func(k, v interface{}) bool {
+		s := v.(*registeredServer)
+		// 删除无效服务信息
+		if s.expired(t) {
+			m.svrPool.Delete(k)
 			return true
-		})
-	case 2: // 匹配服务名称，接口类型，和协议类型
-		m.svrPool.Range(func(k, v interface{}) bool {
-			s := v.(*registeredServer)
-			// 删除无效服务信息
-			if t-s.svrActiveTime >= 5 {
-				m.svrPool.Delete(k)
-				return true
-			}
-			if s.svrName == svrname && s.svrInterface == intfc[0] && s.svrProtocol == intfc[1] {
-				listSvr = append(listSvr, []string{fmt.Sprintf("%012d", s.svrPickTimes), s.svrAddr, k.(string)})
-			}
-			return true
-		})
-	default: // 仅匹配服务名称
-		m.svrPool.Range(func(k, v interface{}) bool {
-			s := v.(*registeredServer)
-			// 删除无效服务信息
-			if t-s.svrActiveTime >= 5 {
-				m.svrPool.Delete(k)
-				return true
-			}
-			if s.svrName == svrname {
-				listSvr = append(listSvr, []string{fmt.Sprintf("%012d", s.svrPickTimes), s.svrAddr, k.(string)})
-			}
-			return true
-		})
-	}
+		}
+		if s.svrName == svrname {
+			listSvr = append(listSvr, s)
+		}
+		if len(listSvr) >= 4 {
+			return false
+		}
+		return true
+	})
 	return listSvr
 }
+
+// func (m *Etcdv3Client) pickerList(svrname string, intfc ...string) [][]string {
+// 	t := time.Now().Unix()
+// 	listSvr := make([][]string, 0)
+// 	// 找到所有同名服务
+// 	switch len(intfc) {
+// 	case 1: // 匹配服务名称和接口类型
+// 		m.svrPool.Range(func(k, v interface{}) bool {
+// 			s := v.(*registeredServer)
+// 			// 删除无效服务信息
+// 			if t-s.svrActiveTime >= 5 {
+// 				m.svrPool.Delete(k)
+// 				return true
+// 			}
+// 			if s.svrName == svrname && s.svrInterface == intfc[0] {
+// 				listSvr = append(listSvr, []string{fmt.Sprintf("%012d", s.svrPickTimes), s.svrAddr, k.(string)})
+// 			}
+// 			return true
+// 		})
+// 	case 2: // 匹配服务名称，接口类型，和协议类型
+// 		m.svrPool.Range(func(k, v interface{}) bool {
+// 			s := v.(*registeredServer)
+// 			// 删除无效服务信息
+// 			if t-s.svrActiveTime >= 5 {
+// 				m.svrPool.Delete(k)
+// 				return true
+// 			}
+// 			if s.svrName == svrname && s.svrInterface == intfc[0] && s.svrProtocol == intfc[1] {
+// 				listSvr = append(listSvr, []string{fmt.Sprintf("%012d", s.svrPickTimes), s.svrAddr, k.(string)})
+// 			}
+// 			return true
+// 		})
+// 	default: // 仅匹配服务名称
+// 		m.svrPool.Range(func(k, v interface{}) bool {
+// 			s := v.(*registeredServer)
+// 			// 删除无效服务信息
+// 			if t-s.svrActiveTime >= 5 {
+// 				m.svrPool.Delete(k)
+// 				return true
+// 			}
+// 			if s.svrName == svrname {
+// 				listSvr = append(listSvr, []string{fmt.Sprintf("%012d", s.svrPickTimes), s.svrAddr, k.(string)})
+// 			}
+// 			return true
+// 		})
+// 	}
+// 	return listSvr
+// }
 
 // PickerAll 服务选择
 //
@@ -323,10 +373,10 @@ func (m *Etcdv3Client) pickerList(svrname string, intfc ...string) [][]string {
 //  string: 服务地址
 //  error
 func (m *Etcdv3Client) PickerAll(svrname string, intfc ...string) []string {
-	listSvr := m.pickerList(svrname, intfc...)
+	listSvr := m.pickerList(svrname)
 	var allSvr = make([]string, 0)
 	for _, v := range listSvr {
-		allSvr = append(allSvr, v[2])
+		allSvr = append(allSvr, v.svrAddr)
 	}
 	return allSvr
 }
@@ -340,16 +390,20 @@ func (m *Etcdv3Client) PickerAll(svrname string, intfc ...string) []string {
 //  string: 服务地址
 //  error
 func (m *Etcdv3Client) Picker(svrname string, intfc ...string) (string, error) {
-	listSvr := m.pickerList(svrname, intfc...)
+	listSvr := m.pickerList(svrname)
 	if len(listSvr) > 0 {
 		// 排序，获取命中最少的服务地址
-		sortlist := &gopsu.StringSliceSort{}
-		sortlist.TwoDimensional = listSvr
-		sort.Sort(sortlist)
-		isvr, _ := m.svrPool.Load(listSvr[0][2])
-		svr := isvr.(*registeredServer)
-		m.addPickTimes(listSvr[0][2], svr)
-		return svr.svrAddr, nil
+		sort.Slice(listSvr, func(i int, j int) bool {
+			return listSvr[i].svrPickTimes < listSvr[j].svrPickTimes
+		})
+		listSvr[0].addPickTimes()
+		// sortlist := &gopsu.StringSliceSort{}
+		// sortlist.TwoDimensional = listSvr
+		// sort.Sort(sortlist)
+		// isvr, _ := m.svrPool.Load(listSvr[0][2])
+		// svr := isvr.(*registeredServer)
+		// m.addPickTimes(listSvr[0][2], svr)
+		return listSvr[0].svrAddr, nil
 	}
 	return "", fmt.Errorf(`no matching server was found with the name %s`, svrname)
 }
@@ -363,19 +417,27 @@ func (m *Etcdv3Client) Picker(svrname string, intfc ...string) (string, error) {
 //  string: 服务地址
 //  error
 func (m *Etcdv3Client) PickerDetail(svrname string, intfc ...string) (string, error) {
-	listSvr := m.pickerList(svrname, intfc...)
+	listSvr := m.pickerList(svrname)
 	if len(listSvr) > 0 {
 		// 排序，获取命中最少的服务地址
-		sortlist := &gopsu.StringSliceSort{}
-		sortlist.TwoDimensional = listSvr
-		sort.Sort(sortlist)
-		isvr, _ := m.svrPool.Load(listSvr[0][2])
-		svr := isvr.(*registeredServer)
-		m.addPickTimes(listSvr[0][2], svr)
-		if strings.HasPrefix(svr.svrInterface, "http") {
-			return svr.svrInterface + "://" + svr.svrAddr, nil
+		sort.Slice(listSvr, func(i int, j int) bool {
+			return listSvr[i].svrPickTimes < listSvr[j].svrPickTimes
+		})
+		listSvr[0].addPickTimes()
+		if strings.HasPrefix(listSvr[0].svrInterface, "http") {
+			return listSvr[0].svrInterface + "://" + listSvr[0].svrAddr, nil
 		}
-		return svr.svrAddr, nil
+		return listSvr[0].svrAddr, nil
+		// sortlist := &gopsu.StringSliceSort{}
+		// sortlist.TwoDimensional = listSvr
+		// sort.Sort(sortlist)
+		// isvr, _ := m.svrPool.Load(listSvr[0][2])
+		// svr := isvr.(*registeredServer)
+		// m.addPickTimes(listSvr[0][2], svr)
+		// if strings.HasPrefix(svr.svrInterface, "http") {
+		// 	return svr.svrInterface + "://" + svr.svrAddr, nil
+		// }
+		// return svr.svrAddr, nil
 	}
 	return "", fmt.Errorf(`no matching server was found with the name %s`, svrname)
 }
