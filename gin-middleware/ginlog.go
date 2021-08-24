@@ -42,10 +42,13 @@ type ginLogger struct {
 // logdir: 日志存放目录。
 // filename：日志文件名。
 // maxdays：日志文件最大保存天数。
-func LoggerWithRolling(logdir, filename string, maxdays int) gin.HandlerFunc {
-	return LoggerWithRollingSkip(logdir, filename, maxdays, []string{"/static"})
-}
-func LoggerWithRollingSkip(logdir, filename string, maxdays int, skippath []string) gin.HandlerFunc {
+func LoggerWithRolling(logdir, filename string, maxdays int, skippath ...string) gin.HandlerFunc {
+	if skippath == nil {
+		skippath = []string{"/static"}
+	}
+	// return LoggerWithRollingSkip(logdir, filename, maxdays, []string{"/static"})
+	// }
+	// func LoggerWithRollingSkip(logdir, filename string, maxdays int, skippath []string) gin.HandlerFunc {
 	t := time.Now()
 	// 初始化
 	f := &ginLogger{

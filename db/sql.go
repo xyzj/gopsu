@@ -552,7 +552,7 @@ func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (quer
 	query.Total = int32(rowIdx)
 	queryCache.Total = int32(rowIdx)
 	// 开始缓存，方便导出，有数据即缓存
-	if p.EnableCache && rowsCount > 0 { // && rowsCount < rowIdx {
+	if p.EnableCache && rowIdx > 0 { // && rowsCount < rowIdx {
 		cacheTag := fmt.Sprintf("%s%d-%d", p.CacheHead, time.Now().UnixNano(), rowIdx)
 		query.CacheTag = cacheTag
 		go func(b []byte, err error) {
@@ -657,7 +657,7 @@ func (p *SQLPool) QueryMultirowPage(s string, rowsCount int, keyColumeID int, pa
 	query.Total = int32(rowIdx)
 	queryCache.Total = int32(rowIdx)
 	// 开始缓存，方便导出，有数据即缓存
-	if p.EnableCache && rowsCount > 0 { // && rowsCount < rowIdx {
+	if p.EnableCache && rowIdx > 0 { // && rowsCount < rowIdx {
 		cacheTag := fmt.Sprintf("%s%d-%d", p.CacheHead, time.Now().UnixNano(), rowIdx)
 		query.CacheTag = cacheTag
 		go func(b []byte, err error) {
