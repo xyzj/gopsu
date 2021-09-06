@@ -144,6 +144,11 @@ func (p *SQLPool) New(tls ...string) error {
 			"database=%s;"+
 			"connection timeout=10",
 			p.User, p.Passwd, p.Server, p.DataBase)
+		if len(tls) > 0 {
+			if tls[0] != "false" {
+				connstr += ";encrypt=true;trustservercertificate=true"
+			}
+		}
 	case DriverMYSQL:
 		sqlcfg := &mysql.Config{
 			Collation:            "utf8_general_ci",
