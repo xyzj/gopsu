@@ -74,7 +74,7 @@ func (d driveType) string() string {
 
 // SQLInterface 数据库接口
 type SQLInterface interface {
-	New() error
+	New(...string) error
 	IsReady() bool
 	QueryCacheJSON(string, int, int) string
 	QueryCachePB2(string, int, int) *QueryData
@@ -118,7 +118,8 @@ type SQLPool struct {
 }
 
 // New 初始化
-func (p *SQLPool) New() error {
+// tls: true,false,skip-verify,preferred
+func (p *SQLPool) New(tls ...string) error {
 	if p.Server == "" || p.User == "" || p.Passwd == "" {
 		return fmt.Errorf("config error")
 	}
@@ -161,6 +162,9 @@ func (p *SQLPool) New() error {
 			ColumnsWithAlias:     true,
 			ClientFoundRows:      true,
 			InterpolateParams:    true,
+		}
+		if len(tls) > 0 {
+			sqlcfg.TLSConfig = tls[0]
 		}
 		connstr = sqlcfg.FormatDSN()
 		// connstr = fmt.Sprintf("%s:%s@tcp(%s)/%s"+
