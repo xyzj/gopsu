@@ -385,7 +385,6 @@ func (p *SQLPool) QueryOne(s string, colNum int, params ...interface{}) (js stri
 	if err != nil {
 		return js, err
 	}
-
 	values := make([]interface{}, colNum)
 	scanArgs := make([]interface{}, colNum)
 
