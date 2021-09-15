@@ -46,6 +46,7 @@ type registeredServer struct {
 	svrInterface  string // 服务发布的接口类型
 	svrActiveTime int64  // 服务查询时间
 	svrKey        string // 服务注册key
+	svrRealIP     string
 }
 
 func (rs *registeredServer) addPickTimes() {
@@ -138,6 +139,7 @@ func (m *Etcdv3Client) listServers() error {
 				svrInterface:  va.Get("INTFC").String(),
 				svrActiveTime: time.Now().Unix(),
 				svrKey:        string(v.Key),
+				svrRealIP:     va.Get("source").String(),
 			}
 			if s.svrName == "" {
 				x := strings.Split(s.svrKey, "/")
@@ -168,7 +170,7 @@ func (m *Etcdv3Client) AllServices() string {
 			m.svrPool.Delete(key)
 			return true
 		}
-		s, _ = sjson.Set(s, key.(string), value.(*registeredServer).svrInterface+"://"+value.(*registeredServer).svrAddr)
+		s, _ = sjson.Set(s, key.(string), []string{value.(*registeredServer).svrInterface + "://" + value.(*registeredServer).svrAddr, value.(*registeredServer).svrRealIP})
 		return true
 	})
 	return s
