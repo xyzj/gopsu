@@ -106,7 +106,11 @@ func (c *ConfData) SetItem(key, value, remark string) bool {
 func (c *ConfData) GetItemDefault(key, value string, remark ...string) string {
 	v, err := c.GetItem(key)
 	if err != nil {
-		c.SetItem(key, value, remark[0])
+		if len(remark) > 0 {
+			c.SetItem(key, value, remark[0])
+		} else {
+			c.SetItem(key, value, key)
+		}
 		v = TrimString(value)
 	}
 	return v
