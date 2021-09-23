@@ -38,7 +38,7 @@ func qdMarshal(qd *QueryData) ([]byte, error) {
 }
 func qdUnmarshal(b []byte) *QueryData {
 	qd := &QueryData{}
-	if err := json.UnmarshalFromString(string(codeGzip.Uncompress(b)), qd); err != nil {
+	if err := json.UnmarshalFromString(gopsu.String(codeGzip.Uncompress(b)), qd); err != nil {
 		return nil
 	}
 	return qd

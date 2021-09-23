@@ -72,7 +72,7 @@ func getSocketTimeout() time.Duration {
 	var t = 120
 	b, err := ioutil.ReadFile(".sockettimeout")
 	if err == nil {
-		t = gopsu.String2Int(gopsu.TrimString(string(b)), 10)
+		t = gopsu.String2Int(gopsu.TrimString(gopsu.String(b)), 10)
 	}
 	if t < 120 {
 		t = 120
@@ -268,7 +268,7 @@ func ReadParams() gin.HandlerFunc {
 							Value: ans.String(),
 						})
 					} else {
-						x, _ = url.ParseQuery(string(b))
+						x, _ = url.ParseQuery(gopsu.String(b))
 						c.Params = append(c.Params, gin.Param{
 							Key:   "_body",
 							Value: x.Encode(),
@@ -384,7 +384,7 @@ func Delay() gin.HandlerFunc {
 		c.Next()
 		b, err := ioutil.ReadFile(".performance")
 		if err == nil {
-			t, _ := strconv.Atoi(gopsu.TrimString(string(b)))
+			t, _ := strconv.Atoi(gopsu.TrimString(gopsu.String(b)))
 			if t > 5000 || t < 0 {
 				t = 5000
 			}
