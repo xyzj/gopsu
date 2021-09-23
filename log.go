@@ -452,7 +452,7 @@ func (l *MxLog) newFile() {
 		// 打开文件
 		l.fno, l.err = os.OpenFile(l.pathNow, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0664)
 		if l.err != nil {
-			ioutil.WriteFile("logerr.log", []byte("Log file open error: "+l.err.Error()), 0664)
+			ioutil.WriteFile("logerr.log", Bytes("Log file open error: "+l.err.Error()), 0664)
 			l.out = io.MultiWriter(os.Stdout)
 		} else {
 			if l.logLevel <= 10 {

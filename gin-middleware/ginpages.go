@@ -80,7 +80,7 @@ func Clearlog(c *gin.Context) {
 	}
 	lstfno, ex := ioutil.ReadDir(dir)
 	if ex != nil {
-		ioutil.WriteFile("ginlogerr.log", []byte(fmt.Sprintf("clear log files error: %s", ex.Error())), 0664)
+		ioutil.WriteFile("ginlogerr.log", gopsu.Bytes(fmt.Sprintf("clear log files error: %s", ex.Error())), 0664)
 	}
 	t := time.Now()
 	for _, fno := range lstfno {

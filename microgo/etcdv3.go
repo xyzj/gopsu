@@ -138,7 +138,7 @@ func (m *Etcdv3Client) listServers() error {
 				svrProtocol:   va.Get("protocol").String(),
 				svrInterface:  va.Get("INTFC").String(),
 				svrActiveTime: time.Now().Unix(),
-				svrKey:        string(v.Key),
+				svrKey:        gopsu.String(v.Key),
 				svrRealIP:     va.Get("source").String(),
 			}
 			if s.svrName == "" {

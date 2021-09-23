@@ -395,7 +395,7 @@ func (sessn *Session) SendCustom(d *RabbitMQData) error {
 // FormatMQBody 格式化日志输出
 func FormatMQBody(d []byte) string {
 	if gjson.ParseBytes(d).Exists() {
-		return string(d)
+		return gopsu.String(d)
 	}
 	return base64.StdEncoding.EncodeToString(d)
 }
