@@ -130,7 +130,7 @@ func (m *Etcdv3Client) listServers() error {
 		if !va.Exists() {
 			continue
 		}
-		if ss, ok := m.svrPool.Load(string(v.Key)); !ok { // 未记录该服务
+		if ss, ok := m.svrPool.Load(gopsu.String(v.Key)); !ok { // 未记录该服务
 			s := &registeredServer{
 				svrName:       va.Get("name").String(),
 				svrAddr:       fmt.Sprintf("%s:%s", va.Get("ip").String(), va.Get("port").String()),

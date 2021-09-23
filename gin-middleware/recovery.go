@@ -38,7 +38,7 @@ func Recovery() gin.HandlerFunc {
 				if gin.DefaultWriter != nil {
 					// stack := stack(3)
 					httpRequest, _ := httputil.DumpRequest(c.Request, false)
-					headers := strings.Split(string(httpRequest), "\r\n")
+					headers := strings.Split(gopsu.String(httpRequest), "\r\n")
 					for idx, header := range headers {
 						current := strings.Split(header, ":")
 						if current[0] == "Authorization" {

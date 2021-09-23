@@ -145,37 +145,37 @@ func (h *CryptoWorker) SetKey(key, iv string) error {
 		if len(key) < 16 || len(iv) < 16 {
 			return fmt.Errorf("key and iv must be longer than 16")
 		}
-		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:16])
+		h.cryptoBlock, _ = aes.NewCipher(Bytes(key)[:16])
 		h.cryptoIV = Bytes(iv)[:16]
 	case CryptoAES192CBC:
 		if len(key) < 24 || len(iv) < 24 {
 			return fmt.Errorf("key and iv must be longer than 24")
 		}
-		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:24])
+		h.cryptoBlock, _ = aes.NewCipher(Bytes(key)[:24])
 		h.cryptoIV = Bytes(iv)[:24]
 	case CryptoAES256CBC:
 		if len(key) < 32 || len(iv) < 32 {
 			return fmt.Errorf("key and iv must be longer than 32")
 		}
-		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:32])
+		h.cryptoBlock, _ = aes.NewCipher(Bytes(key)[:32])
 		h.cryptoIV = Bytes(iv)[:32]
 	case CryptoAES128CFB:
 		if len(key) < 16 || len(iv) < 16 {
 			return fmt.Errorf("key and iv must be longer than 16")
 		}
-		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:16])
+		h.cryptoBlock, _ = aes.NewCipher(Bytes(key)[:16])
 		h.cryptoIV = Bytes(iv)[:16]
 	case CryptoAES192CFB:
 		if len(key) < 24 || len(iv) < 24 {
 			return fmt.Errorf("key and iv must be longer than 24")
 		}
-		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:24])
+		h.cryptoBlock, _ = aes.NewCipher(Bytes(key)[:24])
 		h.cryptoIV = Bytes(iv)[:24]
 	case CryptoAES256CFB:
 		if len(key) < 32 || len(iv) < 32 {
 			return fmt.Errorf("key and iv must be longer than 32")
 		}
-		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:32])
+		h.cryptoBlock, _ = aes.NewCipher(Bytes(key)[:32])
 		h.cryptoIV = Bytes(iv)[:32]
 	default:
 		return fmt.Errorf("not yet supported")
@@ -192,7 +192,7 @@ func (h *CryptoWorker) Encrypt(s string) string {
 	}
 	switch h.cryptoType {
 	case CryptoAES128CBC, CryptoAES192CBC, CryptoAES256CBC:
-		content := pkcs5Padding([]byte(s), h.cryptoBlock.BlockSize())
+		content := pkcs5Padding(Bytes(s), h.cryptoBlock.BlockSize())
 		crypted := make([]byte, len(content))
 		cipher.NewCBCEncrypter(h.cryptoBlock, h.cryptoIV).CryptBlocks(crypted, content)
 		return base64.StdEncoding.EncodeToString(crypted)
@@ -260,7 +260,7 @@ func (h *CryptoWorker) Hash(b []byte) string {
 // GetMD5 生成32位md5字符串
 func GetMD5(text string) string {
 	ctx := md5.New()
-	ctx.Write([]byte(text))
+	ctx.Write(Bytes(text))
 	return hex.EncodeToString(ctx.Sum(nil))
 }
 
@@ -1008,7 +1008,7 @@ func DecodeStringOld(s string) string {
 				ns.WriteByte(byte(int(z[i]) + 256 - int(x)))
 			}
 		}
-		return ReverseString(string(DoZlibUnCompress(ns.Bytes())))
+		return ReverseString(String(DoZlibUnCompress(ns.Bytes())))
 	}
 	return ""
 }
@@ -1176,7 +1176,7 @@ func PB2String(pb interface{}) string {
 
 // JSON2PB json字符串转pb2格式
 func JSON2PB(js string, pb interface{}) error {
-	err := json.Unmarshal([]byte(js), &pb)
+	err := json.Unmarshal(Bytes(js), &pb)
 	return err
 }
 

@@ -113,7 +113,7 @@ func LoggerWithRolling(logdir, filename string, maxdays int, skippath ...string)
 		start := time.Now()
 		token := c.GetHeader("User-Token")
 		if len(token) == 36 {
-			token = md5worker.Hash([]byte(token))
+			token = md5worker.Hash(gopsu.Bytes(token))
 		}
 		c.Next()
 
