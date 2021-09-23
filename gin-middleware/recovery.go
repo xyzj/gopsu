@@ -10,13 +10,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
+	"github.com/xyzj/gopsu"
 )
 
 // var (
-// 	dunno     = []byte("???")
-// 	centerDot = []byte("·")
-// 	dot       = []byte(".")
-// 	slash     = []byte("/")
+// 	dunno     = gopsu.Bytes("???")
+// 	centerDot = gopsu.Bytes("·")
+// 	dot       = gopsu.Bytes(".")
+// 	slash     = gopsu.Bytes("/")
 // )
 
 // Recovery 错误恢复
@@ -45,13 +46,13 @@ func Recovery() gin.HandlerFunc {
 						}
 					}
 					if brokenPipe {
-						fmt.Fprintf(gin.DefaultWriter, "%s\n%s\n", err, string(httpRequest))
+						fmt.Fprintf(gin.DefaultWriter, "%s\n%s\n", err, gopsu.String(httpRequest))
 					} else if gin.IsDebugging() {
 						fmt.Fprintf(gin.DefaultWriter, "[Recovery] %s\n%+v\n", strings.Join(headers, "\n"), errors.WithStack(err.(error)))
-						// fmt.Fprintf(gin.DefaultWriter, "[Recovery] %s\n%+v\n", strings.Join(headers, "\n"), string(stack))
+						// fmt.Fprintf(gin.DefaultWriter, "[Recovery] %s\n%+v\n", strings.Join(headers, "\n"), gopsu.String(stack))
 					} else {
 						fmt.Fprintf(gin.DefaultWriter, "[Recovery] %+v\n", errors.WithStack(err.(error)))
-						// fmt.Fprintf(gin.DefaultWriter, "[Recovery] %+v\n", string(stack))
+						// fmt.Fprintf(gin.DefaultWriter, "[Recovery] %+v\n", gopsu.String(stack))
 					}
 				}
 
@@ -113,7 +114,7 @@ func Recovery() gin.HandlerFunc {
 // 	if fn == nil {
 // 		return dunno
 // 	}
-// 	name := []byte(fn.Name())
+// 	name := gopsu.Bytes(fn.Name())
 // 	// The name includes the path name to the package, which is unnecessary
 // 	// since the file name is already included.  Plus, it has center dots.
 // 	// That is, we see

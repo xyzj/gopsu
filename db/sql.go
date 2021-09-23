@@ -267,7 +267,7 @@ func (p *SQLPool) checkCache() {
 // return:
 //  json字符串
 func (p *SQLPool) QueryCacheJSON(cacheTag string, startRow, rowsCount int) string {
-	return string(gopsu.PB2Json(p.QueryCachePB2(cacheTag, startRow, rowsCount)))
+	return gopsu.String(gopsu.PB2Json(p.QueryCachePB2(cacheTag, startRow, rowsCount)))
 }
 
 // QueryCachePB2 查询缓存结果
@@ -403,7 +403,7 @@ func (p *SQLPool) QueryOne(s string, colNum int, params ...interface{}) (js stri
 		v := values[i]
 		b, ok := v.([]byte)
 		if ok {
-			js, _ = sjson.Set(js, "row.-1", string(b))
+			js, _ = sjson.Set(js, "row.-1", gopsu.String(b))
 		} else {
 			js, _ = sjson.Set(js, "row.-1", v)
 		}
@@ -472,7 +472,7 @@ func (p *SQLPool) QueryJSON(s string, rowsCount int, params ...interface{}) (str
 	if ex != nil {
 		return "", ex
 	}
-	return string(gopsu.PB2Json(x)), nil
+	return gopsu.String(gopsu.PB2Json(x)), nil
 }
 
 // QueryPB2 执行查询语句，返回结果集的pb2序列化字节数组
@@ -535,7 +535,7 @@ func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (quer
 				continue
 			}
 			if b, ok := v.([]byte); ok {
-				row.Cells[k] = string(b)
+				row.Cells[k] = gopsu.String(b)
 			} else {
 				row.Cells[k] = fmt.Sprintf("%v", v)
 			}
@@ -639,7 +639,7 @@ func (p *SQLPool) QueryMultirowPage(s string, rowsCount int, keyColumeID int, pa
 			} else {
 				b, ok := v.([]byte)
 				if ok {
-					row.Cells[k] = string(b)
+					row.Cells[k] = gopsu.String(b)
 				} else {
 					row.Cells[k] = fmt.Sprintf("%v", v)
 				}

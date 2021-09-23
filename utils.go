@@ -36,6 +36,7 @@ import (
 	"sync"
 	"time"
 	"unicode/utf16"
+	"unsafe"
 
 	"github.com/tidwall/sjson"
 
@@ -139,43 +140,43 @@ func pkcs5Unpadding(encrypt []byte) []byte {
 func (h *CryptoWorker) SetKey(key, iv string) error {
 	switch h.cryptoType {
 	case CryptoHMACSHA1:
-		h.cryptoHash = hmac.New(sha1.New, []byte(key))
+		h.cryptoHash = hmac.New(sha1.New, Bytes(key))
 	case CryptoAES128CBC:
 		if len(key) < 16 || len(iv) < 16 {
 			return fmt.Errorf("key and iv must be longer than 16")
 		}
 		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:16])
-		h.cryptoIV = []byte(iv)[:16]
+		h.cryptoIV = Bytes(iv)[:16]
 	case CryptoAES192CBC:
 		if len(key) < 24 || len(iv) < 24 {
 			return fmt.Errorf("key and iv must be longer than 24")
 		}
 		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:24])
-		h.cryptoIV = []byte(iv)[:24]
+		h.cryptoIV = Bytes(iv)[:24]
 	case CryptoAES256CBC:
 		if len(key) < 32 || len(iv) < 32 {
 			return fmt.Errorf("key and iv must be longer than 32")
 		}
 		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:32])
-		h.cryptoIV = []byte(iv)[:32]
+		h.cryptoIV = Bytes(iv)[:32]
 	case CryptoAES128CFB:
 		if len(key) < 16 || len(iv) < 16 {
 			return fmt.Errorf("key and iv must be longer than 16")
 		}
 		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:16])
-		h.cryptoIV = []byte(iv)[:16]
+		h.cryptoIV = Bytes(iv)[:16]
 	case CryptoAES192CFB:
 		if len(key) < 24 || len(iv) < 24 {
 			return fmt.Errorf("key and iv must be longer than 24")
 		}
 		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:24])
-		h.cryptoIV = []byte(iv)[:24]
+		h.cryptoIV = Bytes(iv)[:24]
 	case CryptoAES256CFB:
 		if len(key) < 32 || len(iv) < 32 {
 			return fmt.Errorf("key and iv must be longer than 32")
 		}
 		h.cryptoBlock, _ = aes.NewCipher([]byte(key)[:32])
-		h.cryptoIV = []byte(iv)[:32]
+		h.cryptoIV = Bytes(iv)[:32]
 	default:
 		return fmt.Errorf("not yet supported")
 	}
@@ -197,7 +198,7 @@ func (h *CryptoWorker) Encrypt(s string) string {
 		return base64.StdEncoding.EncodeToString(crypted)
 	case CryptoAES128CFB, CryptoAES192CFB, CryptoAES256CFB:
 		crypted := make([]byte, aes.BlockSize+len(s))
-		cipher.NewCFBEncrypter(h.cryptoBlock, h.cryptoIV).XORKeyStream(crypted[aes.BlockSize:], []byte(s))
+		cipher.NewCFBEncrypter(h.cryptoBlock, h.cryptoIV).XORKeyStream(crypted[aes.BlockSize:], Bytes(s))
 		return base64.StdEncoding.EncodeToString(crypted)
 	}
 	return ""
@@ -227,11 +228,11 @@ func (h *CryptoWorker) Decrypt(s string) string {
 	case CryptoAES128CBC, CryptoAES192CBC, CryptoAES256CBC:
 		decrypted := make([]byte, len(msg))
 		cipher.NewCBCDecrypter(h.cryptoBlock, h.cryptoIV).CryptBlocks(decrypted, msg)
-		return string(pkcs5Unpadding(decrypted))
+		return String(pkcs5Unpadding(decrypted))
 	case CryptoAES128CFB, CryptoAES192CFB, CryptoAES256CFB:
 		msg = msg[aes.BlockSize:]
 		cipher.NewCFBDecrypter(h.cryptoBlock, h.cryptoIV).XORKeyStream(msg, msg)
-		return string(msg)
+		return String(msg)
 	}
 	return ""
 }
@@ -585,7 +586,7 @@ func CheckIP(ip string) bool {
 	regip := `^(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|[1-9])\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)$`
 	regipwithport := `^(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|[1-9])\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d):\d{1,5}$`
 	if strings.Contains(ip, ":") {
-		a, ex := regexp.Match(regipwithport, []byte(ip))
+		a, ex := regexp.Match(regipwithport, Bytes(ip))
 		if ex != nil {
 			return false
 		}
@@ -595,7 +596,7 @@ func CheckIP(ip string) bool {
 		}
 		return a
 	}
-	a, ex := regexp.Match(regip, []byte(ip))
+	a, ex := regexp.Match(regip, Bytes(ip))
 	if ex != nil {
 		return false
 	}
@@ -936,7 +937,7 @@ func CodeString(s string) string {
 	l := len(s)
 	salt := GetRandomASCII(int64(l))
 	var y, z bytes.Buffer
-	for _, v := range []byte(s) {
+	for _, v := range Bytes(s) {
 		y.WriteByte(v + x)
 	}
 	zz := y.Bytes()
@@ -1134,7 +1135,7 @@ func GetRandomString(l int64, letteronly ...bool) string {
 	if len(letteronly) > 0 && letteronly[0] {
 		str = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 	}
-	bb := []byte(str)
+	bb := Bytes(str)
 	var rs strings.Builder
 	// var rs bytes.Buffer
 	// r := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -1886,4 +1887,16 @@ func LastSlice(s, sep string) string {
 		return ss[len(ss)-1]
 	}
 	return s
+}
+
+// String 内存地址转换[]byte
+func String(b []byte) string {
+	return *(*string)(unsafe.Pointer(&b))
+}
+
+// Bytes 内存地址转换string
+func Bytes(s string) []byte {
+	x := (*[2]uintptr)(unsafe.Pointer(&s))
+	h := [3]uintptr{x[0], x[1], x[1]}
+	return *(*[]byte)(unsafe.Pointer(&h))
 }

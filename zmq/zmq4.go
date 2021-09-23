@@ -212,7 +212,7 @@ func (z *ZeroMQ) handlePush(push *zmq4.Socket) {
 		}
 		select {
 		case msg := <-z.chanPush:
-			_, ex := push.SendMessage([]string{msg.RoutingKey, string(msg.Body)})
+			_, ex := push.SendMessage([]string{msg.RoutingKey, gopsu.String(msg.Body)})
 			if ex != nil {
 				z.showMessages(fmt.Sprintf("0MQ-PushEx:%s", ex.Error()), 40)
 			} else {
@@ -288,11 +288,11 @@ func (z *ZeroMQ) handleSub(sub *zmq4.Socket) {
 
 		if len(msg) > 1 {
 			z.chanSub <- &ZeroMQData{
-				RoutingKey: string(msg[0]),
+				RoutingKey: gopsu.String(msg[0]),
 				Body:       msg[1],
 			}
 			if z.Verbose {
-				z.showMessages(fmt.Sprintf("0MQ-Sub: %s|%s", string(msg[0]), base64.StdEncoding.EncodeToString(msg[1])), 10)
+				z.showMessages(fmt.Sprintf("0MQ-Sub: %s|%s", gopsu.String(msg[0]), base64.StdEncoding.EncodeToString(msg[1])), 10)
 			}
 		}
 	}
