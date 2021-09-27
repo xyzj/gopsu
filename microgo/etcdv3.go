@@ -41,7 +41,7 @@ type Etcdv3Client struct {
 type registeredServer struct {
 	svrName       string // 服务名称
 	svrAddr       string // 服务地址
-	svrPickTimes  int    // 命中次数
+	svrPickTimes  int64  // 命中次数
 	svrProtocol   string // 服务使用数据格式
 	svrInterface  string // 服务发布的接口类型
 	svrActiveTime int64  // 服务查询时间
@@ -50,11 +50,12 @@ type registeredServer struct {
 }
 
 func (rs *registeredServer) addPickTimes() {
-	if rs.svrPickTimes >= 0xffffff {
-		rs.svrPickTimes = 0
-	} else {
-		rs.svrPickTimes++
-	}
+	rs.svrPickTimes = time.Now().UnixNano()
+	// if rs.svrPickTimes >= 0xffffff {
+	// 	rs.svrPickTimes = 0
+	// } else {
+	// 	rs.svrPickTimes++
+	// }
 }
 
 func (rs *registeredServer) updateActive() {
