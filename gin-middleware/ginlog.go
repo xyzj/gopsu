@@ -124,7 +124,7 @@ func LoggerWithRolling(logdir, filename string, maxdays int, skippath ...string)
 		}
 		// Stop timer
 		param.TimeStamp = time.Now()
-		param.Latency = param.TimeStamp.Sub(start)
+		param.Latency = time.Since(start)
 		param.ClientIP = c.ClientIP()
 		param.Method = c.Request.Method
 		param.StatusCode = c.Writer.Status()
