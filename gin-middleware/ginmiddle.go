@@ -293,10 +293,10 @@ func ReadParams() gin.HandlerFunc {
 				if len(mf.Value) == 0 {
 					return
 				}
-				if b, err := json.MarshalToString(mf.Value); err == nil {
+				if b, err := json.Marshal(mf.Value); err == nil {
 					c.Params = append(c.Params, gin.Param{
 						Key:   "_body",
-						Value: b,
+						Value: gopsu.String(b),
 					})
 				}
 				for k, v := range mf.Value {
@@ -343,7 +343,11 @@ func ReadCachePB2(mydb db.SQLInterface) gin.HandlerFunc {
 				cacherows := gopsu.String2Int(c.Param("cacherows"), 10)
 				ans := mydb.QueryCachePB2(cachetag, cachestart, cacherows)
 				if ans.Total > 0 {
-					s, _ := json.MarshalToString(ans)
+					var s string
+					if b, err := json.Marshal(ans); err != nil {
+						s = gopsu.String(b)
+					}
+					// s, _ := json.MarshalToString(ans)
 					c.Params = append(c.Params, gin.Param{
 						Key:   "_cacheData",
 						Value: s,
