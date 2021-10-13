@@ -21,6 +21,7 @@ type XCacheData struct {
 	expire int64
 }
 
+// Value 返回缓存值
 func (xcd *XCacheData) Value() interface{} {
 	return xcd.value
 }
