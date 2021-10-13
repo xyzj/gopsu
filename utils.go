@@ -277,6 +277,7 @@ func HashData(b []byte, cryptoType byte) string {
 	return ""
 }
 
+// ArchiveType 压缩编码类型
 type ArchiveType byte
 
 var (
@@ -531,9 +532,8 @@ func (mq *Queue) Empty() bool {
 func CacheMarshal(v interface{}) ([]byte, error) {
 	if b, err := json.Marshal(v); err == nil {
 		return CompressData(b, ArchiveGZip), nil
-	} else {
-		return nil, err
 	}
+	return nil, err
 }
 
 // CacheUnmarshal 将压缩的数据反序列化，参数v必须专递结构地址

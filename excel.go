@@ -8,7 +8,8 @@ import (
 	"github.com/tealeg/xlsx"
 )
 
-type excelData struct {
+// ExcelData Excel文件结构
+type ExcelData struct {
 	fileName  string
 	colStyle  *xlsx.Style
 	xlsxFile  *xlsx.File
@@ -17,7 +18,7 @@ type excelData struct {
 
 // AddSheet 添加sheet
 // sheetname sheet名称
-func (e *excelData) AddSheet(sheetname string) (*xlsx.Sheet, error) {
+func (e *ExcelData) AddSheet(sheetname string) (*xlsx.Sheet, error) {
 	var err error
 	e.xlsxSheet, err = e.xlsxFile.AddSheet(sheetname)
 	if err != nil {
@@ -28,7 +29,7 @@ func (e *excelData) AddSheet(sheetname string) (*xlsx.Sheet, error) {
 
 // AddRowInSheet 在指定sheet添加行
 // cells： 每个单元格的数据，任意格式
-func (e *excelData) AddRowInSheet(sheetname string, cells ...interface{}) {
+func (e *ExcelData) AddRowInSheet(sheetname string, cells ...interface{}) {
 	sheet := e.xlsxFile.Sheet[sheetname]
 	row := sheet.AddRow()
 	row.SetHeight(15)
@@ -40,7 +41,7 @@ func (e *excelData) AddRowInSheet(sheetname string, cells ...interface{}) {
 
 // AddRow 在当前sheet添加行
 // cells： 每个单元格的数据，任意格式
-func (e *excelData) AddRow(cells ...interface{}) {
+func (e *ExcelData) AddRow(cells ...interface{}) {
 	if e.xlsxSheet == nil {
 		e.xlsxSheet, _ = e.AddSheet(fmt.Sprintf("newsheet%d", len(e.xlsxFile.Sheets)+1))
 	}
@@ -54,7 +55,7 @@ func (e *excelData) AddRow(cells ...interface{}) {
 
 // SetColume 设置列头
 // columeName: 列头名，有多少写多少个
-func (e *excelData) SetColume(columeName ...string) {
+func (e *ExcelData) SetColume(columeName ...string) {
 	if e.xlsxSheet == nil {
 		e.xlsxSheet, _ = e.AddSheet(fmt.Sprintf("newsheet%d", len(e.xlsxFile.Sheets)+1))
 	}
@@ -69,13 +70,13 @@ func (e *excelData) SetColume(columeName ...string) {
 
 // Write 将excel数据写入到writer
 // w： io.writer
-func (e *excelData) Write(w io.Writer) error {
+func (e *ExcelData) Write(w io.Writer) error {
 	return e.xlsxFile.Write(w)
 }
 
 // Save 保存excel数据到文件
 // 返回保存的完整文件名，错误
-func (e *excelData) Save() (string, error) {
+func (e *ExcelData) Save() (string, error) {
 	fn := e.fileName
 	if strings.HasSuffix(fn, ".xlsx") {
 		fn += ".xlsx"
@@ -83,17 +84,16 @@ func (e *excelData) Save() (string, error) {
 	err := e.xlsxFile.Save(fn)
 	if err != nil {
 		return "", fmt.Errorf("excel-文件保存失败:" + err.Error())
-	} else {
-		return fn, nil
 	}
+	return fn, nil
 }
 
 // NewExcel 创建新的excel文件
 // filename: 需要保存的文件名头，如："事件日志"，不要加扩展名
 // 返回：excel数据格式，错误
-func NewExcel(filename string) (*excelData, error) {
+func NewExcel(filename string) (*ExcelData, error) {
 	var err error
-	e := &excelData{
+	e := &ExcelData{
 		xlsxFile: xlsx.NewFile(),
 		colStyle: xlsx.NewStyle(),
 	}
