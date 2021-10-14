@@ -530,10 +530,11 @@ func (mq *Queue) Empty() bool {
 
 // CacheMarshal 将数据进行序列化后压缩，可做数据缓存
 func CacheMarshal(v interface{}) ([]byte, error) {
-	if b, err := json.Marshal(v); err == nil {
+	if b, err := json.Marshal(v); err != nil {
+		return nil, err
+	} else {
 		return CompressData(b, ArchiveGZip), nil
 	}
-	return nil, err
 }
 
 // CacheUnmarshal 将压缩的数据反序列化，参数v必须专递结构地址
