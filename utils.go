@@ -530,11 +530,11 @@ func (mq *Queue) Empty() bool {
 
 // CacheMarshal 将数据进行序列化后压缩，可做数据缓存
 func CacheMarshal(v interface{}) ([]byte, error) {
-	if b, err := json.Marshal(v); err != nil {
+	b, err := json.Marshal(v)
+	if err != nil {
 		return nil, err
-	} else {
-		return CompressData(b, ArchiveGZip), nil
 	}
+	return CompressData(b, ArchiveGZip), nil
 }
 
 // CacheUnmarshal 将压缩的数据反序列化，参数v必须专递结构地址
@@ -780,6 +780,9 @@ func CountCrc16VB(data *[]byte) []byte {
 
 // IsExist file is exist or not
 func IsExist(p string) bool {
+	if p == "" {
+		return false
+	}
 	_, err := os.Stat(p)
 	return err == nil || os.IsExist(err)
 }
