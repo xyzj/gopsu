@@ -65,6 +65,8 @@ func NewGinEngine(logDir, logName string, logDays int, logLevel ...int) *gin.Eng
 	r.Static("/static", gopsu.JoinPathFromHere("static"))
 	return r
 }
+
+// GetSocketTimeout 获取超时时间
 func GetSocketTimeout() time.Duration {
 	return getSocketTimeout()
 }
