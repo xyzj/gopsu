@@ -7,12 +7,14 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
 	"github.com/xyzj/gopsu"
 
 	"github.com/gin-contrib/cors"
+	gingzip "github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 )
 
@@ -36,16 +38,18 @@ const (
 
 // ServiceOption 通用化http框架
 type ServiceOption struct {
-	EngineFunc   func() *gin.Engine
+	EngineFunc   func(string, int, ...string) *gin.Engine
 	CertFile     string
 	KeyFile      string
 	HTTPPort     int
 	HTTPSPort    int
-	Host         []string
+	Hosts        []string
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 	IdleTimeout  time.Duration
 	Debug        bool
+	LogFile      string
+	LogDays      int
 }
 
 // ListenAndServeWithOption 启动服务
@@ -67,30 +71,11 @@ func ListenAndServeWithOption(opt *ServiceOption) {
 		opt.IdleTimeout = time.Second * 60
 	}
 	if opt.EngineFunc == nil {
-		opt.EngineFunc = func() *gin.Engine {
-			r := gin.New()
-			// 允许跨域
-			r.Use(cors.New(cors.Config{
-				MaxAge:           time.Hour * 24,
-				AllowAllOrigins:  true,
-				AllowCredentials: true,
-				AllowWildcard:    true,
-				AllowMethods:     []string{"*"},
-				AllowHeaders:     []string{"*"},
-			}))
-			LoggerWithRolling(gopsu.GetExecDir(), "", 0)
-			// 故障恢复
-			r.Use(Recovery())
-			// 特殊路由处理
-			r.HandleMethodNotAllowed = true
-			r.NoMethod(Page405)
-			r.NoRoute(Page404)
-			return r
-		}
+		opt.EngineFunc = LiteEngine
 	}
 	// 路由处理
 	var findRoot = false
-	h := opt.EngineFunc()
+	h := opt.EngineFunc(opt.LogFile, opt.LogDays, opt.Hosts...)
 	for _, v := range h.Routes() {
 		if v.Path == "/" {
 			findRoot = true
@@ -163,8 +148,12 @@ func ListenAndServeWithOption(opt *ServiceOption) {
 }
 
 // LiteEngine 轻量化基础引擎
-func LiteEngine(logDir, logName string, logDays int, hosts ...string) *gin.Engine {
+func LiteEngine(logfile string, logDays int, hosts ...string) *gin.Engine {
 	r := gin.New()
+	// 特殊路由处理
+	r.HandleMethodNotAllowed = true
+	r.NoMethod(Page405)
+	r.NoRoute(Page404)
 	// 允许跨域
 	r.Use(cors.New(cors.Config{
 		MaxAge:           time.Hour * 24,
@@ -175,16 +164,17 @@ func LiteEngine(logDir, logName string, logDays int, hosts ...string) *gin.Engin
 		AllowMethods:     []string{"*"},
 		AllowHeaders:     []string{"*"},
 	}))
+	// 处理转发ip
+	XForwardedIP()
 	// 配置日志
-	LoggerWithRolling(logDir, logName, logDays)
+	logDir, logName := filepath.Split(logfile)
+	r.Use(LoggerWithRolling(logDir, logName, logDays))
 	// 故障恢复
 	r.Use(Recovery())
 	// 绑定域名
 	r.Use(bindHosts(hosts...))
-	// 特殊路由处理
-	r.HandleMethodNotAllowed = true
-	r.NoMethod(Page405)
-	r.NoRoute(Page404)
+	// 数据压缩
+	r.Use(gingzip.Gzip(6))
 	return r
 }
 

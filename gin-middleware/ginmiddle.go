@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -188,6 +189,21 @@ RUN:
 	}()
 	time.Sleep(time.Second)
 	goto RUN
+}
+
+// XForwardedIP 替换realip
+func XForwardedIP() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if ip := c.Request.Header.Get("X-Forwarded-From"); ip != "" {
+			if strings.Contains(ip, ":") {
+				c.Request.RemoteAddr = ip
+				return
+			}
+			if _, port, err := net.SplitHostPort(c.Request.RemoteAddr); err == nil {
+				c.Request.RemoteAddr = ip + ":" + port
+			}
+		}
+	}
 }
 
 // CheckRequired 检查必填参数
