@@ -50,7 +50,7 @@ const (
 	// OSARCH from runtime
 	OSARCH = runtime.GOARCH
 	// LongTimeFormat 含日期的日志内容时间戳格式 2006/01/02 15:04:05.000
-	LongTimeFormat = "2006/01/02 15:04:05.000"
+	LongTimeFormat = "2006-01-02 15:04:05.000"
 	// ShortTimeFormat 无日期的日志内容时间戳格式 15:04:05.000
 	ShortTimeFormat = "15:04:05.000"
 	// FileTimeFormat 日志文件命名格式 060102
