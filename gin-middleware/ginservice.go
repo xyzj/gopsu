@@ -165,7 +165,7 @@ func LiteEngine(logfile string, logDays int, hosts ...string) *gin.Engine {
 		AllowHeaders:     []string{"*"},
 	}))
 	// 处理转发ip
-	XForwardedIP()
+	r.Use(XForwardedIP())
 	// 配置日志
 	logDir, logName := filepath.Split(logfile)
 	r.Use(LoggerWithRolling(logDir, logName, logDays))

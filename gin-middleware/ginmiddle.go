@@ -194,14 +194,23 @@ RUN:
 // XForwardedIP 替换realip
 func XForwardedIP() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if ip := c.Request.Header.Get("X-Forwarded-From"); ip != "" {
-			if strings.Contains(ip, ":") {
-				c.Request.RemoteAddr = ip
-				return
-			}
-			if _, port, err := net.SplitHostPort(c.Request.RemoteAddr); err == nil {
-				c.Request.RemoteAddr = ip + ":" + port
-			}
+		var ip string
+		if ip = c.Request.Header.Get("X-Forwarded-From"); ip != "" {
+			goto NEWIP
+		}
+		if ip = c.Request.Header.Get("X-Forwarded-For"); ip != "" {
+			goto NEWIP
+		}
+		if ip = c.Request.Header.Get("X-Real-IP"); ip != "" {
+			goto NEWIP
+		}
+	NEWIP:
+		if strings.Contains(ip, ":") {
+			c.Request.RemoteAddr = ip
+			return
+		}
+		if _, port, err := net.SplitHostPort(c.Request.RemoteAddr); err == nil {
+			c.Request.RemoteAddr = ip + ":" + port
 		}
 	}
 }
