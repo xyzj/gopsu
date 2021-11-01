@@ -38,7 +38,7 @@ const (
 
 // ServiceOption 通用化http框架
 type ServiceOption struct {
-	EngineFunc   func(string, int, ...string) *gin.Engine
+	EngineFunc   func() *gin.Engine
 	CertFile     string
 	KeyFile      string
 	HTTPPort     int
@@ -71,11 +71,13 @@ func ListenAndServeWithOption(opt *ServiceOption) {
 		opt.IdleTimeout = time.Second * 60
 	}
 	if opt.EngineFunc == nil {
-		opt.EngineFunc = LiteEngine
+		opt.EngineFunc = func() *gin.Engine {
+			return LiteEngine("", 0)
+		}
 	}
 	// 路由处理
 	var findRoot = false
-	h := opt.EngineFunc(opt.LogFile, opt.LogDays, opt.Hosts...)
+	h := opt.EngineFunc()
 	for _, v := range h.Routes() {
 		if v.Path == "/" {
 			findRoot = true
@@ -167,7 +169,10 @@ func LiteEngine(logfile string, logDays int, hosts ...string) *gin.Engine {
 	// 处理转发ip
 	r.Use(XForwardedIP())
 	// 配置日志
-	logDir, logName := filepath.Split(logfile)
+	var logDir, logName string
+	if logfile != "" && logDays > 0 {
+		logDir, logName = filepath.Split(logfile)
+	}
 	r.Use(LoggerWithRolling(logDir, logName, logDays))
 	// 故障恢复
 	r.Use(Recovery())
