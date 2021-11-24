@@ -109,13 +109,14 @@ func ListenAndServeWithOption(opt *ServiceOption) {
 							fmt.Fprintf(os.Stdout, "cert update crash: %s\n", err.(error).Error())
 						}
 					}()
-
-					if cc, err := tls.LoadX509KeyPair(opt.CertFile, opt.KeyFile); err == nil {
-						s.TLSConfig = &tls.Config{
-							Certificates: []tls.Certificate{cc},
+					for {
+						if cc, err := tls.LoadX509KeyPair(opt.CertFile, opt.KeyFile); err == nil {
+							s.TLSConfig = &tls.Config{
+								Certificates: []tls.Certificate{cc},
+							}
 						}
+						time.Sleep(time.Hour * time.Duration(6+rand.Int31n(7)))
 					}
-					time.Sleep(time.Hour * time.Duration(1+rand.Int31n(5)))
 				}()
 				time.Sleep(time.Second)
 			} else {
