@@ -13,13 +13,10 @@ import (
 
 	// ms-sql driver
 	_ "github.com/denisenkom/go-mssqldb"
+	// mysql driver
 	"github.com/go-sql-driver/mysql"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
-
-	// mysql driver
-	// _ "github.com/siddontang/go-mysql/driver"
-
 	"github.com/tidwall/sjson"
 	"github.com/xyzj/gopsu"
 )
@@ -30,11 +27,11 @@ var (
 )
 
 func qdMarshal(qd *QueryData) ([]byte, error) {
-	if b, err := json.Marshal(qd); err == nil {
+	b, err := json.Marshal(qd)
+	if err == nil {
 		return codeGzip.Compress(b), nil
-	} else {
-		return nil, err
 	}
+	return nil, err
 }
 func qdUnmarshal(b []byte) *QueryData {
 	qd := &QueryData{}
@@ -44,9 +41,12 @@ func qdUnmarshal(b []byte) *QueryData {
 	return qd
 }
 
+// QueryDataRow 数据行
 type QueryDataRow struct {
 	Cells []string `json:"cells,omitempty"`
 }
+
+// QueryData 数据集
 type QueryData struct {
 	Total    int32           `json:"total,omitempty"`
 	CacheTag string          `json:"cache_tag,omitempty"`
@@ -448,7 +448,8 @@ func (p *SQLPool) QueryLimit(s string, startRow, rowsCount int, params ...interf
 // return:
 //  QueryData结构，error
 func (p *SQLPool) QueryPB2Big(s string, startRow, rowsCount int, params ...interface{}) (*QueryData, error) {
-	ss := strings.Replace(s, "select ", "select count(*),", 1)
+	// ss := strings.Replace(s, "select ", "select count(*),", 1)
+	ss := "select count(*) " + s[strings.Index(s, "from"):]
 	queryCount, err := p.QueryPB2(ss, 1, params...)
 	if err != nil {
 		p.Logger.Error("QueryPB2New Err: " + err.Error())
@@ -503,7 +504,6 @@ func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (quer
 		return query, err
 	}
 	defer rows.Close()
-
 	columns, err := rows.Columns()
 	if err != nil {
 		return query, err
@@ -563,11 +563,11 @@ func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (quer
 	if p.EnableCache && rowIdx > 0 { // && rowsCount < rowIdx {
 		cacheTag := fmt.Sprintf("%s%d-%d", p.CacheHead, time.Now().UnixNano(), rowIdx)
 		query.CacheTag = cacheTag
-		go func(b []byte, err error) {
-			if err == nil {
+		go func(qd *QueryData) {
+			if b, err := qdMarshal(queryCache); err == nil {
 				ioutil.WriteFile(filepath.Join(p.CacheDir, cacheTag), b, 0664)
 			}
-		}(qdMarshal(queryCache))
+		}(queryCache)
 	}
 	return query, nil
 }
@@ -668,11 +668,11 @@ func (p *SQLPool) QueryMultirowPage(s string, rowsCount int, keyColumeID int, pa
 	if p.EnableCache && rowIdx > 0 { // && rowsCount < rowIdx {
 		cacheTag := fmt.Sprintf("%s%d-%d", p.CacheHead, time.Now().UnixNano(), rowIdx)
 		query.CacheTag = cacheTag
-		go func(b []byte, err error) {
-			if err == nil {
+		go func(qd *QueryData) {
+			if b, err := qdMarshal(queryCache); err == nil {
 				ioutil.WriteFile(filepath.Join(p.CacheDir, cacheTag), b, 0664)
 			}
-		}(qdMarshal(queryCache))
+		}(queryCache)
 	}
 	return query, nil
 }
@@ -754,6 +754,15 @@ func (p *SQLPool) ExecPrepare(s string, paramNum int, params ...interface{}) (er
 	// }
 	return nil
 }
+
+// ExecPrepareV2 批量执行语句（insert，delete，update）,返回（影响行数,insertId,error）,使用官方的语句参数分离写法
+//
+// args:
+//  s: sql占位符语句
+//  paramNum: 占位符数量,为0时自动计算sql语句中`?`的数量
+//  params: 语句参数 `d := make([]interface{}, 0);d=append(d,xxx)`
+// return:
+//  error
 func (p *SQLPool) ExecPrepareV2(s string, paramNum int, params ...interface{}) (int64, []int64, error) {
 	p.execLocker.Lock()
 	defer func() {

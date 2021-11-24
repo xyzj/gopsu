@@ -1,12 +1,8 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net"
-	"time"
-
-	"github.com/xyzj/gopsu"
 )
 
 func GetAvailablePort() (int, error) {
@@ -32,16 +28,13 @@ func GetAvailablePort() (int, error) {
 
 // 启动文件 main.go
 func main() {
-	lim := gopsu.NewLimiter(100, 10)
-	// t := time.Now()
-	time.Sleep(time.Second * 5)
-	for {
-		ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*500)
-		if lim.Wait(ctx) {
-			println("good to go")
+	s := make([]string, 10)
+	for i := 0; i < 15; i++ {
+		if i < len(s) {
+			s[i] = fmt.Sprintf("%d", i)
 		} else {
-			println("no more")
+			s = append(s, fmt.Sprintf("%d", i))
 		}
-		time.Sleep(time.Millisecond * 200)
 	}
+	println(fmt.Sprintf("%+v", s))
 }
