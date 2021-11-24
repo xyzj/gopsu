@@ -485,13 +485,13 @@ func (p *SQLPool) QueryJSON(s string, rowsCount int, params ...interface{}) (str
 // return:
 //  QueryData结构，error
 func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (query *QueryData, err error) {
-	p.queryLocker.Lock()
+	// p.queryLocker.Lock()
 	defer func() (*QueryData, error) {
 		if ex := recover(); ex != nil {
 			err = ex.(error)
 			return nil, err
 		}
-		p.queryLocker.Unlock()
+		// p.queryLocker.Unlock()
 		return query, err
 	}()
 
@@ -559,6 +559,7 @@ func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (quer
 	}
 	query.Total = int32(rowIdx)
 	queryCache.Total = int32(rowIdx)
+
 	// 开始缓存，方便导出，有数据即缓存
 	if p.EnableCache && rowIdx > 0 { // && rowsCount < rowIdx {
 		cacheTag := fmt.Sprintf("%s%d-%d", p.CacheHead, time.Now().UnixNano(), rowIdx)
@@ -585,13 +586,13 @@ func (p *SQLPool) QueryMultirowPage(s string, rowsCount int, keyColumeID int, pa
 	if keyColumeID == -1 {
 		return p.QueryPB2(s, rowsCount, params...)
 	}
-	p.queryLocker.Lock()
+	// p.queryLocker.Lock()
 	defer func() (*QueryData, error) {
 		if ex := recover(); ex != nil {
 			err = ex.(error)
 			return nil, err
 		}
-		p.queryLocker.Unlock()
+		// p.queryLocker.Unlock()
 		return query, err
 	}()
 	if rowsCount < 0 {
@@ -606,7 +607,6 @@ func (p *SQLPool) QueryMultirowPage(s string, rowsCount int, keyColumeID int, pa
 		return query, err
 	}
 	defer rows.Close()
-
 	columns, err := rows.Columns()
 	if err != nil {
 		return query, err
