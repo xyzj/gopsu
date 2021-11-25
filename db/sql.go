@@ -715,12 +715,7 @@ func (p *SQLPool) queryChan(qdc chan *QueryDataChan, s string, rowsCount int, pa
 				row.Cells[k] = fmt.Sprintf("%v", v)
 			}
 		}
-		// 万一结果集大小变化，避免溢出错误
-		if rowIdx >= len(queryCache.Rows) {
-			queryCache.Rows = append(queryCache.Rows, row)
-		} else {
-			queryCache.Rows[rowIdx] = row
-		}
+		queryCache.Rows[rowIdx] = row
 		rowIdx++
 		if rowsCount > 0 && rowIdx == rowsCount { // 返回
 			qdc <- &QueryDataChan{
@@ -732,6 +727,10 @@ func (p *SQLPool) queryChan(qdc chan *QueryDataChan, s string, rowsCount int, pa
 				},
 				Err: nil,
 			}
+		}
+		// 万一结果集大小变化，丢弃多余数据，避免溢出错误
+		if rowIdx == total {
+			break
 		}
 	}
 	if rowsCount == 0 { // 全部返回
