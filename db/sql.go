@@ -520,46 +520,46 @@ func (p *SQLPool) QueryJSON(s string, rowsCount int, params ...interface{}) (str
 // return:
 //  QueryData结构，error
 func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (query *QueryData, err error) {
-	// p.queryLocker.Lock()
 	defer func() (*QueryData, error) {
 		if ex := recover(); ex != nil {
 			err = ex.(error)
 			return nil, err
 		}
-		// p.queryLocker.Unlock()
 		return query, err
 	}()
 
-	query = &QueryData{}
-	queryCache := &QueryData{}
+	if rowsCount < 0 {
+		rowsCount = 0
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
 	defer cancel()
 	rows, err := p.connPool.QueryContext(ctx, s, params...)
 	if err != nil {
-		return query, err
+		return nil, err
 	}
 	defer rows.Close()
 	columns, err := rows.Columns()
 	if err != nil {
-		return query, err
+		return nil, err
 	}
-	query.Columns = columns
-	queryCache.Columns = columns
+	queryCache := &QueryData{
+		Columns: columns,
+	}
 
 	count := len(columns)
 	values := make([]interface{}, count)
 	scanArgs := make([]interface{}, count)
-
 	for i := range values {
 		scanArgs[i] = &values[i]
 	}
-	query.Rows = make([]*QueryDataRow, 0)
+	// 开始遍历结果集
 	queryCache.Rows = make([]*QueryDataRow, 0)
 	var rowIdx = 0
 	for rows.Next() {
 		err := rows.Scan(scanArgs...)
 		if err != nil {
-			return query, err
+			return queryCache, err
 		}
 		row := &QueryDataRow{
 			Cells: make([]string, count),
@@ -577,20 +577,15 @@ func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (quer
 		}
 		queryCache.Rows = append(queryCache.Rows, row)
 		rowIdx++
-	}
-	if err := rows.Err(); err != nil {
-		return query, err
-	}
-	if rowsCount < 0 {
-		rowsCount = 0
+		if rowsCount > 0 && rowIdx == rowsCount {
+			query = &QueryData{
+				Rows:    queryCache.Rows[:rowIdx],
+				Columns: queryCache.Columns,
+			}
+		}
 	}
 	if rowsCount == 0 {
 		query.Rows = queryCache.Rows
-	} else {
-		if rowsCount > rowIdx {
-			rowsCount = rowIdx
-		}
-		query.Rows = queryCache.Rows[:rowsCount]
 	}
 	query.Total = int32(rowIdx)
 	queryCache.Total = int32(rowIdx)
@@ -598,6 +593,7 @@ func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (quer
 	if p.EnableCache && rowIdx > 0 { // && rowsCount < rowIdx {
 		cacheTag := fmt.Sprintf("%s%d-%d", p.CacheHead, time.Now().UnixNano(), rowIdx)
 		query.CacheTag = cacheTag
+		queryCache.CacheTag = cacheTag
 		go func(qd *QueryData) {
 			if b, err := qdMarshal(queryCache); err == nil {
 				ioutil.WriteFile(filepath.Join(p.CacheDir, cacheTag), b, 0664)
