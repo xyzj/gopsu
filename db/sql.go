@@ -54,6 +54,20 @@ type QueryData struct {
 	Columns  []string        `json:"columns,omitempty"`
 }
 
+// QueryDataChan chan方式返回首页数据
+type QueryDataChan struct {
+	Data *QueryData
+	Err  error
+}
+
+// QueryDataChanWorker chan方式数据库访问
+type QueryDataChanWorker struct {
+	QDC       chan *QueryDataChan
+	RowsCount int
+	Strsql    string
+	Params    []interface{}
+}
+
 // driveType 数据库驱动类型
 type driveType int
 
@@ -115,6 +129,8 @@ type SQLPool struct {
 	// 查询锁
 	queryLocker sync.Mutex
 	execLocker  sync.Mutex
+	// chan方式
+	chanQuery chan *QueryDataChanWorker
 }
 
 // New 初始化
@@ -210,6 +226,20 @@ func (p *SQLPool) New(tls ...string) error {
 			}
 		}()
 	}
+	p.chanQuery = make(chan *QueryDataChanWorker, 500)
+	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				p.Logger.Error("SQL Cache file clean error:" + errors.WithStack(err.(error)).Error())
+			}
+		}()
+		for d := range p.chanQuery {
+			go func(cq *QueryDataChanWorker) {
+				// 调用chan方法
+				p.queryChan(cq.QDC, cq.Strsql, cq.RowsCount, cq.Params...)
+			}(d)
+		}
+	}()
 	p.Logger.System("Success connect to server " + p.Server)
 	return nil
 }
@@ -379,12 +409,6 @@ func (p *SQLPool) QueryOne(s string, colNum int, params ...interface{}) (js stri
 		return js, nil
 	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
-	defer cancel()
-	row := p.connPool.QueryRowContext(ctx, s, params...)
-	if err != nil {
-		return js, err
-	}
 	values := make([]interface{}, colNum)
 	scanArgs := make([]interface{}, colNum)
 
@@ -392,23 +416,26 @@ func (p *SQLPool) QueryOne(s string, colNum int, params ...interface{}) (js stri
 		scanArgs[i] = &values[i]
 	}
 
-	err = row.Scan(scanArgs...)
-	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
-			return "", nil
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
+	defer cancel()
+	err = p.connPool.QueryRowContext(ctx, s, params...).Scan(scanArgs...)
+	switch {
+	case err == sql.ErrNoRows:
+		return "", nil
+	case err != nil:
+		return "", err
+	default:
+		for i := range scanArgs {
+			v := values[i]
+			b, ok := v.([]byte)
+			if ok {
+				js, _ = sjson.Set(js, "row.-1", gopsu.String(b))
+			} else {
+				js, _ = sjson.Set(js, "row.-1", v)
+			}
 		}
-		return js, err
+		return js, nil
 	}
-	for i := range scanArgs {
-		v := values[i]
-		b, ok := v.([]byte)
-		if ok {
-			js, _ = sjson.Set(js, "row.-1", gopsu.String(b))
-		} else {
-			js, _ = sjson.Set(js, "row.-1", v)
-		}
-	}
-	return js, nil
 }
 
 // QueryLimit 执行查询语句，限制返回行数
@@ -450,14 +477,22 @@ func (p *SQLPool) QueryLimit(s string, startRow, rowsCount int, params ...interf
 func (p *SQLPool) QueryPB2Big(s string, startRow, rowsCount int, params ...interface{}) (*QueryData, error) {
 	// ss := strings.Replace(s, "select ", "select count(*),", 1)
 	ss := "select count(*) " + s[strings.Index(s, "from"):]
-	queryCount, err := p.QueryPB2(ss, 1, params...)
-	if err != nil {
-		p.Logger.Error("QueryPB2New Err: " + err.Error())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
+	defer cancel()
+	var total int
+	err := p.connPool.QueryRowContext(ctx, ss, params...).Scan(&total)
+	switch {
+	case err == sql.ErrNoRows:
+		return &QueryData{
+			Total: 0,
+		}, nil
+	case err != nil:
 		return p.QueryPB2(s, rowsCount, params...)
+	default:
+		query, err := p.QueryLimit(s, startRow, rowsCount, params...)
+		query.Total = int32(total)
+		return query, err
 	}
-	query, err := p.QueryLimit(s, startRow, rowsCount, params...)
-	query.Total = gopsu.String2Int32(queryCount.Rows[0].Cells[0], 10)
-	return query, err
 }
 
 // QueryJSON 执行查询语句，返回结果集的json字符串
@@ -559,7 +594,6 @@ func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (quer
 	}
 	query.Total = int32(rowIdx)
 	queryCache.Total = int32(rowIdx)
-
 	// 开始缓存，方便导出，有数据即缓存
 	if p.EnableCache && rowIdx > 0 { // && rowsCount < rowIdx {
 		cacheTag := fmt.Sprintf("%s%d-%d", p.CacheHead, time.Now().UnixNano(), rowIdx)
@@ -571,6 +605,153 @@ func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (quer
 		}(queryCache)
 	}
 	return query, nil
+}
+
+// QueryPB2Chan 查询v2,采用线程+channel优化超大数据集分页的首页返回时间
+// args:
+//  s: sql占位符语句
+//  rowsCount: 返回数据行数，从第一行开始，0-返回全部
+//  params: 查询参数,语句中的参数用`?`占位
+// return:
+//  QueryData结构，error
+func (p *SQLPool) QueryPB2Chan(s string, rowsCount int, params ...interface{}) <-chan *QueryDataChan {
+	qdc := &QueryDataChanWorker{
+		QDC:       make(chan *QueryDataChan, 1),
+		RowsCount: rowsCount,
+		Strsql:    s,
+		Params:    params,
+	}
+	p.chanQuery <- qdc
+	return qdc.QDC
+}
+func (p *SQLPool) queryChan(qdc chan *QueryDataChan, s string, rowsCount int, params ...interface{}) {
+	defer func() {
+		if err := recover(); err != nil {
+			qdc <- &QueryDataChan{
+				Data: nil,
+				Err:  err.(error),
+			}
+		}
+	}()
+
+	if rowsCount < 0 {
+		rowsCount = 0
+	}
+	// 查询总行数
+	ss := "select count(*) " + s[strings.Index(s, "from"):]
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
+	defer cancel()
+	var total int
+	err := p.connPool.QueryRowContext(ctx, ss, params...).Scan(&total)
+	switch {
+	case err == sql.ErrNoRows:
+		qdc <- &QueryDataChan{
+			Data: &QueryData{},
+			Err:  nil,
+		}
+		return
+	case err != nil:
+		p.Logger.Error("QueryPB2Chan Err: " + err.Error())
+		qdc <- &QueryDataChan{
+			Data: nil,
+			Err:  err,
+		}
+		return
+	default:
+	}
+	// 查询数据集
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
+	defer cancel()
+	rows, err := p.connPool.QueryContext(ctx, s, params...)
+	if err != nil {
+		qdc <- &QueryDataChan{
+			Data: nil,
+			Err:  err,
+		}
+		return
+	}
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil {
+		qdc <- &QueryDataChan{
+			Data: nil,
+			Err:  err,
+		}
+		return
+	}
+	// 初始化
+	queryCache := &QueryData{
+		Columns:  columns,
+		Total:    int32(total),
+		Rows:     make([]*QueryDataRow, total),
+		CacheTag: fmt.Sprintf("%s%d-%d", p.CacheHead, time.Now().UnixNano(), total),
+	}
+
+	count := len(columns)
+	values := make([]interface{}, count)
+	scanArgs := make([]interface{}, count)
+
+	for i := range values {
+		scanArgs[i] = &values[i]
+	}
+	// 扫描
+	var rowIdx = 0
+	for rows.Next() {
+		err := rows.Scan(scanArgs...)
+		if err != nil {
+			qdc <- &QueryDataChan{
+				Data: queryCache,
+				Err:  err,
+			}
+			return
+		}
+		row := &QueryDataRow{
+			Cells: make([]string, count),
+		}
+		for k, v := range values {
+			if v == nil {
+				row.Cells[k] = ""
+				continue
+			}
+			if b, ok := v.([]byte); ok {
+				row.Cells[k] = gopsu.String(b)
+			} else {
+				row.Cells[k] = fmt.Sprintf("%v", v)
+			}
+		}
+		// 万一结果集大小变化，避免溢出错误
+		if rowIdx >= len(queryCache.Rows) {
+			queryCache.Rows = append(queryCache.Rows, row)
+		} else {
+			queryCache.Rows[rowIdx] = row
+		}
+		rowIdx++
+		if rowsCount > 0 && rowIdx == rowsCount { // 返回
+			qdc <- &QueryDataChan{
+				Data: &QueryData{
+					Rows:     queryCache.Rows[:rowIdx],
+					Total:    queryCache.Total,
+					CacheTag: queryCache.CacheTag,
+					Columns:  queryCache.Columns,
+				},
+				Err: nil,
+			}
+		}
+	}
+	if rowsCount == 0 { // 全部返回
+		qdc <- &QueryDataChan{
+			Data: queryCache,
+			Err:  nil,
+		}
+	}
+	// 开始缓存，方便导出，有数据即缓存
+	if p.EnableCache && rowIdx > 0 { // && rowsCount < rowIdx {
+		go func(qd *QueryData) {
+			if b, err := qdMarshal(queryCache); err == nil {
+				ioutil.WriteFile(filepath.Join(p.CacheDir, queryCache.CacheTag), b, 0664)
+			}
+		}(queryCache)
+	}
 }
 
 // QueryMultirowPage 执行查询语句，返回结果集的pb2序列化字节数组，检测多个字段进行换行计数
