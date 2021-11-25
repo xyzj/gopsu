@@ -913,22 +913,26 @@ func (p *SQLPool) ExecPrepare(s string, paramNum int, params ...interface{}) (er
 	defer cancel()
 	// 开启事务
 	st, err := p.connPool.PrepareContext(ctx, s)
-	// tx, err := p.connPool.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer st.Close()
+	tx, err := p.connPool.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	for i := 0; i < l; i += paramNum {
-		_, err := st.ExecContext(ctx, params[i:i+paramNum]...)
-		// _, err = tx.ExecContext(ctx, s, params[i:i+paramNum]...)
+		_, err = tx.StmtContext(ctx, st).Exec(params[i : i+paramNum]...)
+		// _, err := st.ExecContext(ctx, params[i:i+paramNum]...)
 		if err != nil {
 			return err
 		}
 	}
-	// err = tx.Commit()
-	// if err != nil {
-	// 	tx.Rollback()
-	// 	return err
-	// }
+	err = tx.Commit()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
 	return nil
 }
 
@@ -965,12 +969,16 @@ func (p *SQLPool) ExecPrepareV2(s string, paramNum int, params ...interface{}) (
 		return 0, nil, err
 	}
 	defer st.Close()
+	tx, err := p.connPool.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, nil, err
+	}
 	rowAffected := int64(0)
 	var ex error
 	insertID := make([]int64, len(params)/paramNum)
 	idx := 0
 	for i := 0; i < l; i += paramNum {
-		ans, err := st.ExecContext(ctx, params[i:i+paramNum]...)
+		ans, err := tx.StmtContext(ctx, st).Exec(params[i : i+paramNum]...)
 		if err != nil {
 			ex = err
 			continue
@@ -985,6 +993,11 @@ func (p *SQLPool) ExecPrepareV2(s string, paramNum int, params ...interface{}) (
 			insertID[idx] = inid
 		}
 		idx++
+	}
+	err = tx.Commit()
+	if err != nil {
+		tx.Rollback()
+		return 0, nil, err
 	}
 	return rowAffected, insertID, ex
 }
