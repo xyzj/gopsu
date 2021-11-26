@@ -520,13 +520,13 @@ func (p *SQLPool) QueryJSON(s string, rowsCount int, params ...interface{}) (str
 // return:
 //  QueryData结构，error
 func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (query *QueryData, err error) {
-	// defer func() (*QueryData, error) {
-	// 	if ex := recover(); ex != nil {
-	// 		err = ex.(error)
-	// 		return nil, err
-	// 	}
-	// 	return query, err
-	// }()
+	defer func() (*QueryData, error) {
+		if ex := recover(); ex != nil {
+			err = ex.(error)
+			return nil, err
+		}
+		return query, err
+	}()
 
 	if rowsCount < 0 {
 		rowsCount = 0
