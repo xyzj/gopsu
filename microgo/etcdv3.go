@@ -9,10 +9,8 @@ import (
 	"sync"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
-	"github.com/tidwall/gjson"
-
-	"github.com/tidwall/sjson"
 	"github.com/xyzj/gopsu"
 	clientv3 "go.etcd.io/etcd/clientv3"
 )
@@ -21,6 +19,32 @@ const (
 	leaseTimeout   = 7
 	contextTimeout = 3 * time.Second
 )
+
+var (
+	json = jsoniter.Config{}.Froze()
+)
+
+// OptEtcd etcd注册配置
+type OptEtcd struct {
+	Name      string
+	Alias     string
+	Host      string
+	Port      string
+	Protocol  string // json or pb2
+	Interface string // http or https
+}
+
+type etcdinfo struct {
+	IP          string `json:"ip"`
+	Port        string `json:"port"`
+	Name        string `json:"name"`
+	Alias       string `json:"alias"`
+	Intfc       string `json:"INTFC"`
+	Protocol    string `json:"protocol"`
+	TimeConnect int64  `json:"timeConnect"`
+	TimeActive  int64  `json:"timeActive"`
+	Source      string `json:"source"`
+}
 
 // Etcdv3Client 微服务结构体
 type Etcdv3Client struct {
@@ -46,7 +70,8 @@ type registeredServer struct {
 	svrInterface  string // 服务发布的接口类型
 	svrActiveTime int64  // 服务查询时间
 	svrKey        string // 服务注册key
-	svrRealIP     string
+	svrRealIP     string // 目标服务的本地ip
+	svrAlias      string // 显示用名称
 }
 
 func (rs *registeredServer) addPickTimes() {
@@ -127,31 +152,62 @@ func (m *Etcdv3Client) listServers() error {
 	// })
 	// 重新添加
 	for _, v := range resp.Kvs {
-		va := gjson.ParseBytes(v.Value)
-		if !va.Exists() {
+		var ei = &etcdinfo{}
+		err := json.Unmarshal(v.Value, ei)
+		if err != nil {
 			continue
 		}
-		if ss, ok := m.svrPool.Load(gopsu.String(v.Key)); !ok { // 未记录该服务
-			s := &registeredServer{
-				svrName:       va.Get("name").String(),
-				svrAddr:       fmt.Sprintf("%s:%s", va.Get("ip").String(), va.Get("port").String()),
+		eikey := gopsu.String(v.Key)
+		if ss, ok := m.svrPool.Load(eikey); !ok {
+			m.svrPool.Store(eikey, &registeredServer{
+				svrName: func(name, key string) string {
+					if ei.Name != "" {
+						return ei.Name
+					}
+					x := strings.Split(key, "/")
+					if len(x) > 2 {
+						return x[1]
+					}
+					return "unknow"
+				}(ei.Name, eikey),
+				svrAddr:       ei.IP + ":" + ei.Port,
 				svrPickTimes:  0,
-				svrProtocol:   va.Get("protocol").String(),
-				svrInterface:  va.Get("INTFC").String(),
+				svrProtocol:   ei.Protocol,
+				svrInterface:  ei.Intfc,
 				svrActiveTime: time.Now().Unix(),
-				svrKey:        gopsu.String(v.Key),
-				svrRealIP:     va.Get("source").String(),
-			}
-			if s.svrName == "" {
-				x := strings.Split(s.svrKey, "/")
-				if len(x) > 2 {
-					s.svrName = x[1]
-				}
-			}
-			m.svrPool.Store(s.svrKey, s)
+				svrKey:        eikey,
+				svrRealIP:     ei.Source,
+				svrAlias:      ei.Alias,
+			})
 		} else {
 			ss.(*registeredServer).updateActive()
 		}
+		// va := gjson.ParseBytes(v.Value)
+		// if !va.Exists() {
+		// 	continue
+		// }
+		// if ss, ok := m.svrPool.Load(gopsu.String(v.Key)); !ok { // 未记录该服务
+		// 	s := &registeredServer{
+		// 		svrName:       va.Get("name").String(),
+		// 		svrAddr:       fmt.Sprintf("%s:%s", va.Get("ip").String(), va.Get("port").String()),
+		// 		svrPickTimes:  0,
+		// 		svrProtocol:   va.Get("protocol").String(),
+		// 		svrInterface:  va.Get("INTFC").String(),
+		// 		svrActiveTime: time.Now().Unix(),
+		// 		svrKey:        gopsu.String(v.Key),
+		// 		svrRealIP:     va.Get("source").String(),
+		// 		svrAlias:      va.Get("alias").String(),
+		// 	}
+		// 	if s.svrName == "" {
+		// 		x := strings.Split(s.svrKey, "/")
+		// 		if len(x) > 2 {
+		// 			s.svrName = x[1]
+		// 		}
+		// 	}
+		// 	m.svrPool.Store(s.svrKey, s)
+		// } else {
+		// 	ss.(*registeredServer).updateActive()
+		// }
 		// a, ok := m.svrPool.LoadOrStore(s.svrKey, s)
 		// if ok {
 		// 	s := a.(*registeredServer)
@@ -164,17 +220,26 @@ func (m *Etcdv3Client) listServers() error {
 
 // AllServices 返回所有注册服务的信息
 func (m *Etcdv3Client) AllServices() string {
-	var s string
+	var s = make(map[string][]string)
 	var t = time.Now().Unix()
 	m.svrPool.Range(func(key interface{}, value interface{}) bool {
 		if value.(*registeredServer).expired(t) {
 			m.svrPool.Delete(key)
 			return true
 		}
-		s, _ = sjson.Set(s, key.(string), []string{value.(*registeredServer).svrInterface + "://" + value.(*registeredServer).svrAddr, value.(*registeredServer).svrRealIP})
+		s[key.(string)] = []string{
+			value.(*registeredServer).svrInterface + "://" + value.(*registeredServer).svrAddr,
+			value.(*registeredServer).svrRealIP,
+			value.(*registeredServer).svrAlias,
+		}
+		// s, _ = sjson.Set(s, key.(string), []string{value.(*registeredServer).svrInterface + "://" + value.(*registeredServer).svrAddr,
+		// 	value.(*registeredServer).svrRealIP,
+		// 	value.(*registeredServer).svrAlias,
+		// })
 		return true
 	})
-	return s
+	ss, _ := json.MarshalToString(s)
+	return ss
 }
 
 // addPickTimes 增加计数器
@@ -212,21 +277,38 @@ func (m *Etcdv3Client) SetLogger(l gopsu.Logger) {
 //  svrport: 服务端口
 // return:
 //  error
-func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string) error {
-	m.svrName = svrname
+func (m *Etcdv3Client) Register(opt *OptEtcd) error {
+	m.svrName = opt.Name
 	m.etcdKey = fmt.Sprintf("/%s/%s/%s_%s", m.etcdRoot, m.svrName, m.svrName, gopsu.GetUUID1())
-	if svrip == "" {
-		svrip = gopsu.RealIP(false)
+	if opt.Host == "" {
+		opt.Host = gopsu.RealIP(false)
 	}
-	js, _ := sjson.Set("", "ip", svrip)
-	js, _ = sjson.Set(js, "port", svrport)
-	js, _ = sjson.Set(js, "name", svrname)
-	js, _ = sjson.Set(js, "INTFC", intfc)
-	js, _ = sjson.Set(js, "protocol", protoname)
-	js, _ = sjson.Set(js, "timeConnect", time.Now().Unix())
-	js, _ = sjson.Set(js, "timeActive", time.Now().Unix())
-	js, _ = sjson.Set(js, "source", m.realIP)
-	m.svrDetail = js
+
+	m.svrDetail, _ = json.MarshalToString(&etcdinfo{
+		IP:   opt.Host,
+		Port: opt.Port,
+		Name: opt.Name,
+		Alias: func(name, alias string) string {
+			if alias != "" {
+				return alias
+			}
+			return name
+		}(opt.Name, opt.Alias),
+		Intfc:       opt.Interface,
+		Protocol:    opt.Protocol,
+		TimeActive:  time.Now().Unix(),
+		TimeConnect: time.Now().Unix(),
+		Source:      m.realIP,
+	})
+	// m.svrDetail, _ = sjson.Set("", "ip", opt.Host)
+	// m.svrDetail, _ = sjson.Set(m.svrDetail, "port", opt.Port)
+	// m.svrDetail, _ = sjson.Set(m.svrDetail, "name", opt.Name)
+	// m.svrDetail, _ = sjson.Set(m.svrDetail, "alias", opt.Alias)
+	// m.svrDetail, _ = sjson.Set(m.svrDetail, "INTFC", opt.Interface)
+	// m.svrDetail, _ = sjson.Set(m.svrDetail, "protocol", opt.Protocol)
+	// m.svrDetail, _ = sjson.Set(m.svrDetail, "timeConnect", time.Now().Unix())
+	// m.svrDetail, _ = sjson.Set(m.svrDetail, "timeActive", time.Now().Unix())
+	// m.svrDetail, _ = sjson.Set(m.svrDetail, "source", m.realIP)
 
 	// 监视线程，在etcd崩溃并重启时重新注册
 	// 注册
@@ -251,7 +333,7 @@ func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string
 		m.logger.Error(fmt.Sprintf("Registration to %s failed: %v", m.etcdAddr, err.Error()))
 		return fmt.Errorf("registration to %s failed: %v", m.etcdAddr, err.Error())
 	}
-	m.logger.System(fmt.Sprintf("Registration to %v as `%s://%s:%s/%s` success.", m.etcdAddr, intfc, svrip, svrport, svrname))
+	m.logger.System(fmt.Sprintf("Registration to %v as `%s://%s:%s/%s` success.", m.etcdAddr, opt.Interface, opt.Host, opt.Port, opt.Name))
 	keepRespChan, err = lease.KeepAlive(context.Background(), leaseid)
 	if err != nil {
 		m.logger.Error(fmt.Sprintf("Keep lease error: %s", err.Error()))
@@ -274,7 +356,7 @@ func (m *Etcdv3Client) Register(svrname, svrip, svrport, intfc, protoname string
 	// }()
 	// time.Sleep(time.Duration(rand.Intn(2000)+1500) * time.Millisecond)
 	// goto RUN
-	return nil
+	// return nil
 }
 
 // Watcher 监视服务信息变化
