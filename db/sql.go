@@ -131,6 +131,8 @@ type SQLPool struct {
 	execLocker  sync.Mutex
 	// chan方式
 	chanQuery chan *QueryDataChanWorker
+	// 缓存锁，避免缓存没写完前读取
+	cacheLocker sync.Map
 }
 
 // New 初始化
@@ -139,11 +141,15 @@ func (p *SQLPool) New(tls ...string) error {
 	if p.Server == "" || p.User == "" || p.Passwd == "" {
 		return fmt.Errorf("config error")
 	}
+	// 处理参数
 	if p.Timeout > 6000 || p.Timeout < 5 {
 		p.Timeout = 120
 	}
-	if p.MaxOpenConns < 20 || p.MaxOpenConns > 500 {
-		p.MaxOpenConns = 100
+	if p.MaxOpenConns < 20 {
+		p.MaxOpenConns = 20
+	}
+	if p.MaxOpenConns > 500 {
+		p.MaxOpenConns = 500
 	}
 	if p.CacheDir == "" {
 		p.CacheDir = gopsu.DefaultCacheDir
@@ -151,6 +157,8 @@ func (p *SQLPool) New(tls ...string) error {
 	if p.Logger == nil {
 		p.Logger = &gopsu.NilLogger{}
 	}
+	// p.cacheLocker = make(map[string]*sync.WaitGroup)
+	// 设置参数
 	var connstr string
 	switch p.DriverType {
 	case DriverMSSQL:
@@ -201,6 +209,7 @@ func (p *SQLPool) New(tls ...string) error {
 	if p.CacheHead == "" {
 		p.CacheHead = gopsu.GetMD5(connstr)
 	}
+	// 连接/测试
 	db, err := sql.Open(p.DriverType.string(), strings.ReplaceAll(connstr, "\n", ""))
 	if err != nil {
 		return err
@@ -214,6 +223,8 @@ func (p *SQLPool) New(tls ...string) error {
 		return err
 	}
 	p.connPool = db
+
+	// 缓存文件维护
 	if p.EnableCache {
 		go func() {
 			defer func() {
@@ -222,24 +233,27 @@ func (p *SQLPool) New(tls ...string) error {
 				}
 			}()
 			for range time.After(time.Minute * 5) {
+				// 维护缓存文件
 				p.checkCache()
 			}
 		}()
 	}
-	p.chanQuery = make(chan *QueryDataChanWorker, 500)
-	go func() {
-		defer func() {
-			if err := recover(); err != nil {
-				p.Logger.Error("SQL Cache file clean error:" + errors.WithStack(err.(error)).Error())
-			}
-		}()
-		for d := range p.chanQuery {
-			go func(cq *QueryDataChanWorker) {
+	// 通道访问,并发数量限制在连接池的一半
+	p.chanQuery = make(chan *QueryDataChanWorker, p.MaxOpenConns)
+	for i := 0; i < p.MaxOpenConns/2; i++ {
+		go func() {
+			defer func() {
+				if err := recover(); err != nil {
+					p.Logger.Error("SQL Cache file clean error:" + errors.WithStack(err.(error)).Error())
+				}
+			}()
+			for cq := range p.chanQuery {
 				// 调用chan方法
 				p.queryChan(cq.QDC, cq.Strsql, cq.RowsCount, cq.Params...)
-			}(d)
-		}
-	}()
+			}
+		}()
+	}
+	// 启动结束
 	p.Logger.System("Success connect to server " + p.Server)
 	return nil
 }
@@ -282,9 +296,11 @@ func (p *SQLPool) checkCache() {
 		if file.IsDir() || !strings.HasPrefix(file.Name(), p.CacheHead) {
 			continue
 		}
+		// 删除文件
 		if t.Sub(file.ModTime()).Minutes() > 10 {
 			os.Remove(filepath.Join(p.CacheDir, file.Name()))
 		}
+		// 整理
 	}
 }
 
@@ -318,7 +334,15 @@ func (p *SQLPool) QueryCachePB2(cacheTag string, startRow, rowsCount int) *Query
 	if rowsCount < 0 {
 		rowsCount = 0
 	}
-	query := &QueryData{CacheTag: cacheTag}
+	query := &QueryData{
+		CacheTag: cacheTag,
+		Rows:     make([]*QueryDataRow, 0),
+	}
+	// 读取前等待写入完毕
+	if lo, ok := p.cacheLocker.Load(cacheTag); ok {
+		lo.(*sync.WaitGroup).Wait()
+	}
+	// 开始读取
 	if src, err := ioutil.ReadFile(filepath.Join(p.CacheDir, cacheTag)); err == nil {
 		if msg := qdUnmarshal(src); msg != nil {
 			query.Total = msg.Total
@@ -435,6 +459,54 @@ func (p *SQLPool) QueryOne(s string, colNum int, params ...interface{}) (js stri
 			}
 		}
 		return js, nil
+	}
+}
+
+// QueryOnePB2 执行查询语句，返回首行结果，该方法不缓存结果
+//
+// args:
+//  s: sql占位符语句
+//  colNum: 列数量
+//  params: 查询参数,语句中的参数用`?`占位
+// return:
+//  结果集json字符串，error
+func (p *SQLPool) QueryOnePB2(s string, colNum int, params ...interface{}) (query *QueryData, err error) {
+	query = &QueryData{Rows: make([]*QueryDataRow, 0)}
+	defer func() (*QueryData, error) {
+		if ex := recover(); ex != nil {
+			err = ex.(error)
+			return nil, err
+		}
+		return query, nil
+	}()
+
+	values := make([]interface{}, colNum)
+	scanArgs := make([]interface{}, colNum)
+
+	for i := range values {
+		scanArgs[i] = &values[i]
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
+	defer cancel()
+	err = p.connPool.QueryRowContext(ctx, s, params...).Scan(scanArgs...)
+	switch {
+	case err == sql.ErrNoRows:
+		return query, nil
+	case err != nil:
+		return nil, err
+	default:
+		query.Total = 1
+		for i := range scanArgs {
+			v := values[i]
+			b, ok := v.([]byte)
+			if ok {
+				query.Rows = append(query.Rows, &QueryDataRow{Cells: []string{gopsu.String(b)}})
+			} else {
+				query.Rows = append(query.Rows, &QueryDataRow{Cells: []string{fmt.Sprintf("%v", v)}})
+			}
+		}
+		return query, nil
 	}
 }
 
@@ -598,9 +670,14 @@ func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (quer
 		query.CacheTag = cacheTag
 		queryCache.CacheTag = cacheTag
 		go func(qd *QueryData) {
+			lo := &sync.WaitGroup{}
+			lo.Add(1)
+			p.cacheLocker.Store(queryCache.CacheTag, lo)
 			if b, err := qdMarshal(queryCache); err == nil {
 				ioutil.WriteFile(filepath.Join(p.CacheDir, cacheTag), b, 0664)
 			}
+			lo.Done()
+			p.cacheLocker.Delete(queryCache.CacheTag)
 		}(queryCache)
 	}
 	return query, nil
@@ -694,6 +771,7 @@ func (p *SQLPool) queryChan(qdc chan *QueryDataChan, s string, rowsCount int, pa
 		scanArgs[i] = &values[i]
 	}
 	// 扫描
+	var queryDone bool
 	var rowIdx = 0
 	for rows.Next() {
 		err := rows.Scan(scanArgs...)
@@ -721,6 +799,7 @@ func (p *SQLPool) queryChan(qdc chan *QueryDataChan, s string, rowsCount int, pa
 		queryCache.Rows[rowIdx] = row
 		rowIdx++
 		if rowsCount > 0 && rowIdx == rowsCount { // 返回
+			queryDone = true
 			qdc <- &QueryDataChan{
 				Data: &QueryData{
 					Rows:     queryCache.Rows[:rowIdx],
@@ -736,19 +815,22 @@ func (p *SQLPool) queryChan(qdc chan *QueryDataChan, s string, rowsCount int, pa
 			break
 		}
 	}
-	if rowsCount == 0 { // 全部返回
+	if !queryDone { // 全部返回
 		qdc <- &QueryDataChan{
 			Data: queryCache,
 			Err:  nil,
 		}
 	}
-	// 开始缓存，方便导出，有数据即缓存
+	// 开始缓存，方便导出，有数据即缓存,这里因为已经返回数据，所以不用再开线程
 	if p.EnableCache && rowIdx > 0 { // && rowsCount < rowIdx {
-		go func(qd *QueryData) {
-			if b, err := qdMarshal(queryCache); err == nil {
-				ioutil.WriteFile(filepath.Join(p.CacheDir, queryCache.CacheTag), b, 0664)
-			}
-		}(queryCache)
+		lo := &sync.WaitGroup{}
+		lo.Add(1)
+		p.cacheLocker.Store(queryCache.CacheTag, lo)
+		if b, err := qdMarshal(queryCache); err == nil {
+			ioutil.WriteFile(filepath.Join(p.CacheDir, queryCache.CacheTag), b, 0664)
+		}
+		lo.Done()
+		p.cacheLocker.Delete(queryCache.CacheTag)
 	}
 }
 

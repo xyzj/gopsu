@@ -34,12 +34,12 @@ func Page404(c *gin.Context) {
 		c.String(http.StatusNotFound, template404)
 		return
 	}
-	c.String(http.StatusNotFound, "nothing here")
+	c.String(http.StatusNotFound, "404 nothing here")
 }
 
 // Page405 Page405
 func Page405(c *gin.Context) {
-	c.String(http.StatusMethodNotAllowed, c.Request.Method+" is not allowed")
+	c.String(http.StatusMethodNotAllowed, "405 "+c.Request.Method+" is not allowed")
 }
 
 // Page500 Page500
