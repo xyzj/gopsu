@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"strings"
 )
 
 func GetAvailablePort() (int, error) {
@@ -28,13 +29,8 @@ func GetAvailablePort() (int, error) {
 
 // 启动文件 main.go
 func main() {
-	s := make([]string, 10)
-	for i := 0; i < 15; i++ {
-		if i < len(s) {
-			s[i] = fmt.Sprintf("%d", i)
-		} else {
-			s = append(s, fmt.Sprintf("%d", i))
-		}
-	}
-	println(fmt.Sprintf("%+v", s))
+	s := "point(aasdfasf asdfafdasdf,asdadf asdfasdf)"
+	idx1 := strings.Index(s, "(")
+	idx2 := strings.Index(s, ")")
+	println(s[idx1:idx2])
 }
