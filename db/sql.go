@@ -607,7 +607,12 @@ func (p *SQLPool) QueryJSON(s string, rowsCount int, params ...interface{}) (str
 //  QueryData结构，error
 func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (query *QueryData, err error) {
 	ans := <-p.QueryPB2Chan(s, rowsCount, params...)
-	ans.Locker.Wait()
+	if ans.Err != nil {
+		return nil, err
+	}
+	if ans.Locker != nil {
+		ans.Locker.Wait()
+	}
 	ans.Data.Total = int32(*ans.Total)
 	return ans.Data, nil
 
