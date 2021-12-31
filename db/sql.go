@@ -23,8 +23,9 @@ import (
 )
 
 var (
-	codeGzip = gopsu.GetNewArchiveWorker(gopsu.ArchiveGZip)
-	json     = jsoniter.Config{}.Froze()
+	codeGzip    = gopsu.GetNewArchiveWorker(gopsu.ArchiveGZip)
+	cacheWroker = gopsu.GetNewCryptoWorker(gopsu.CryptoMD5)
+	json        = jsoniter.Config{}.Froze()
 )
 
 func qdMarshal(qd *QueryData) ([]byte, error) {
@@ -210,7 +211,7 @@ func (p *SQLPool) New(tls ...string) error {
 	}
 
 	if p.CacheHead == "" {
-		p.CacheHead = gopsu.GetMD5(connstr)
+		p.CacheHead = gopsu.CalcCRC32String([]byte(connstr))
 	}
 	// 连接/测试
 	db, err := sql.Open(p.DriverType.string(), strings.ReplaceAll(connstr, "\n", ""))
@@ -678,29 +679,28 @@ func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (quer
 	// 	if rowsCount > 0 && rowIdx == rowsCount {
 	// 		queryDone = true
 	// 		query.Rows = queryCache.Rows[:rowIdx]
-	// 		query.Columns = queryCache.Columns
 	// 	}
 	// }
 	// queryCache.Total = int32(rowIdx)
+	// query.Total = int32(rowIdx)
+	// query.Columns = queryCache.Columns
 	// if !queryDone {
 	// 	query.Rows = queryCache.Rows[:rowIdx]
-	// 	query.Columns = queryCache.Columns
-	// 	query.Total = int32(rowIdx)
 	// }
 	// // 开始缓存，方便导出，有数据即缓存
 	// if p.EnableCache && rowIdx > 0 { // && rowsCount < rowIdx {
-	// 	cacheTag := fmt.Sprintf("%s%d-%d", p.CacheHead, time.Now().UnixNano(), rowIdx)
+	// 	cacheTag := fmt.Sprintf("%s%s-%d", p.CacheHead, cacheWroker.Hash(gopsu.Bytes(fmt.Sprintf("%d", time.Now().UnixNano()))), rowIdx)
 	// 	query.CacheTag = cacheTag
 	// 	queryCache.CacheTag = cacheTag
 	// 	go func(qd *QueryData) {
 	// 		lo := &sync.WaitGroup{}
 	// 		lo.Add(1)
-	// 		p.cacheLocker.Store(queryCache.CacheTag, lo)
-	// 		if b, err := qdMarshal(queryCache); err == nil {
-	// 			ioutil.WriteFile(filepath.Join(p.CacheDir, cacheTag), b, 0664)
+	// 		p.cacheLocker.Store(qd.CacheTag, lo)
+	// 		if b, err := qdMarshal(qd); err == nil {
+	// 			ioutil.WriteFile(filepath.Join(p.CacheDir, qd.CacheTag), b, 0664)
 	// 		}
 	// 		lo.Done()
-	// 		p.cacheLocker.Delete(queryCache.CacheTag)
+	// 		p.cacheLocker.Delete(qd.CacheTag)
 	// 	}(queryCache)
 	// }
 	// return query, nil
@@ -787,7 +787,7 @@ func (p *SQLPool) queryChan(qdc chan *QueryDataChan, s string, rowsCount int, pa
 		Columns:  columns,
 		Total:    0,
 		Rows:     make([]*QueryDataRow, 0),
-		CacheTag: fmt.Sprintf("%s%d", p.CacheHead, time.Now().UnixNano()),
+		CacheTag: p.CacheHead + cacheWroker.Hash(gopsu.Bytes(fmt.Sprintf("%d%s", time.Now().UnixNano(), gopsu.GetRandomString(7, true)))),
 	}
 	count := len(columns)
 	values := make([]interface{}, count)
