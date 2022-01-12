@@ -663,7 +663,7 @@ func Bytes2String(data []byte, sep string) string {
 //  Return：
 // 	int
 func String2Int(s string, t int) int {
-	x, _ := strconv.ParseInt(s, t, 0)
+	x, _ := strconv.ParseInt(s, t, 32)
 	return int(x)
 }
 
@@ -674,7 +674,7 @@ func String2Int(s string, t int) int {
 //  Return：
 // 	int8
 func String2Int8(s string, t int) byte {
-	x, _ := strconv.ParseInt(s, t, 0)
+	x, _ := strconv.ParseInt(s, t, 8)
 	return byte(x)
 }
 
@@ -685,7 +685,7 @@ func String2Int8(s string, t int) byte {
 //  Return：
 // 	int32
 func String2Int32(s string, t int) int32 {
-	x, _ := strconv.ParseInt(s, t, 0)
+	x, _ := strconv.ParseInt(s, t, 32)
 	return int32(x)
 }
 
@@ -696,7 +696,7 @@ func String2Int32(s string, t int) int32 {
 //  Return：
 // 	int64
 func String2Int64(s string, t int) int64 {
-	x, _ := strconv.ParseInt(s, t, 0)
+	x, _ := strconv.ParseInt(s, t, 64)
 	return x
 }
 

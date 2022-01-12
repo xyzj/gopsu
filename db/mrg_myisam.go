@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xyzj/gopsu"
+
 	"github.com/tidwall/gjson"
 )
 
@@ -22,39 +24,41 @@ func (p *SQLPool) ShowTableInfo(tableName string) (string, string, int64, int64,
 		return subTableName, engine, tableSize, rowsCount, fmt.Errorf("sql connection is not ready")
 	}
 	// 查询引擎
-	strsql := "select engine from information_schema.tables where table_schema=? and table_name=?"
-	ans, err := p.QueryOne(strsql, 1, p.DataBase, tableName)
+	strsql := "select engine,count(*) from information_schema.tables where table_schema=? and table_name=?"
+	ans, err := p.QueryOnePB2(strsql, 1, p.DataBase, tableName)
 	if err != nil {
 		return subTableName, engine, tableSize, rowsCount, err
 	}
-	engine = gjson.Parse(ans).Get("row.0").String()
+	engine = ans.Rows[0].Cells[0]
 	if strings.ToLower(engine) != "mrg_myisam" {
 		return subTableName, engine, tableSize, rowsCount, fmt.Errorf("engine %s is not support", engine)
 	}
 	// 获取最新子表
 	strsql = "show create table " + tableName
-	ans, err = p.QueryOne(strsql, 2)
-	if err != nil {
+	ans, err = p.QueryOnePB2(strsql, 2)
+	if err != nil || len(ans.Rows) > 0 {
 		return subTableName, engine, tableSize, rowsCount, err
 	}
-	s := gjson.Parse(ans).String()
+	s := ans.Rows[0].Cells[1] // gjson.Parse(ans).String()
 	idx := strings.Index(s, "`"+tableName+"_")
 	idx2 := strings.Index(s[idx+1:], "`")
 	subTableName = s[idx+1 : idx+idx2+1]
 	// 获取子表大小
-	strsql = "select round(sum(DATA_LENGTH/1024/1024),2) as data from information_schema.tables where table_schema=? and table_name=?"
-	ans, err = p.QueryOne(strsql, 1, p.DataBase, subTableName)
-	if err != nil {
+	strsql = "select round(sum(DATA_LENGTH/1024/1024),2) as data,TABLE_ROWS,count(*) from information_schema.tables where table_schema=? and table_name=?"
+	ans, err = p.QueryOnePB2(strsql, 1, p.DataBase, subTableName)
+	if err != nil || len(ans.Rows) > 0 {
 		return subTableName, engine, tableSize, rowsCount, err
 	}
-	tableSize = int64(gjson.Parse(ans).Get("row.0").Float())
+	tableSize = gopsu.String2Int64(ans.Rows[0].Cells[0], 10)
+	rowsCount = gopsu.String2Int64(ans.Rows[0].Cells[1], 10)
+	// tableSize = int64(gjson.Parse(ans).Get("row.0").Float())
 	// 获取子表行数
-	strsql = "select count(*) from " + subTableName
-	ans, err = p.QueryOne(strsql, 1)
-	if err != nil {
-		return subTableName, engine, tableSize, rowsCount, err
-	}
-	rowsCount = gjson.Parse(ans).Get("row.0").Int()
+	// strsql = "select count(*) from " + subTableName
+	// ans, err = p.QueryOne(strsql, 1)
+	// if err != nil {
+	// 	return subTableName, engine, tableSize, rowsCount, err
+	// }
+	// rowsCount = gjson.Parse(ans).Get("row.0").Int()
 	return subTableName, engine, tableSize, rowsCount, nil
 }
 
