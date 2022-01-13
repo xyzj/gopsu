@@ -8,10 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tidwall/gjson"
-
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
+	"github.com/tidwall/gjson"
 	"github.com/xyzj/gopsu"
 )
 
@@ -295,6 +294,9 @@ func (sessn *Session) BindKey(k ...string) error {
 		var err error
 		var s = make([]string, 0)
 		for _, v := range k {
+			if gopsu.TrimString(v) == "" {
+				continue
+			}
 			err = sessn.channel.QueueBind(sessn.queueName, v, sessn.name, false, nil)
 			if err != nil {
 				s = append(s, v)
@@ -327,6 +329,9 @@ func (sessn *Session) UnBindKey(k ...string) error {
 		var err error
 		var s = make([]string, 0)
 		for _, v := range k {
+			if gopsu.TrimString(v) == "" {
+				continue
+			}
 			err = sessn.channel.QueueUnbind(sessn.queueName, v, sessn.name, nil)
 			if err != nil {
 				s = append(s, v)
