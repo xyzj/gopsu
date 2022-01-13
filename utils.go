@@ -38,10 +38,9 @@ import (
 	"unicode/utf16"
 	"unsafe"
 
-	"github.com/tidwall/sjson"
-
-	"github.com/google/uuid"
+	"github.com/golang/snappy"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/tidwall/sjson"
 )
 
 const (
@@ -285,18 +284,22 @@ var (
 	ArchiveZlib ArchiveType = 1
 	// ArchiveGZip gzip压缩/解压缩
 	ArchiveGZip ArchiveType = 2
+	//ArchiveSnappy snappy压缩，解压缩
+	ArchiveSnappy ArchiveType = 3
 )
 
 // ArchiveWorker 压缩管理器，避免重复New
 type ArchiveWorker struct {
 	archiveType      ArchiveType
 	in               *bytes.Reader
-	code             bytes.Buffer
-	decode           bytes.Buffer
+	code             *bytes.Buffer
+	decode           *bytes.Buffer
 	gzipReader       *gzip.Reader
 	gzipWriter       *gzip.Writer
 	zlibReader       io.ReadCloser
 	zlibWriter       *zlib.Writer
+	snappyReader     *snappy.Reader
+	snappyWriter     *snappy.Writer
 	compressLocker   sync.Mutex
 	uncompressLocker sync.Mutex
 }
@@ -306,14 +309,19 @@ func GetNewArchiveWorker(archiveType ArchiveType) *ArchiveWorker {
 	a := &ArchiveWorker{
 		archiveType: archiveType,
 		in:          bytes.NewReader(nil),
+		code:        &bytes.Buffer{},
+		decode:      &bytes.Buffer{},
 	}
 	switch archiveType {
+	case ArchiveSnappy:
+		a.snappyReader = snappy.NewReader(a.in)
+		a.snappyWriter = snappy.NewWriter(a.code)
 	case ArchiveGZip:
 		a.gzipReader, _ = gzip.NewReader(a.in)
-		a.gzipWriter = gzip.NewWriter(&a.code)
+		a.gzipWriter = gzip.NewWriter(a.code)
 	default:
 		a.zlibReader, _ = zlib.NewReader(a.in)
-		a.zlibWriter = zlib.NewWriter(&a.code)
+		a.zlibWriter = zlib.NewWriter(a.code)
 	}
 	return a
 }
@@ -324,12 +332,16 @@ func (a *ArchiveWorker) Compress(src []byte) []byte {
 	defer a.compressLocker.Unlock()
 	a.code.Reset()
 	switch a.archiveType {
+	case ArchiveSnappy:
+		a.snappyWriter.Reset(a.code)
+		a.snappyWriter.Write(src)
+		a.snappyWriter.Close()
 	case ArchiveGZip:
-		a.gzipWriter.Reset(&a.code)
+		a.gzipWriter.Reset(a.code)
 		a.gzipWriter.Write(src)
 		a.gzipWriter.Close()
 	default: // zlib
-		a.zlibWriter.Reset(&a.code)
+		a.zlibWriter.Reset(a.code)
 		a.zlibWriter.Write(src)
 		a.zlibWriter.Close()
 	}
@@ -342,28 +354,34 @@ func (a *ArchiveWorker) Uncompress(src []byte) []byte {
 	defer a.uncompressLocker.Unlock()
 	a.decode.Reset()
 	switch a.archiveType {
+	case ArchiveSnappy:
+		io.Copy(a.decode, snappy.NewReader(bytes.NewReader(src)))
 	case ArchiveGZip:
 		b := bytes.NewReader(src)
 		r, _ := gzip.NewReader(b)
-		io.Copy(&a.decode, r)
+		io.Copy(a.decode, r)
 	default: // zlib
 		a.in.Reset(src)
 		a.zlibReader, _ = zlib.NewReader(a.in)
-		io.Copy(&a.decode, a.zlibReader)
+		io.Copy(a.decode, a.zlibReader)
 	}
 	return a.decode.Bytes()
 }
 
 // CompressData 使用gzip，zlib压缩数据
 func CompressData(src []byte, t ArchiveType) []byte {
-	var in bytes.Buffer
+	var in = &bytes.Buffer{}
 	switch t {
+	case ArchiveSnappy:
+		w := snappy.NewWriter(in)
+		w.Write(src)
+		w.Close()
 	case ArchiveGZip:
-		w := gzip.NewWriter(&in)
+		w := gzip.NewWriter(in)
 		w.Write(src)
 		w.Close()
 	default: // zlib
-		w := zlib.NewWriter(&in)
+		w := zlib.NewWriter(in)
 		w.Write(src)
 		w.Close()
 	}
@@ -372,24 +390,20 @@ func CompressData(src []byte, t ArchiveType) []byte {
 
 // UncompressData 使用gzip，zlib解压缩数据
 func UncompressData(src []byte, t ArchiveType, dstlen ...interface{}) []byte {
-	var out bytes.Buffer
+	var out = &bytes.Buffer{}
 	switch t {
+	case ArchiveSnappy:
+		io.Copy(out, snappy.NewReader(bytes.NewReader(src)))
 	case ArchiveGZip:
 		b := bytes.NewReader(src)
 		r, _ := gzip.NewReader(b)
-		io.Copy(&out, r)
+		io.Copy(out, r)
 	default: // zlib
 		b := bytes.NewReader(src)
 		r, _ := zlib.NewReader(b)
-		io.Copy(&out, r)
+		io.Copy(out, r)
 	}
 	return out.Bytes()
-}
-
-// GetUUID1 GetUUID1
-func GetUUID1() string {
-	uid, _ := uuid.NewUUID()
-	return uid.String()
 }
 
 // Base64URLDecode url解码

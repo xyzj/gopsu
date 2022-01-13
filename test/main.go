@@ -3,7 +3,10 @@ package main
 import (
 	"fmt"
 	"net"
-	"strings"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/xyzj/gopsu"
 )
 
 func GetAvailablePort() (int, error) {
@@ -29,8 +32,11 @@ func GetAvailablePort() (int, error) {
 
 // 启动文件 main.go
 func main() {
-	s := "point(aasdfasf asdfafdasdf,asdadf asdfasdf)"
-	idx1 := strings.Index(s, "(")
-	idx2 := strings.Index(s, ")")
-	println(s[idx1:idx2])
+	println(gopsu.GetUUID1())
+	time.Sleep(time.Second)
+	println(gopsu.GetUUID1())
+
+	uid, _ := uuid.NewUUID()
+	println(uid.String())
+	// println(gopsu.NewUUID())
 }
