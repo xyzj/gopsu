@@ -688,7 +688,7 @@ func String2Int(s string, t int) int {
 //  Return：
 // 	int8
 func String2Int8(s string, t int) byte {
-	x, _ := strconv.ParseInt(s, t, 8)
+	x, _ := strconv.ParseInt(s, t, 0)
 	return byte(x)
 }
 
