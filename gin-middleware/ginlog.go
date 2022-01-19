@@ -128,7 +128,8 @@ func LoggerWithRolling(logdir, filename string, maxdays int, skippath ...string)
 		param.ClientIP = c.ClientIP()
 		param.Method = c.Request.Method
 		param.StatusCode = c.Writer.Status()
-		param.ErrorMessage = c.Errors.ByType(gin.ErrorTypePrivate).String()
+		// param.ErrorMessage = c.Errors.ByType(gin.ErrorTypePrivate).String()
+		param.ErrorMessage = c.Errors.String()
 		param.BodySize = c.Writer.Size()
 		if body, ok := c.Params.Get("_body"); ok {
 			path += "|" + body
