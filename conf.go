@@ -217,7 +217,10 @@ func LoadConfig(fullpath string) (*ConfData, error) {
 		fileFullPath: fullpath,
 		fileName:     path.Base(fullpath),
 	}
-	c.Reload()
-	ex := c.Save()
-	return c, ex
+	err := c.Reload()
+	if err != nil {
+		return c, err
+	}
+	err = c.Save()
+	return c, err
 }
