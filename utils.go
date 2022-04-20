@@ -48,6 +48,12 @@ const (
 	OSNAME = runtime.GOOS
 	// OSARCH from runtime
 	OSARCH = runtime.GOARCH
+	// DateTimeFormat yyyy-mm-dd hh:MM:ss
+	DateTimeFormat = "2006-01-02 15:04:05"
+	// DateOnlyFormat yyyy-mm-dd hh:MM:ss
+	DateOnlyFormat = "2006-01-02"
+	// TimeOnlyFormat yyyy-mm-dd hh:MM:ss
+	TimeOnlyFormat = "15:04:05"
 	// LongTimeFormat 含日期的日志内容时间戳格式 2006/01/02 15:04:05.000
 	LongTimeFormat = "2006-01-02 15:04:05.000"
 	// ShortTimeFormat 无日期的日志内容时间戳格式 15:04:05.000
@@ -1917,4 +1923,22 @@ func Bytes(s string) []byte {
 	x := (*[2]uintptr)(unsafe.Pointer(&s))
 	h := [3]uintptr{x[0], x[1], x[1]}
 	return *(*[]byte)(unsafe.Pointer(&h))
+}
+
+// FormatFileSize 字节的单位转换
+func FormatFileSize(fileSize int64) (size string) {
+	if fileSize < 1024 {
+		//return strconv.FormatInt(fileSize, 10) + "B"
+		return fmt.Sprintf("%d B", fileSize/1)
+	} else if fileSize < (1024 * 1024) {
+		return fmt.Sprintf("%d KB", fileSize/1024)
+	} else if fileSize < (1024 * 1024 * 1024) {
+		return fmt.Sprintf("%d MB", fileSize/(1024*1024))
+	} else if fileSize < (1024 * 1024 * 1024 * 1024) {
+		return fmt.Sprintf("%d GB", fileSize/(1024*1024*1024))
+	} else if fileSize < (1024 * 1024 * 1024 * 1024 * 1024) {
+		return fmt.Sprintf("%d TB", fileSize/(1024*1024*1024*1024))
+	} else { //if fileSize < (1024 * 1024 * 1024 * 1024 * 1024 * 1024)
+		return fmt.Sprintf("%d EB", fileSize/(1024*1024*1024*1024*1024))
+	}
 }

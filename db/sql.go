@@ -81,6 +81,8 @@ const (
 	DriverMYSQL driveType = iota
 	// DriverMSSQL mssql
 	DriverMSSQL
+	// DriverOracle oracle
+	DriverOracle
 )
 
 const (
@@ -211,7 +213,7 @@ func (p *SQLPool) New(tls ...string) error {
 	}
 
 	if p.CacheHead == "" {
-		p.CacheHead = gopsu.CalcCRC32String([]byte(connstr))
+		p.CacheHead = gopsu.CalcCRC32String([]byte(connstr + gopsu.GetRandomString(7, true)))
 	}
 	// 连接/测试
 	db, err := sql.Open(p.DriverType.string(), strings.ReplaceAll(connstr, "\n", ""))
@@ -609,7 +611,7 @@ func (p *SQLPool) QueryJSON(s string, rowsCount int, params ...interface{}) (str
 func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (query *QueryData, err error) {
 	ans := <-p.QueryPB2Chan(s, rowsCount, params...)
 	if ans.Err != nil {
-		return nil, err
+		return nil, ans.Err
 	}
 	if ans.Locker != nil {
 		ans.Locker.Wait()
@@ -787,7 +789,7 @@ func (p *SQLPool) queryChan(qdc chan *QueryDataChan, s string, rowsCount int, pa
 		Columns:  columns,
 		Total:    0,
 		Rows:     make([]*QueryDataRow, 0),
-		CacheTag: p.CacheHead + cacheWroker.Hash(gopsu.Bytes(fmt.Sprintf("%d%s", time.Now().UnixNano(), gopsu.GetRandomString(7, true)))),
+		CacheTag: p.CacheHead + cacheWroker.Hash(gopsu.Bytes(fmt.Sprintf("%d", time.Now().UnixNano()))),
 	}
 	count := len(columns)
 	values := make([]interface{}, count)
@@ -1007,6 +1009,54 @@ func (p *SQLPool) Exec(s string, params ...interface{}) (rowAffected, insertID i
 	return rowAffected, insertID, nil
 }
 
+// ExecV2 事务执行语句（insert，delete，update），可回滚,返回（影响行数,insertId,error）,使用官方的语句参数分离写法
+//
+// args:
+//  s: sql占位符语句
+//  param: 参数,语句中的参数用`?`占位
+// return:
+//   影响行数，insert的id，error
+func (p *SQLPool) ExecV2(s string, params ...interface{}) (rowAffected, insertID int64, err error) {
+	// p.execLocker.Lock()
+	defer func() (int64, int64, error) {
+		if ex := recover(); ex != nil {
+			err = ex.(error)
+			return 0, 0, err
+		}
+		// p.execLocker.Unlock()
+		return rowAffected, insertID, nil
+	}()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
+	defer cancel()
+	// 开启事务
+	tx, err := p.connPool.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer func() {
+		err := tx.Rollback()
+		if err != nil && err != sql.ErrTxDone {
+			p.Logger.Error(err.Error())
+		}
+	}()
+	res, err := tx.ExecContext(ctx, s, params...)
+	if err != nil {
+		return 0, 0, err
+	}
+	err = tx.Commit()
+	if err != nil {
+		// tx.Rollback()
+		return 0, 0, err
+	}
+	// res, err := p.connPool.ExecContext(ctx, s, params...)
+	// if err != nil {
+	// 	return 0, 0, err
+	// }
+	insertID, _ = res.LastInsertId()
+	rowAffected, _ = res.RowsAffected()
+	return rowAffected, insertID, nil
+}
+
 // ExecPrepare 批量执行占位符语句（insert，delete，update），使用官方的语句参数分离写法，只能批量执行相同的语句
 //
 // args:
@@ -1037,17 +1087,24 @@ func (p *SQLPool) ExecPrepare(s string, paramNum int, params ...interface{}) (er
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
 	defer cancel()
 	// 开启事务
-	st, err := p.connPool.PrepareContext(ctx, s)
-	if err != nil {
-		return err
-	}
-	defer st.Close()
+	// st, err := p.connPool.PrepareContext(ctx, s)
+	// if err != nil {
+	// 	return err
+	// }
+	// defer st.Close()
 	tx, err := p.connPool.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		err := tx.Rollback()
+		if err != nil && err != sql.ErrTxDone {
+			p.Logger.Error(err.Error())
+		}
+	}()
 	for i := 0; i < l; i += paramNum {
-		_, err = tx.StmtContext(ctx, st).Exec(params[i : i+paramNum]...)
+		_, err := tx.ExecContext(ctx, s, params...)
+		// _, err = tx.StmtContext(ctx, st).Exec(params[i : i+paramNum]...)
 		// _, err := st.ExecContext(ctx, params[i:i+paramNum]...)
 		if err != nil {
 			return err
@@ -1055,7 +1112,7 @@ func (p *SQLPool) ExecPrepare(s string, paramNum int, params ...interface{}) (er
 	}
 	err = tx.Commit()
 	if err != nil {
-		tx.Rollback()
+		// tx.Rollback()
 		return err
 	}
 	return nil
@@ -1089,24 +1146,32 @@ func (p *SQLPool) ExecPrepareV2(s string, paramNum int, params ...interface{}) (
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
 	defer cancel()
 	// 开启事务
-	st, err := p.connPool.PrepareContext(ctx, s)
-	if err != nil {
-		return 0, nil, err
-	}
-	defer st.Close()
+	// st, err := p.connPool.PrepareContext(ctx, s)
+	// if err != nil {
+	// 	return 0, nil, err
+	// }
+	// defer st.Close()
 	tx, err := p.connPool.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, nil, err
 	}
+	defer func() {
+		err := tx.Rollback()
+		if err != nil && err != sql.ErrTxDone {
+			p.Logger.Error(err.Error())
+		}
+	}()
 	rowAffected := int64(0)
-	var ex error
+	// var ex error
 	insertID := make([]int64, len(params)/paramNum)
 	idx := 0
 	for i := 0; i < l; i += paramNum {
-		ans, err := tx.StmtContext(ctx, st).Exec(params[i : i+paramNum]...)
+		ans, err := tx.ExecContext(ctx, s, params[i:i+paramNum]...)
+		// ans, err := tx.StmtContext(ctx, st).Exec(params[i : i+paramNum]...)
 		if err != nil {
-			ex = err
-			continue
+			// ex = err
+			// continue
+			return 0, nil, err
 			// return rowAffected, insertID, err
 		}
 		rows, err := ans.RowsAffected()
@@ -1121,10 +1186,10 @@ func (p *SQLPool) ExecPrepareV2(s string, paramNum int, params ...interface{}) (
 	}
 	err = tx.Commit()
 	if err != nil {
-		tx.Rollback()
+		// tx.Rollback()
 		return 0, nil, err
 	}
-	return rowAffected, insertID, ex
+	return rowAffected, insertID, nil
 }
 
 // ExecBatch (maybe unsafe)事务执行语句（insert，delete，update）
@@ -1156,6 +1221,12 @@ func (p *SQLPool) ExecBatch(s []string) (err error) {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		err := tx.Rollback()
+		if err != nil && err != sql.ErrTxDone {
+			p.Logger.Error(err.Error())
+		}
+	}()
 	for _, v := range s {
 		_, err = tx.ExecContext(ctx, v)
 		if err != nil {
@@ -1164,7 +1235,7 @@ func (p *SQLPool) ExecBatch(s []string) (err error) {
 	}
 	err = tx.Commit()
 	if err != nil {
-		tx.Rollback()
+		// tx.Rollback()
 		return err
 	}
 	return nil
