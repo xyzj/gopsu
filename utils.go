@@ -39,8 +39,8 @@ import (
 	"unsafe"
 
 	"github.com/golang/snappy"
-	jsoniter "github.com/json-iterator/go"
 	"github.com/tidwall/sjson"
+	json "github.com/xyzj/gopsu/json"
 )
 
 const (
@@ -103,7 +103,6 @@ var (
 )
 
 var (
-	json         = jsoniter.Config{}.Froze()
 	trimReplacer = strings.NewReplacer("\r", "", "\n", "", "\000", "", "\t", " ")
 )
 

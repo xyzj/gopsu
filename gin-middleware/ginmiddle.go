@@ -1,6 +1,7 @@
 package ginmiddleware
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -23,7 +24,7 @@ import (
 	"github.com/tidwall/sjson"
 	"github.com/unrolled/secure"
 	"github.com/xyzj/gopsu"
-	db "github.com/xyzj/gopsu/db"
+	json "github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/rate"
 )
 
@@ -340,51 +341,6 @@ func ReadParams() gin.HandlerFunc {
 	}
 }
 
-// ReadCacheJSON 读取数据库缓存
-func ReadCacheJSON(mydb db.SQLInterface) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if mydb != nil {
-			cachetag := c.Param("cachetag")
-			if cachetag != "" {
-				cachestart := gopsu.String2Int(c.Param("cachestart"), 10)
-				cacherows := gopsu.String2Int(c.Param("cacherows"), 10)
-				ans := mydb.QueryCacheJSON(cachetag, cachestart, cacherows)
-				if gjson.Parse(ans).Get("total").Int() > 0 {
-					c.Params = append(c.Params, gin.Param{
-						Key:   "_cacheData",
-						Value: ans,
-					})
-				}
-			}
-		}
-	}
-}
-
-// ReadCachePB2 读取数据库缓存
-func ReadCachePB2(mydb db.SQLInterface) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if mydb != nil {
-			cachetag := c.Param("cachetag")
-			if cachetag != "" {
-				cachestart := gopsu.String2Int(c.Param("cachestart"), 10)
-				cacherows := gopsu.String2Int(c.Param("cacherows"), 10)
-				ans := mydb.QueryCachePB2(cachetag, cachestart, cacherows)
-				if ans.Total > 0 {
-					var s string
-					if b, err := json.Marshal(ans); err != nil {
-						s = gopsu.String(b)
-					}
-					// s, _ := json.MarshalToString(ans)
-					c.Params = append(c.Params, gin.Param{
-						Key:   "_cacheData",
-						Value: s,
-					})
-				}
-			}
-		}
-	}
-}
-
 // CheckSecurityCode 校验安全码
 // codeType: 安全码更新周期，h: 每小时更新，m: 每分钟更新
 // codeRange: 安全码容错范围（分钟）
@@ -474,6 +430,29 @@ func RateLimitWithIP(r, b int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		limiter, _ := cliMap.LoadOrStore(c.ClientIP(), rate.NewLimiter(rate.Every(time.Millisecond*time.Duration(1000/r)), b))
 		if !limiter.(*rate.Limiter).Allow() {
+			c.AbortWithStatus(http.StatusTooManyRequests)
+			return
+		}
+		c.Next()
+	}
+}
+
+// RateLimitWithTimeout 超时限流器，基于官方库
+//  r: 每秒可访问次数,1-1000
+//  b: 缓冲区大小
+//  t: 超时时长
+func RateLimitWithTimeout(r, b int, t time.Duration) gin.HandlerFunc {
+	if r < 1 {
+		r = 1
+	}
+	if r > 1000 {
+		r = 1000
+	}
+	var limiter = rate.NewLimiter(rate.Every(time.Millisecond*time.Duration(1000/r)), b)
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), t)
+		defer cancel()
+		if err := limiter.WaitN(ctx, 1); err != nil {
 			c.AbortWithStatus(http.StatusTooManyRequests)
 			return
 		}
