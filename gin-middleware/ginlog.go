@@ -11,11 +11,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	jsoniter "github.com/json-iterator/go"
 	"github.com/xyzj/gopsu"
+	json "github.com/xyzj/gopsu/json"
 )
 
-var json = jsoniter.Config{}.Froze()
 var md5worker = gopsu.GetNewCryptoWorker(gopsu.CryptoMD5)
 
 type ginLogger struct {

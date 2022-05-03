@@ -74,7 +74,7 @@ func WGS84toBD09(lon, lat float64) (float64, float64) {
 }
 
 func delta(lon, lat float64) (float64, float64) {
-	dlat, dlon := transform(lon-105.0, lat-35.0)
+	dlat, dlon := coordTransform(lon-105.0, lat-35.0)
 	radlat := lat / 180.0 * math.Pi
 	magic := math.Sin(radlat)
 	magic = 1 - OFFSET*magic*magic
@@ -88,7 +88,7 @@ func delta(lon, lat float64) (float64, float64) {
 
 	return mgLon, mgLat
 }
-func transform(lon, lat float64) (x, y float64) {
+func coordTransform(lon, lat float64) (x, y float64) {
 	var lonlat = lon * lat
 	var absX = math.Sqrt(math.Abs(lon))
 	var lonPi, latPi = lon * math.Pi, lat * math.Pi
