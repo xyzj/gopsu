@@ -24,6 +24,7 @@ import (
 	"github.com/tidwall/sjson"
 	"github.com/unrolled/secure"
 	"github.com/xyzj/gopsu"
+	"github.com/xyzj/gopsu/db"
 	json "github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/rate"
 )
@@ -457,5 +458,50 @@ func RateLimitWithTimeout(r, b int, t time.Duration) gin.HandlerFunc {
 			return
 		}
 		c.Next()
+	}
+}
+
+// ReadCacheJSON 读取数据库缓存
+func ReadCacheJSON(mydb db.SQLInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if mydb != nil {
+			cachetag := c.Param("cachetag")
+			if cachetag != "" {
+				cachestart := gopsu.String2Int(c.Param("cachestart"), 10)
+				cacherows := gopsu.String2Int(c.Param("cacherows"), 10)
+				ans := mydb.QueryCacheJSON(cachetag, cachestart, cacherows)
+				if gjson.Parse(ans).Get("total").Int() > 0 {
+					c.Params = append(c.Params, gin.Param{
+						Key:   "_cacheData",
+						Value: ans,
+					})
+				}
+			}
+		}
+	}
+}
+
+// ReadCachePB2 读取数据库缓存
+func ReadCachePB2(mydb db.SQLInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if mydb != nil {
+			cachetag := c.Param("cachetag")
+			if cachetag != "" {
+				cachestart := gopsu.String2Int(c.Param("cachestart"), 10)
+				cacherows := gopsu.String2Int(c.Param("cacherows"), 10)
+				ans := mydb.QueryCachePB2(cachetag, cachestart, cacherows)
+				if ans.Total > 0 {
+					var s string
+					if b, err := json.Marshal(ans); err != nil {
+						s = gopsu.String(b)
+					}
+					// s, _ := json.MarshalToString(ans)
+					c.Params = append(c.Params, gin.Param{
+						Key:   "_cacheData",
+						Value: s,
+					})
+				}
+			}
+		}
 	}
 }
