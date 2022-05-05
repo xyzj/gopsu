@@ -15,15 +15,15 @@ import (
 
 var (
 	// Marshal is exported by gin/json package.
-	Marshal = XMarshal
+	Marshal = xMarshal
 	// Unmarshal is exported by gin/json package.
-	Unmarshal = XUnmarshal
+	Unmarshal = xUnmarshal
 	// MarshalIndent is exported by gin/json package.
 	MarshalIndent = json.MarshalIndent
 	// MarshalToString return string and error
-	MarshalToString = XMarshalToString
+	MarshalToString = xMarshalToString
 	// UnmarshalFromString get data from string
-	UnmarshalFromString = XUnmarshalFromString
+	UnmarshalFromString = xUnmarshalFromString
 	// NewDecoder is exported by gin/json package.
 	NewDecoder = json.NewDecoder
 	// NewEncoder is exported by gin/json package.
@@ -32,13 +32,13 @@ var (
 	Valid = json.Valid
 )
 
-// XMarshal json.MarshalWithOption
-func XMarshal(v interface{}) ([]byte, error) {
+// xMarshal json.MarshalWithOption
+func xMarshal(v interface{}) ([]byte, error) {
 	return json.MarshalWithOption(v, json.DisableHTMLEscape(), json.UnorderedMap())
 }
 
-// XMarshalToString json.MarshalWithOption and return string
-func XMarshalToString(v interface{}) (string, error) {
+// xMarshalToString json.MarshalWithOption and return string
+func xMarshalToString(v interface{}) (string, error) {
 	b, err := json.MarshalWithOption(v, json.DisableHTMLEscape(), json.UnorderedMap())
 	if err == nil {
 		return *(*string)(unsafe.Pointer(&b)), nil
@@ -46,13 +46,13 @@ func XMarshalToString(v interface{}) (string, error) {
 	return "", err
 }
 
-// XUnmarshal json.UnmarshalWithOption
-func XUnmarshal(data []byte, v interface{}) error {
+// xUnmarshal json.UnmarshalWithOption
+func xUnmarshal(data []byte, v interface{}) error {
 	return json.UnmarshalNoEscape(data, v, json.DecodeFieldPriorityFirstWin())
 }
 
-// XUnmarshalFromString json.UnmarshalFromString
-func XUnmarshalFromString(data string, v interface{}) error {
+// xUnmarshalFromString json.UnmarshalFromString
+func xUnmarshalFromString(data string, v interface{}) error {
 	return json.UnmarshalNoEscape(toBytes(data), v, json.DecodeFieldPriorityFirstWin())
 }
 
