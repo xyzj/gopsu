@@ -98,12 +98,13 @@ func (xc *XCache) GetAndExpire(k string, expire time.Duration) (interface{}, boo
 	defer xc.locker.Unlock()
 	v, ok := xc.am[k]
 	if ok {
-		if v.expire.Before(time.Now()) {
+		t := time.Now()
+		if v.expire.Before(t) {
 			delete(xc.am, k)
 			atomic.AddInt64(&xc.amIdx, -1)
 			return nil, false
 		}
-		v.expire = time.Now().Add(expire)
+		v.expire = t.Add(expire)
 		return v.value, true
 	}
 	return nil, false

@@ -11,11 +11,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/xyzj/gopsu"
-
 	"github.com/gin-contrib/cors"
 	gingzip "github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
+	"github.com/xyzj/gopsu"
 )
 
 func init() {
