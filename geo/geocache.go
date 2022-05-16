@@ -23,12 +23,12 @@ type GeoPoint struct {
 	Name string  `json:"aid"`
 	Lng  float64 `json:"lng"`
 	Lat  float64 `json:"lat"`
-	Hash uint64
+	hash uint64
 }
 
 func (gp *GeoPoint) String() string {
 	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, gp.Hash)
+	binary.BigEndian.PutUint64(buf, gp.hash)
 	return enc.EncodeToString(buf)
 }
 
@@ -39,7 +39,7 @@ type geoJSON struct {
 func getPoint(name string, hash uint64) *GeoPoint {
 	gp := &GeoPoint{
 		Name: name,
-		Hash: hash,
+		hash: hash,
 	}
 	gp.Lng, gp.Lat = Decode(hash)
 	return gp
