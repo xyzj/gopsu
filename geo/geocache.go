@@ -20,7 +20,7 @@ type GeoCache struct {
 
 // GeoPoint geo点
 type GeoPoint struct {
-	Name string  `json:"name"`
+	Name string  `json:"aid"`
 	Lng  float64 `json:"lng"`
 	Lat  float64 `json:"lat"`
 	Hash uint64
@@ -45,25 +45,45 @@ func getPoint(name string, hash uint64) *GeoPoint {
 	return gp
 }
 
-// GeoAdd 添加geo点
-func (g *GeoCache) GeoAdd(points ...*GeoPoint) {
+// Len 长度
+func (g *GeoCache) Len() int64 {
+	return g.sortedset.Len()
+}
+
+// GeoAdd 添加geo点,返回成功添加的数量
+func (g *GeoCache) GeoAdd(points ...*GeoPoint) int {
 	if len(points) == 0 {
-		return
+		return 0
 	}
 	g.locker.Lock()
 	defer g.locker.Unlock()
+	idx := 0
 	for _, point := range points {
+		if gopsu.TrimString(point.Name) == "" {
+			continue
+		}
 		g.sortedset.Add(point.Name, Encode(point.Lng, point.Lat))
+		idx++
 	}
+	return idx
 }
 
 // GeoRem 删除指定点
-func (g *GeoCache) GeoRem(names ...string) {
+func (g *GeoCache) GeoRem(names ...string) int {
+	if len(names) == 0 {
+		return 0
+	}
 	g.locker.Lock()
 	defer g.locker.Unlock()
+	idx := 0
 	for _, name := range names {
+		if gopsu.TrimString(name) == "" {
+			continue
+		}
 		g.sortedset.Remove(name)
+		idx++
 	}
+	return idx
 }
 
 // GeoPos 返回指定名称的信息
@@ -157,7 +177,7 @@ func (g *GeoCache) SaveToFile() error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(gopsu.JoinPathFromHere("_"+g.cachename), gopsu.CompressData(b, gopsu.ArchiveZlib), 0664)
+	return ioutil.WriteFile(gopsu.JoinPathFromHere("_geo_"+g.cachename), gopsu.CompressData(b, gopsu.ArchiveZlib), 0664)
 }
 
 // LoadFromFile 从文件读取缓存
@@ -165,9 +185,9 @@ func (g *GeoCache) LoadFromFile() error {
 	if g.cachename == "" {
 		return fmt.Errorf("no file name was specified")
 	}
-	b, err := ioutil.ReadFile(gopsu.JoinPathFromHere("_" + g.cachename))
+	b, err := ioutil.ReadFile(gopsu.JoinPathFromHere("_geo_" + g.cachename))
 	if err != nil {
-		return nil
+		return err
 	}
 	var geojson = &geoJSON{
 		Points: make([]*GeoPoint, 0),
