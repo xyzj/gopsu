@@ -279,7 +279,7 @@ func ReadParams() gin.HandlerFunc {
 		var bodyjs string
 		switch ct {
 		case "", "application/x-www-form-urlencoded", "application/json":
-			x, _ := url.ParseQuery(c.Request.URL.RawQuery)
+			var x = url.Values{}
 			if b, err := ioutil.ReadAll(c.Request.Body); err == nil {
 				ans := gjson.ParseBytes(b)
 				if ans.IsObject() {
@@ -287,16 +287,17 @@ func ReadParams() gin.HandlerFunc {
 						x.Set(key.String(), value.String())
 						return true
 					})
-					bodyjs, _ = sjson.Delete(ans.String(), "cachetag")
-					bodyjs, _ = sjson.Delete(bodyjs, "cacherows")
-					bodyjs, _ = sjson.Delete(bodyjs, "cachestart")
-					c.Params = append(c.Params, gin.Param{
-						Key:   "_body",
-						Value: bodyjs,
-					})
+					// bodyjs, _ = sjson.Delete(ans.String(), "cachetag")
+					// bodyjs, _ = sjson.Delete(bodyjs, "cacherows")
+					// bodyjs, _ = sjson.Delete(bodyjs, "cachestart")
+					// c.Params = append(c.Params, gin.Param{
+					// 	Key:   "_body",
+					// 	Value: bodyjs,
+					// })
 				} else {
-					if len(b) > 0 {
-						x, _ = url.ParseQuery(gopsu.String(b))
+					if len(b)+len(c.Request.URL.RawQuery) > 0 {
+						bodyjs = c.Request.URL.RawQuery + "&" + gopsu.String(b)
+						x, _ = url.ParseQuery(bodyjs)
 					}
 				}
 			}
@@ -326,7 +327,7 @@ func ReadParams() gin.HandlerFunc {
 			// 		}
 			// 	}
 			// }
-			if len(x.Encode()) > 0 {
+			if len(x) > 0 {
 				for k := range x {
 					if strings.HasPrefix(k, "_") {
 						continue
@@ -335,13 +336,9 @@ func ReadParams() gin.HandlerFunc {
 						Key:   k,
 						Value: x.Get(k),
 					})
-					if len(bodyjs) > 0 {
-						continue
-					}
-					if k == "cachetag" || k == "cachestart" || k == "cacherows" {
-						continue
-					}
-					bodyjs, _ = sjson.Set(bodyjs, "k", gjson.Parse(x.Get(k)).Value())
+					// if k == "cachetag" || k == "cachestart" || k == "cacherows" {
+					// 	continue
+					// }
 				}
 				if len(bodyjs) > 0 {
 					c.Params = append(c.Params, gin.Param{
