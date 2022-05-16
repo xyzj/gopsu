@@ -295,7 +295,9 @@ func ReadParams() gin.HandlerFunc {
 						Value: bodyjs,
 					})
 				} else {
-					x, _ = url.ParseQuery(gopsu.String(b))
+					if len(b) > 0 {
+						x, _ = url.ParseQuery(gopsu.String(b))
+					}
 				}
 			}
 			// if len(x.Encode()) > 0 && len(c.Request.URL.RawQuery) > 0 { // 尝试urlencoded
