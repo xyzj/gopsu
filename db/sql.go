@@ -1057,7 +1057,7 @@ func (p *SQLPool) ExecV2(s string, params ...interface{}) (rowAffected, insertID
 	return rowAffected, insertID, nil
 }
 
-// ExecPrepare 批量执行占位符语句（insert，delete，update），使用官方的语句参数分离写法，只能批量执行相同的语句
+// ExecPrepare 批量执行占位符语句 返回 err，使用官方的语句参数分离写法，用于批量执行相同语句
 //
 // args:
 //  s: sql占位符语句
@@ -1103,7 +1103,7 @@ func (p *SQLPool) ExecPrepare(s string, paramNum int, params ...interface{}) (er
 		}
 	}()
 	for i := 0; i < l; i += paramNum {
-		_, err := tx.ExecContext(ctx, s, params...)
+		_, err := tx.ExecContext(ctx, s, params[i:i+paramNum]...)
 		// _, err = tx.StmtContext(ctx, st).Exec(params[i : i+paramNum]...)
 		// _, err := st.ExecContext(ctx, params[i:i+paramNum]...)
 		if err != nil {
@@ -1118,7 +1118,7 @@ func (p *SQLPool) ExecPrepare(s string, paramNum int, params ...interface{}) (er
 	return nil
 }
 
-// ExecPrepareV2 批量执行语句（insert，delete，update）,返回（影响行数,insertId,error）,使用官方的语句参数分离写法
+// ExecPrepareV2 批量执行语句（insert，delete，update）,返回（影响行数,insertId,error）,使用官方的语句参数分离写法，用于批量执行相同语句
 //
 // args:
 //  s: sql占位符语句

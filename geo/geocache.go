@@ -120,6 +120,17 @@ func (g *GeoCache) GeoDist(name1, name2 string) (float64, error) {
 	return Distance(gp[0].Lng, gp[0].Lat, gp[1].Lng, gp[1].Lat), nil
 }
 
+// GeoDistPoint 计算距离，单位米
+func (g *GeoCache) GeoDistPoint(lng1, lat1, lng2, lat2 float64) (float64, error) {
+	// g.locker.RLock()
+	// defer g.locker.RUnlock()
+	// gp := g.GeoPos(name1, name2)
+	// if len(gp) != 2 {
+	// 	return 0, fmt.Errorf("point not found")
+	// }
+	return Distance(lng1, lat1, lng2, lat2), nil
+}
+
 // GeoRadius 获取半径内的点
 func (g *GeoCache) GeoRadius(longitude, latitude, radius float64) []*GeoPoint {
 	g.locker.RLock()
@@ -163,6 +174,10 @@ func (g *GeoCache) SaveToFile() error {
 	if g.cachename == "" {
 		return fmt.Errorf("no file name was specified")
 	}
+	if g.sortedset.Len() == 0 {
+		ioutil.WriteFile(gopsu.JoinPathFromHere("_geo_"+g.cachename), []byte{}, 0664)
+		return nil
+	}
 	g.locker.RLock()
 	defer g.locker.RUnlock()
 	points := g.sortedset.Range(0, g.sortedset.Len(), false)
@@ -188,6 +203,9 @@ func (g *GeoCache) LoadFromFile() error {
 	b, err := ioutil.ReadFile(gopsu.JoinPathFromHere("_geo_" + g.cachename))
 	if err != nil {
 		return err
+	}
+	if len(b) == 0 {
+		return nil
 	}
 	var geojson = &geoJSON{
 		Points: make([]*GeoPoint, 0),

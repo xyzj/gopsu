@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/xyzj/gopsu"
+	"github.com/xyzj/gopsu/pinyin"
 )
 
 func GetAvailablePort() (int, error) {
@@ -30,8 +30,6 @@ func GetAvailablePort() (int, error) {
 
 // 启动文件 main.go
 func main() {
-	s := []byte{0x56, 0x31, 0x2e, 0x30, 0x2e, 0x30, 0x30, 0x33, 0x00, 0x04, 0x00, 0x00, 0x00}
-	println(string(s))
-	a := gopsu.CalcCRC32(s, false)
-	println(gopsu.Bytes2String(a, "-"))
+	s := "12er应用设备 / 智慧交通 / 停车位监测设备"
+	println(pinyin.XPinyinMatch(s, "zhjt"))
 }

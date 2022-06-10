@@ -196,22 +196,24 @@ RUN:
 // XForwardedIP 替换realip
 func XForwardedIP() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		for _, v := range []string{"X-Forwarded-For", "X-Real-IP"} {
+		for _, v := range []string{"X-Forwarded-For", "X-Real-IP", "CF-Connecting-IP"} {
 			if ip := c.Request.Header.Get(v); ip != "" {
-				a, b, err := net.SplitHostPort(ip)
-				switch err {
-				case nil:
-					if a != "" {
-						c.Request.RemoteAddr = ip
-					}
-				default:
-					if strings.Contains(err.Error(), "missing port in address") {
-						_, b, err = net.SplitHostPort(c.Request.RemoteAddr)
-						if err == nil {
-							c.Request.RemoteAddr = ip + ":" + b
-						}
-					}
+				_, b, err := net.SplitHostPort(c.Request.RemoteAddr)
+				if err != nil {
+					c.Request.RemoteAddr = ip + ":" + b
 				}
+			}
+		}
+	}
+}
+
+// CFConnectingIP get cf ip
+func CFConnectingIP() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if ip := c.Request.Header.Get("CF-Connecting-IP"); ip != "" {
+			_, b, err := net.SplitHostPort(c.Request.RemoteAddr)
+			if err != nil {
+				c.Request.RemoteAddr = ip + ":" + b
 			}
 		}
 	}
@@ -287,6 +289,7 @@ func ReadParams() gin.HandlerFunc {
 						x.Set(key.String(), value.String())
 						return true
 					})
+					bodyjs = ans.String()
 					// bodyjs, _ = sjson.Delete(ans.String(), "cachetag")
 					// bodyjs, _ = sjson.Delete(bodyjs, "cacherows")
 					// bodyjs, _ = sjson.Delete(bodyjs, "cachestart")
