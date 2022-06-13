@@ -20,9 +20,9 @@ type GeoCache struct {
 
 // GeoPoint geo点
 type GeoPoint struct {
-	Name string  `json:"aid"`
-	Lng  float64 `json:"lng"`
-	Lat  float64 `json:"lat"`
+	Name string  `json:"aid,omitempty"`
+	Lng  float64 `json:"lng,omitempty"`
+	Lat  float64 `json:"lat,omitempty"`
 	hash uint64
 }
 
