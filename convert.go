@@ -64,6 +64,17 @@ func String2Int(s string, t int) int {
 	return int(x)
 }
 
+// String2Byte convert string 2 one byte
+//  args:
+// 	s: 输入字符串
+// 	t: 返回数值进制
+//  Return：
+// 	byte
+func String2Byte(s string, t int) byte {
+	x, _ := strconv.ParseUint(s, t, 8)
+	return byte(x)
+}
+
 // String2Int8 convert string 2 int8
 //  args:
 // 	s: 输入字符串
@@ -105,7 +116,7 @@ func String2Float64(s string) float64 {
 
 //StringSlice2Int8 convert string Slice 2 int8
 func StringSlice2Int8(bs []string) byte {
-	return String2Int8(strings.Join(bs, ""), 2)
+	return String2Byte(strings.Join(bs, ""), 2)
 }
 
 // Stamp2Time convert stamp to datetime string
@@ -312,12 +323,12 @@ func HexString2Bytes(s string, bigorder bool) []byte {
 	var b = make([]byte, len(ss))
 	if bigorder {
 		for k, v := range ss {
-			b[k] = String2Int8(v, 16)
+			b[k] = String2Byte(v, 16)
 		}
 	} else {
 		c := 0
 		for i := len(ss) - 1; i >= 0; i-- {
-			b[c] = String2Int8(ss[i], 16)
+			b[c] = String2Byte(ss[i], 16)
 			c++
 		}
 	}
@@ -406,12 +417,12 @@ func Float642BcdBytes(v float64, f string) []byte {
 	for i := len(s); i > 1; i -= 2 {
 		if i == 2 {
 			if v > 0 {
-				b.WriteByte(String2Int8(s[i-2:i], 16))
+				b.WriteByte(String2Byte(s[i-2:i], 16))
 			} else {
-				b.WriteByte(String2Int8(s[i-2:i], 16) + 0x80)
+				b.WriteByte(String2Byte(s[i-2:i], 16) + 0x80)
 			}
 		} else {
-			b.WriteByte(String2Int8(s[i-2:i], 16))
+			b.WriteByte(String2Byte(s[i-2:i], 16))
 		}
 	}
 	return b.Bytes()
@@ -455,12 +466,12 @@ func Float642BcdBytesBigOrder(v float64, f string) []byte {
 	for i := 0; i < len(s); i += 2 {
 		if i == 2 {
 			if v > 0 {
-				b.WriteByte(String2Int8(s[i:i+2], 16))
+				b.WriteByte(String2Byte(s[i:i+2], 16))
 			} else {
-				b.WriteByte(String2Int8(s[i:i+2], 16) + 0x80)
+				b.WriteByte(String2Byte(s[i:i+2], 16) + 0x80)
 			}
 		} else {
-			b.WriteByte(String2Int8(s[i:i+2], 16))
+			b.WriteByte(String2Byte(s[i:i+2], 16))
 		}
 	}
 	return b.Bytes()

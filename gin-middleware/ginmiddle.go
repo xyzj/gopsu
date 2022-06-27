@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -52,6 +53,8 @@ func NewGinEngine(logDir, logName string, logDays int, logLevel ...int) *gin.Eng
 	r.Use(Recovery())
 	// 数据压缩
 	r.Use(gingzip.Gzip(9))
+	// 黑名单
+	r.Use(Blacklist(""))
 	// 读取请求参数
 	// r.Use(ReadParams())
 	// 渲染模板
@@ -282,75 +285,46 @@ func ReadParams() gin.HandlerFunc {
 		switch ct {
 		case "", "application/x-www-form-urlencoded", "application/json":
 			var x = url.Values{}
+			// 先检查url参数
+			x, _ = url.ParseQuery(c.Request.URL.RawQuery)
+			// 检查body，若和url里面出现相同的关键字，以body内容为准
 			if b, err := ioutil.ReadAll(c.Request.Body); err == nil {
 				ans := gjson.ParseBytes(b)
-				if ans.IsObject() {
+				if ans.IsObject() { // body是json
 					ans.ForEach(func(key gjson.Result, value gjson.Result) bool {
 						x.Set(key.String(), value.String())
 						return true
 					})
 					bodyjs = ans.String()
-					// bodyjs, _ = sjson.Delete(ans.String(), "cachetag")
-					// bodyjs, _ = sjson.Delete(bodyjs, "cacherows")
-					// bodyjs, _ = sjson.Delete(bodyjs, "cachestart")
-					// c.Params = append(c.Params, gin.Param{
-					// 	Key:   "_body",
-					// 	Value: bodyjs,
-					// })
-				} else {
+				} else { // body不是json，按urlencode处理
 					if len(b)+len(c.Request.URL.RawQuery) > 0 {
-						bodyjs = c.Request.URL.RawQuery + "&" + gopsu.String(b)
-						x, _ = url.ParseQuery(bodyjs)
+						bodyjs = strings.Join([]string{c.Request.URL.RawQuery, gopsu.String(b)}, "&")
+						xbody, _ := url.ParseQuery(gopsu.String(b))
+						for k := range xbody {
+							x.Set(k, xbody.Get(k))
+						}
 					}
 				}
 			}
-			// if len(x.Encode()) > 0 && len(c.Request.URL.RawQuery) > 0 { // 尝试urlencoded
-			// 	c.Params = append(c.Params, gin.Param{
-			// 		Key:   "_body",
-			// 		Value: x.Encode(),
-			// 	})
-			// } else {
-			// 	if b, err := ioutil.ReadAll(c.Request.Body); err == nil {
-			// 		ans := gjson.ParseBytes(b)
-			// 		if ans.IsObject() {
-			// 			ans.ForEach(func(key gjson.Result, value gjson.Result) bool {
-			// 				x.Set(key.String(), value.String())
-			// 				return true
-			// 			})
-			// 			c.Params = append(c.Params, gin.Param{
-			// 				Key:   "_body",
-			// 				Value: ans.String(),
-			// 			})
-			// 		} else {
-			// 			x, _ = url.ParseQuery(gopsu.String(b))
-			// 			c.Params = append(c.Params, gin.Param{
-			// 				Key:   "_body",
-			// 				Value: x.Encode(),
-			// 			})
-			// 		}
-			// 	}
-			// }
-			if len(x) > 0 {
-				for k := range x {
-					if strings.HasPrefix(k, "_") {
-						continue
-					}
-					c.Params = append(c.Params, gin.Param{
-						Key:   k,
-						Value: x.Get(k),
-					})
-					// if k == "cachetag" || k == "cachestart" || k == "cacherows" {
-					// 	continue
-					// }
+			for k := range x {
+				if strings.HasPrefix(k, "_") {
+					continue
 				}
-				if len(bodyjs) > 0 {
-					c.Params = append(c.Params, gin.Param{
-						Key:   "_body",
-						Value: bodyjs,
-					})
-				}
-				return
+				c.Params = append(c.Params, gin.Param{
+					Key:   k,
+					Value: x.Get(k),
+				})
+				// if k == "cachetag" || k == "cachestart" || k == "cacherows" {
+				// 	continue
+				// }
 			}
+			if len(bodyjs) > 0 {
+				c.Params = append(c.Params, gin.Param{
+					Key:   "_body",
+					Value: bodyjs,
+				})
+			}
+			return
 		case "multipart/form-data":
 			if mf, err := c.MultipartForm(); err == nil {
 				if len(mf.Value) == 0 {
@@ -432,14 +406,14 @@ func TLSRedirect() gin.HandlerFunc {
 }
 
 // RateLimit 限流器，基于官方库
-//  r: 每秒可访问次数,1-1000
+//  r: 每秒可访问次数,1-100
 //  b: 缓冲区大小
 func RateLimit(r, b int) gin.HandlerFunc {
 	if r < 1 {
 		r = 1
 	}
-	if r > 1000 {
-		r = 1000
+	if r > 100 {
+		r = 100
 	}
 	var limiter = rate.NewLimiter(rate.Every(time.Millisecond*time.Duration(1000/r)), b)
 	return func(c *gin.Context) {
@@ -452,14 +426,14 @@ func RateLimit(r, b int) gin.HandlerFunc {
 }
 
 // RateLimitWithIP ip限流器，基于官方库
-//  r: 每秒可访问次数,1-1000
+//  r: 每秒可访问次数,1-100
 //  b: 缓冲区大小
 func RateLimitWithIP(r, b int) gin.HandlerFunc {
 	if r < 1 {
 		r = 1
 	}
-	if r > 1000 {
-		r = 1000
+	if r > 100 {
+		r = 100
 	}
 	var cliMap sync.Map
 	return func(c *gin.Context) {
@@ -473,15 +447,15 @@ func RateLimitWithIP(r, b int) gin.HandlerFunc {
 }
 
 // RateLimitWithTimeout 超时限流器，基于官方库
-//  r: 每秒可访问次数,1-1000
+//  r: 每秒可访问次数,1-100
 //  b: 缓冲区大小
 //  t: 超时时长
 func RateLimitWithTimeout(r, b int, t time.Duration) gin.HandlerFunc {
 	if r < 1 {
 		r = 1
 	}
-	if r > 1000 {
-		r = 1000
+	if r > 100 {
+		r = 100
 	}
 	var limiter = rate.NewLimiter(rate.Every(time.Millisecond*time.Duration(1000/r)), b)
 	return func(c *gin.Context) {
@@ -537,5 +511,61 @@ func ReadCachePB2(mydb db.SQLInterface) gin.HandlerFunc {
 				}
 			}
 		}
+	}
+}
+
+type abortRecord struct {
+	locker sync.RWMutex
+	abortC map[string]uint64
+}
+
+func (ar *abortRecord) Add(ip string) {
+	ar.locker.Lock()
+	defer ar.locker.Unlock()
+	if v, ok := ar.abortC[ip]; !ok {
+		ar.abortC[ip] = 1
+	} else {
+		atomic.AddUint64(&v, 1)
+	}
+}
+
+// Blacklist IP黑名单
+func Blacklist(filename string) gin.HandlerFunc {
+	if filename == "" {
+		filename = gopsu.JoinPathFromHere(".blacklist")
+	}
+	b, err := ioutil.ReadFile(filename)
+	if err != nil {
+		b = []byte{}
+	}
+	ips := make([]string, 0)
+	chkblack := false
+	for _, v := range strings.Split(string(b), "\n") {
+		if net.ParseIP(v) != nil {
+			ips = append(ips, v)
+		}
+	}
+	if len(ips) > 0 {
+		chkblack = true
+	}
+	return func(c *gin.Context) {
+		if !chkblack {
+			return
+		}
+
+		ip := c.ClientIP()
+		for _, v := range ips {
+			if v == ip {
+				c.AbortWithStatus(418)
+				return
+			}
+		}
+	}
+}
+
+// AntiDDOS 阻止超流量ip
+func AntiDDOS() gin.HandlerFunc {
+	return func(c *gin.Context) {
+
 	}
 }

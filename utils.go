@@ -750,11 +750,11 @@ func SplitDateTime(sdt int64) (y, m, d, h, mm, s, wd byte) {
 	dd := strings.Split(dt[0], "-")
 	tt := strings.Split(dt[1], ":")
 	return byte(String2Int32(dd[0], 10) - 2000),
-		String2Int8(dd[1], 10),
-		String2Int8(dd[2], 10),
-		String2Int8(tt[0], 10),
-		String2Int8(tt[1], 10),
-		String2Int8(tt[2], 10),
+		String2Byte(dd[1], 10),
+		String2Byte(dd[2], 10),
+		String2Byte(tt[0], 10),
+		String2Byte(tt[1], 10),
+		String2Byte(tt[2], 10),
 		byte(tm.Weekday())
 }
 
@@ -835,7 +835,7 @@ func DecodeStringOld(s string) string {
 		}
 	}
 	if y, ex := base64.StdEncoding.DecodeString(s); ex == nil {
-		x := String2Int8(string(y[0])+string(y[1]), 0)
+		x := String2Byte(string(y[0])+string(y[1]), 0)
 		z := y[2:]
 		for i := len(z) - 1; i >= 0; i-- {
 			if z[i] >= x {
