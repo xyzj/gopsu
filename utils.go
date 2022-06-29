@@ -1307,10 +1307,16 @@ func JoinPathFromHere(path ...string) string {
 func SlicesUnion(slice1, slice2 []string) []string {
 	m := make(map[string]int)
 	for _, v := range slice1 {
+		if v == "" {
+			continue
+		}
 		m[v]++
 	}
 
 	for _, v := range slice2 {
+		if v == "" {
+			continue
+		}
 		if times := m[v]; times == 0 {
 			slice1 = append(slice1, v)
 		}
@@ -1323,10 +1329,16 @@ func SlicesIntersect(slice1, slice2 []string) []string {
 	m := make(map[string]int)
 	nn := make([]string, 0)
 	for _, v := range slice1 {
+		if v == "" {
+			continue
+		}
 		m[v]++
 	}
 
 	for _, v := range slice2 {
+		if v == "" {
+			continue
+		}
 		if times := m[v]; times == 1 {
 			nn = append(nn, v)
 		}
@@ -1340,12 +1352,18 @@ func SlicesDifference(slice1, slice2 []string) []string {
 	nn := make([]string, 0)
 	inter := SlicesIntersect(slice1, slice2)
 	for _, v := range inter {
+		if v == "" {
+			continue
+		}
 		m[v]++
 	}
 
-	for _, value := range slice1 {
-		if times := m[value]; times == 0 {
-			nn = append(nn, value)
+	for _, v := range slice1 {
+		if v == "" {
+			continue
+		}
+		if times := m[v]; times == 0 {
+			nn = append(nn, v)
 		}
 	}
 	return nn
