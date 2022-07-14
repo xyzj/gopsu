@@ -15,6 +15,24 @@ import (
 	json "github.com/xyzj/gopsu/json"
 )
 
+// Float32ToByte 32位浮点转bytes
+func Float32ToByte(float float32) []byte {
+	bits := math.Float32bits(float)
+	bytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(bytes, bits)
+
+	return bytes
+}
+
+// Float64ToByte 64位浮点转bytes
+func Float64ToByte(float float64) []byte {
+	bits := math.Float64bits(float)
+	bytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(bytes, bits)
+
+	return bytes
+}
+
 // FormatFloat64 格式化浮点精度，f-浮点数，p-小数位数
 func FormatFloat64(f float64, p int) float64 {
 	// println(fmt.Sprintf("%.10f", f))

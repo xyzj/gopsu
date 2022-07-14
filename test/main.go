@@ -1,12 +1,15 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
+	"math"
 	"net"
 	"net/url"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/xyzj/gopsu"
 	ginmiddleware "github.com/xyzj/gopsu/gin-middleware"
 	wmv2 "github.com/xyzj/wlstmicro/v2"
 )
@@ -63,13 +66,22 @@ func String2Int80(s string, t int) byte {
 	x, _ := strconv.ParseInt(s, t, 0)
 	return byte(x)
 }
+func Float64ToByte(float float64) []byte {
+	bits := math.Float64bits(float)
+	bytes := make([]byte, 8)
+	// binary.BigEndian.PutUint64(bytes, bits)
+	binary.LittleEndian.PutUint64(bytes, bits)
+
+	return bytes
+}
 
 // 启动文件 main.go
 func main() {
-	a := fmt.Sprintf("%b0%06b", 1, 0)
-	a = "81a"
-	a1 := String2Int8(a, 16)
-	a2 := String2Int80(a, 16)
-	println(a, fmt.Sprintf("%x, %x", a1, a2))
-
+	a := 12345678.90
+	b := gopsu.Float64ToByte(a)
+	println(gopsu.Bytes2String(b, "-"))
+	c := gopsu.Bytes2Float64(b, false)
+	println(fmt.Sprintf("%f", c))
+	bits := binary.LittleEndian.Uint64(b)
+	println(bits, gopsu.Bytes2Uint64(b, false))
 }

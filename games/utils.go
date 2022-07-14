@@ -22,28 +22,30 @@ func GameGroup(c *gin.Context) {
 		GameSnake(c)
 	case "tetris":
 		GameTetris(c)
-	default:
+	case "list":
 		c.Header("Content-Type", "text/html")
 		c.Status(http.StatusOK)
 		render.WriteString(c.Writer,
 			`<h2>
-			<a href="/game/2048">2048</a>
+			<a href="./2048">2048</a>
 			</h2>
 			<h2>
-			<a href="/game/memory">memory</a>
+			<a href="./memory">memory</a>
 			</h2>
 			<h2>
-			<a href="/game/music">music</a>
+			<a href="./music">music</a>
 			</h2>
 			<h2>
-			<a href="/game/number">number</a>
+			<a href="./number">number</a>
 			</h2>
 			<h2>
-			<a href="/game/snake">snake</a>
+			<a href="./snake">snake</a>
 			</h2>
 			<h2>
-			<a href="/game/tetris">tetris</a>
+			<a href="./tetris">tetris</a>
 			</h2>`,
 			nil)
+	default:
+		c.Abort()
 	}
 }
