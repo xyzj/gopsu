@@ -17,6 +17,7 @@ func main() {
 	err = m.Send(&gomail.Data{
 		To:      "xuyuan8720@189.cn",
 		Subject: "Gomail test subject",
+		Cc:      []string{"18916788720@189.cn", "ch5468@sina.com"},
 		Msg: `
 	GO 发送邮件，官方连包都帮我们写好了，真是贴心啊！！！`,
 	})

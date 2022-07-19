@@ -76,15 +76,27 @@ func (e *EMail) Send(d *Data) error {
 	if d == nil {
 		return fmt.Errorf("nothing to send")
 	}
+	if d.To == "" {
+		return fmt.Errorf("who do you want to send to?")
+	}
 	e.locker.Lock()
 	defer e.locker.Unlock()
 	if d.From == "" {
 		d.From = e.username
 	}
+	if d.Subject == "" {
+		d.Subject = "nil subject"
+	}
+
 	e.message.Reset()
 	e.message.SetHeader("From", d.From)
 	e.message.SetHeader("To", d.To)
 	e.message.SetHeader("Subject", d.Subject)
+	if len(d.Cc) > 0 {
+		for _, v := range d.Cc {
+			e.message.SetAddressHeader("Cc", v, v)
+		}
+	}
 	e.message.SetDateHeader("Date", time.Now())
 	e.message.SetBody("text/html", d.Msg)
 	return e.dialer.DialAndSend(e.message)
