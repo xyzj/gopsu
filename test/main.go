@@ -1,29 +1,29 @@
 package main
 
 import (
-	gomail "github.com/xyzj/gopsu/email"
+	"github.com/xyzj/gopsu/email"
 )
 
 func main() {
-	m, err := gomail.NewEMail(&gomail.SMTPOpt{
+	e, _ := email.NewEMail(&email.SMTPOpt{
+		SMTPHost: "smtp.office365.com",
 		Username: "minamoto.xu@hotmail.com",
 		Passwd:   "Someone@140821",
-		SMTPHost: "smtp.office365.com",
 	})
-	if err != nil {
-		println(err.Error())
-		return
-	}
-	err = m.Send(&gomail.Data{
-		To:      "xuyuan8720@189.cn",
-		Subject: "Gomail test subject",
-		Cc:      []string{"18916788720@189.cn", "ch5468@sina.com"},
-		Msg: `
-	GO 发送邮件，官方连包都帮我们写好了，真是贴心啊！！！`,
+	e.Send(&email.Data{
+		To:      "minamoto.xu@gmail.com",
+		Subject: "cc test",
+		Msg:     "cc to xuyuan",
+		Cc:      "xuyuan8720@189.cn",
 	})
-	if err != nil {
-		println(err.Error())
-		return
-	}
-	println("email send")
+	// doc, err := document.Open("document.docx")
+	// if err != nil {
+	// 	println(err.Error())
+	// 	return
+	// }
+	// for _, p := range doc.Paragraphs() {
+	// 	for _, r := range p.Runs() {
+	// 		println(r.Text())
+	// 	}
+	// }
 }

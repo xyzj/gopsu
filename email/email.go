@@ -29,8 +29,8 @@ type Data struct {
 	To string
 	// Subject email title
 	Subject string
-	// Cc cc to others
-	Cc []string
+	// Cc cc to other
+	Cc string
 	// Msg email body, default send as html
 	Msg string
 }
@@ -93,9 +93,7 @@ func (e *EMail) Send(d *Data) error {
 	e.message.SetHeader("To", d.To)
 	e.message.SetHeader("Subject", d.Subject)
 	if len(d.Cc) > 0 {
-		for _, v := range d.Cc {
-			e.message.SetAddressHeader("Cc", v, v)
-		}
+		e.message.SetAddressHeader("Cc", d.Cc, d.Cc)
 	}
 	e.message.SetDateHeader("Date", time.Now())
 	e.message.SetBody("text/html", d.Msg)
