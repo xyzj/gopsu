@@ -28,6 +28,11 @@ func PageEmpty(c *gin.Context) {
 	c.String(http.StatusOK, templateEmpty)
 }
 
+// PageAbort PPageEmptyage403
+func PageAbort(c *gin.Context) {
+	c.AbortWithStatus(http.StatusGone)
+}
+
 // Page403 Page403
 func Page403(c *gin.Context) {
 	if c.Request.Method == "GET" {
