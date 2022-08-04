@@ -409,11 +409,8 @@ func TLSRedirect() gin.HandlerFunc {
 //  r: 每秒可访问次数,1-100
 //  b: 缓冲区大小
 func RateLimit(r, b int) gin.HandlerFunc {
-	if r < 1 {
-		r = 1
-	}
-	if r > 100 {
-		r = 100
+	if r < 1 || r > 100 {
+		r = 5
 	}
 	var limiter = rate.NewLimiter(rate.Every(time.Millisecond*time.Duration(1000/r)), b)
 	return func(c *gin.Context) {
@@ -429,19 +426,22 @@ func RateLimit(r, b int) gin.HandlerFunc {
 //  r: 每秒可访问次数,1-100
 //  b: 缓冲区大小
 func RateLimitWithIP(r, b int) gin.HandlerFunc {
-	if r < 1 {
-		r = 1
-	}
-	if r > 100 {
-		r = 100
+	if r < 1 || r > 100 {
+		r = 5
 	}
 	var cliMap sync.Map
 	return func(c *gin.Context) {
 		limiter, _ := cliMap.LoadOrStore(c.ClientIP(), rate.NewLimiter(rate.Every(time.Millisecond*time.Duration(1000/r)), b))
-		if !limiter.(*rate.Limiter).Allow() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+		if err := limiter.(*rate.Limiter).WaitN(ctx, 1); err != nil {
 			c.AbortWithStatus(http.StatusTooManyRequests)
 			return
 		}
+		// if !limiter.(*rate.Limiter).Allow() {
+		// 	c.AbortWithStatus(http.StatusTooManyRequests)
+		// 	return
+		// }
 		c.Next()
 	}
 }
@@ -451,11 +451,8 @@ func RateLimitWithIP(r, b int) gin.HandlerFunc {
 //  b: 缓冲区大小
 //  t: 超时时长
 func RateLimitWithTimeout(r, b int, t time.Duration) gin.HandlerFunc {
-	if r < 1 {
-		r = 1
-	}
-	if r > 100 {
-		r = 100
+	if r < 1 || r > 100 {
+		r = 5
 	}
 	var limiter = rate.NewLimiter(rate.Every(time.Millisecond*time.Duration(1000/r)), b)
 	return func(c *gin.Context) {
