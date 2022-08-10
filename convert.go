@@ -41,11 +41,12 @@ func FormatFloat64(f float64, p int) float64 {
 }
 
 // String2Bytes convert hex-string to []byte
-//  args:
-// 	data: 输入字符串
-// 	sep： 用于分割字符串的分割字符
-//  return:
-// 	字节切片
+//
+//	 args:
+//		data: 输入字符串
+//		sep： 用于分割字符串的分割字符
+//	 return:
+//		字节切片
 func String2Bytes(data string, sep string) []byte {
 	var z []byte
 	a := strings.Split(data, sep)
@@ -58,11 +59,12 @@ func String2Bytes(data string, sep string) []byte {
 }
 
 // Bytes2String convert []byte to hex-string
-//  args:
-// 	data: 输入字节切片
-// 	sep： 用于分割字符串的分割字符
-//  return:
-// 	字符串
+//
+//	 args:
+//		data: 输入字节切片
+//		sep： 用于分割字符串的分割字符
+//	 return:
+//		字符串
 func Bytes2String(data []byte, sep string) string {
 	a := make([]string, len(data))
 	for k, v := range data {
@@ -72,57 +74,74 @@ func Bytes2String(data []byte, sep string) string {
 }
 
 // String2Int convert string 2 int
-//  args:
-// 	s: 输入字符串
-// 	t: 返回数值进制
-//  Return：
-// 	int
+//
+//	 args:
+//		s: 输入字符串
+//		t: 返回数值进制
+//	 Return：
+//		int
 func String2Int(s string, t int) int {
 	x, _ := strconv.ParseInt(s, t, 32)
 	return int(x)
 }
 
 // String2Byte convert string 2 one byte
-//  args:
-// 	s: 输入字符串
-// 	t: 返回数值进制
-//  Return：
-// 	byte
+//
+//	 args:
+//		s: 输入字符串
+//		t: 返回数值进制
+//	 Return：
+//		byte
 func String2Byte(s string, t int) byte {
 	x, _ := strconv.ParseUint(s, t, 8)
 	return byte(x)
 }
 
 // String2Int8 convert string 2 int8
-//  args:
-// 	s: 输入字符串
-// 	t: 返回数值进制
-//  Return：
-// 	int8
+//
+//	 args:
+//		s: 输入字符串
+//		t: 返回数值进制
+//	 Return：
+//		int8
 func String2Int8(s string, t int) byte {
 	x, _ := strconv.ParseInt(s, t, 0)
 	return byte(x)
 }
 
 // String2Int32 convert string 2 int32
-//  args:
-// 	s: 输入字符串
-// 	t: 返回数值进制
-//  Return：
-// 	int32
+//
+//	 args:
+//		s: 输入字符串
+//		t: 返回数值进制
+//	 Return：
+//		int32
 func String2Int32(s string, t int) int32 {
 	x, _ := strconv.ParseInt(s, t, 32)
 	return int32(x)
 }
 
 // String2Int64 convert string 2 int64
-//  args:
-// 	s: 输入字符串
-// 	t: 返回数值进制
-//  Return：
-// 	int64
+//
+//	 args:
+//		s: 输入字符串
+//		t: 返回数值进制
+//	 Return：
+//		int64
 func String2Int64(s string, t int) int64 {
 	x, _ := strconv.ParseInt(s, t, 64)
+	return x
+}
+
+// String2UInt64 convert string 2 uint64
+//
+//	 args:
+//		s: 输入字符串
+//		t: 返回数值进制
+//	 Return：
+//		uint64
+func String2UInt64(s string, t int) uint64 {
+	x, _ := strconv.ParseUint(s, t, 64)
 	return x
 }
 
@@ -132,7 +151,7 @@ func String2Float64(s string) float64 {
 	return x
 }
 
-//StringSlice2Int8 convert string Slice 2 int8
+// StringSlice2Int8 convert string Slice 2 int8
 func StringSlice2Int8(bs []string) byte {
 	return String2Byte(strings.Join(bs, ""), 2)
 }
@@ -150,11 +169,12 @@ func Stamp2Time(t int64, fmt ...string) string {
 }
 
 // Time2Stampf 可根据制定的时间格式和时区转换为当前时区的Unix时间戳
-//	s：时间字符串
-//  fmt：时间格式
-//  year：2006，month：01，day：02
-//  hour：15，minute：04，second：05
-//  tz：0～12,超范围时使用本地时区
+//
+//		s：时间字符串
+//	 fmt：时间格式
+//	 year：2006，month：01，day：02
+//	 hour：15，minute：04，second：05
+//	 tz：0～12,超范围时使用本地时区
 func Time2Stampf(s, fmt string, tz float32) int64 {
 	if fmt == "" {
 		fmt = "2006-01-02 15:04:05"
@@ -310,7 +330,8 @@ func Base64Imgfile(b, f string) error {
 }
 
 // SplitStringWithLen 按制定长度分割字符串
-// 	s-原始字符串
+//
+//	s-原始字符串
 //	l-切割长度
 func SplitStringWithLen(s string, l int) []string {
 	rs := []rune(s)
@@ -330,7 +351,8 @@ func SplitStringWithLen(s string, l int) []string {
 }
 
 // HexString2Bytes 转换hexstring为字节数组
-// 	s-hexstring（11aabb）
+//
+//	s-hexstring（11aabb）
 //	bigorder-是否高位在前
 //	false低位在前
 func HexString2Bytes(s string, bigorder bool) []byte {
@@ -354,7 +376,8 @@ func HexString2Bytes(s string, bigorder bool) []byte {
 }
 
 // Bytes2Uint64 字节数组转换为uint64
-// 	b-字节数组
+//
+//	b-字节数组
 //	bigorder-是否高位在前
 //	false低位在前
 func Bytes2Uint64(b []byte, bigorder bool) uint64 {
@@ -371,8 +394,9 @@ func Bytes2Uint64(b []byte, bigorder bool) uint64 {
 }
 
 // Bytes2Int64 字节数组转换为uint64
-// 	b-字节数组
-// 	bigorder-是否高位在前
+//
+//	b-字节数组
+//	bigorder-是否高位在前
 //	false低位在前
 func Bytes2Int64(b []byte, bigorder bool) int64 {
 	s := ""
@@ -424,8 +448,9 @@ func DFM2GPS(du, fen int, miao float64) float64 {
 }
 
 // Float642BcdBytes 浮点转bcd字节数组（小端序）
-// 	v：十进制浮点数值
-// 	f：格式化的字符串，如"%07.03f","%03.0f"
+//
+//	v：十进制浮点数值
+//	f：格式化的字符串，如"%07.03f","%03.0f"
 func Float642BcdBytes(v float64, f string) []byte {
 	s := strings.ReplaceAll(fmt.Sprintf(f, math.Abs(v)), ".", "")
 	var b bytes.Buffer
@@ -447,9 +472,10 @@ func Float642BcdBytes(v float64, f string) []byte {
 }
 
 // BcdBytes2Float64 bcd数组转浮点(小端序)
-// 	b:bcd数组
-// 	d：小数位数
-// 	Unsigned：无符号的
+//
+//	b:bcd数组
+//	d：小数位数
+//	Unsigned：无符号的
 func BcdBytes2Float64(b []byte, decimal int, unsigned bool) float64 {
 	var negative = false
 	var s string
@@ -473,8 +499,9 @@ func BcdBytes2Float64(b []byte, decimal int, unsigned bool) float64 {
 }
 
 // Float642BcdBytesBigOrder 浮点转bcd字节数组（大端序）
-// 	v：十进制浮点数值
-// 	f：格式化的字符串，如"%07.03f","%03.0f"
+//
+//	v：十进制浮点数值
+//	f：格式化的字符串，如"%07.03f","%03.0f"
 func Float642BcdBytesBigOrder(v float64, f string) []byte {
 	s := strings.ReplaceAll(fmt.Sprintf(f, math.Abs(v)), ".", "")
 	var b bytes.Buffer
@@ -496,9 +523,10 @@ func Float642BcdBytesBigOrder(v float64, f string) []byte {
 }
 
 // BcdBytes2Float64BigOrder bcd数组转浮点(大端序)
-// 	b:bcd数组
-// 	d：小数位数
-// 	Unsigned：无符号的
+//
+//	b:bcd数组
+//	d：小数位数
+//	Unsigned：无符号的
 func BcdBytes2Float64BigOrder(b []byte, decimal int, unsigned bool) float64 {
 	var negative = false
 	var s string

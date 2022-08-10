@@ -562,10 +562,11 @@ func CacheUnmarshal(b []byte, v interface{}) error {
 }
 
 // GetAddrFromString get addr from config string
-//  args:
-//	straddr: something like "1,2,3-6"
-//  return:
-//	[]int64,something like []int64{1,2,3,4,5,6}
+//
+//	 args:
+//		straddr: something like "1,2,3-6"
+//	 return:
+//		[]int64,something like []int64{1,2,3,4,5,6}
 func GetAddrFromString(straddr string) ([]int64, error) {
 	lst := strings.Split(strings.TrimSpace(straddr), ",")
 	lstAddr := make([]int64, 0)
@@ -595,10 +596,11 @@ func GetAddrFromString(straddr string) ([]int64, error) {
 }
 
 // CheckIP check if the ipstring is legal
-//  args:
-//	ip: ipstring something like 127.0.0.1:10001
-//  return:
-//	true/false
+//
+//	 args:
+//		ip: ipstring something like 127.0.0.1:10001
+//	 return:
+//		true/false
 func CheckIP(ip string) bool {
 	regip := `^(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|[1-9])\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)$`
 	regipwithport := `^(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|[1-9])\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d):\d{1,5}$`
@@ -736,7 +738,7 @@ func GetExecName() string {
 	return path.Base(exe)
 }
 
-//SplitDateTime SplitDateTime
+// SplitDateTime SplitDateTime
 func SplitDateTime(sdt int64) (y, m, d, h, mm, s, wd byte) {
 	if sdt == 0 {
 		sdt = time.Now().Unix()
@@ -872,9 +874,9 @@ func SwapCase(s string) string {
 	var ns bytes.Buffer
 	for _, v := range s {
 		if v >= 65 && v <= 90 {
-			ns.WriteString(string(int(v) + 32))
+			ns.WriteString(string(v + 32))
 		} else if v >= 97 && v <= 122 {
-			ns.WriteString(string(int(v) - 32))
+			ns.WriteString(string(v - 32))
 		} else {
 			ns.WriteString(string(v))
 		}
@@ -883,13 +885,14 @@ func SwapCase(s string) string {
 }
 
 // VersionInfo show something
-//  args:
-// 	p: program name
-// 	v: program version
-// 	gv: golang version
-// 	bd: build datetime
-// 	pl: platform info
-// 	a: auth name
+//
+//	 args:
+//		p: program name
+//		v: program version
+//		gv: golang version
+//		bd: build datetime
+//		pl: platform info
+//		a: auth name
 func VersionInfo(p, v, gv, bd, pl, a string) string {
 	js, _ := sjson.Set("", "name", p)
 	js, _ = sjson.Set(js, "version", v)
@@ -902,13 +905,14 @@ func VersionInfo(p, v, gv, bd, pl, a string) string {
 }
 
 // WriteVersionInfo write version info to .ver file
-//  args:
-// 	p: program name
-// 	v: program version
-// 	gv: golang version
-// 	bd: build datetime
-// 	pl: platform info
-// 	a: auth name
+//
+//	 args:
+//		p: program name
+//		v: program version
+//		gv: golang version
+//		bd: build datetime
+//		pl: platform info
+//		a: auth name
 func WriteVersionInfo(p, v, gv, bd, pl, a string) {
 	fn, _ := os.Executable()
 	f, _ := os.OpenFile(fmt.Sprintf("%s.ver", fn), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0444)
@@ -917,12 +921,13 @@ func WriteVersionInfo(p, v, gv, bd, pl, a string) {
 }
 
 // CalculateSecurityCode calculate security code
-//  args:
-//	t: calculate type "h"-按小时计算，当分钟数在偏移值范围内时，同时计算前后一小时的值，"m"-按分钟计算，同时计算前后偏移量范围内的值
-//	salt: 拼接用字符串
-//	offset: 偏移值，范围0～59
-//  return:
-//	32位小写md5码切片
+//
+//	 args:
+//		t: calculate type "h"-按小时计算，当分钟数在偏移值范围内时，同时计算前后一小时的值，"m"-按分钟计算，同时计算前后偏移量范围内的值
+//		salt: 拼接用字符串
+//		offset: 偏移值，范围0～59
+//	 return:
+//		32位小写md5码切片
 func CalculateSecurityCode(t, salt string, offset int) []string {
 	var sc []string
 	if offset < 0 {
@@ -1073,9 +1078,10 @@ func CheckSQLInject(s string) bool {
 // }
 
 // GetServerTLSConfig 获取https配置
+//
 //	certfile: 服务端证书
-// 	keyfile: 服务端key
-// 	clientca: 双向验证时客户端根证书
+//	keyfile: 服务端key
+//	clientca: 双向验证时客户端根证书
 func GetServerTLSConfig(certfile, keyfile, clientca string) (*tls.Config, error) {
 	tc := &tls.Config{}
 	cliCrt, err := tls.LoadX509KeyPair(certfile, keyfile)
@@ -1096,9 +1102,10 @@ func GetServerTLSConfig(certfile, keyfile, clientca string) (*tls.Config, error)
 }
 
 // GetClientTLSConfig 获取https配置
-// 	certfile: 双向验证时客户端证书
-// 	keyfile: 双向验证时客户端key
-// 	rootca: 服务端根证书
+//
+//	certfile: 双向验证时客户端证书
+//	keyfile: 双向验证时客户端key
+//	rootca: 服务端根证书
 func GetClientTLSConfig(certfile, keyfile, rootca string) (*tls.Config, error) {
 	tc := &tls.Config{
 		InsecureSkipVerify: true,
@@ -1417,9 +1424,15 @@ func String(b []byte) string {
 
 // Bytes 内存地址转换string
 func Bytes(s string) []byte {
-	x := (*[2]uintptr)(unsafe.Pointer(&s))
-	h := [3]uintptr{x[0], x[1], x[1]}
-	return *(*[]byte)(unsafe.Pointer(&h))
+	return *(*[]byte)(unsafe.Pointer(
+		&struct {
+			string
+			cap int
+		}{s, len(s)},
+	))
+	// x := (*[2]uintptr)(unsafe.Pointer(&s))
+	// h := [3]uintptr{x[0], x[1], x[1]}
+	// return *(*[]byte)(unsafe.Pointer(&h))
 }
 
 // FormatFileSize 字节的单位转换
@@ -1438,4 +1451,12 @@ func FormatFileSize(fileSize int64) (size string) {
 	} else { //if fileSize < (1024 * 1024 * 1024 * 1024 * 1024 * 1024)
 		return fmt.Sprintf("%d EB", fileSize/(1024*1024*1024*1024*1024))
 	}
+}
+
+// EraseSyncMap 清空sync.map
+func EraseSyncMap(m *sync.Map) {
+	m.Range(func(key interface{}, value interface{}) bool {
+		m.Delete(key)
+		return true
+	})
 }
