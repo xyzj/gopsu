@@ -103,6 +103,20 @@ var (
 	trimReplacer = strings.NewReplacer("\r", "", "\n", "", "\000", "", "\t", " ")
 )
 
+// SliceFlag 切片型参数，仅支持字符串格式
+type SliceFlag []string
+
+// String 返回参数
+func (f *SliceFlag) String() string {
+	return fmt.Sprintf("%v", []string(*f))
+}
+
+// Set 设置值
+func (f *SliceFlag) Set(value string) error {
+	*f = append(*f, value)
+	return nil
+}
+
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
