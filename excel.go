@@ -108,3 +108,31 @@ func NewExcel(filename string) (*ExcelData, error) {
 	e.fileName = filename
 	return e, err
 }
+
+// NewExcelFromBinary 从文件读取xlsx
+func NewExcelFromBinary(bs []byte, filename string) (*ExcelData, error) {
+	var err error
+	var e *ExcelData
+	xf, err := xlsx.OpenBinary(bs)
+	if err != nil {
+		e = &ExcelData{
+			xlsxFile: xlsx.NewFile(),
+			colStyle: xlsx.NewStyle(),
+		}
+	} else {
+		e = &ExcelData{
+			xlsxFile: xf,
+			colStyle: xlsx.NewStyle(),
+		}
+	}
+	e.colStyle.Alignment.Horizontal = "center"
+	e.colStyle.Font.Bold = true
+	e.colStyle.ApplyAlignment = true
+	e.colStyle.ApplyFont = true
+	// e.xlsxSheet, err = e.xlsxFile.AddSheet(time.Now().Format("2006-01-02"))
+	// if err != nil {
+	// 	return nil, fmt.Errorf("excel-sheet创建失败:" + err.Error())
+	// }
+	e.fileName = filename
+	return e, err
+}

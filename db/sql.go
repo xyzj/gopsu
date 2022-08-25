@@ -289,9 +289,12 @@ func (p *SQLPool) IsReady() bool {
 // checkSQL 检查sql语句是否存在注入攻击风险
 //
 // args：
-//  s： sql语句
+//
+//	s： sql语句
+//
 // return:
-//  error
+//
+//	error
 func (p *SQLPool) checkSQL(s string) error {
 	if gopsu.CheckSQLInject(s) {
 		return nil
@@ -321,11 +324,14 @@ func (p *SQLPool) checkCache() {
 // QueryCacheJSON 查询缓存结果
 //
 // args:
-//  cacheTag: 缓存标签
-//  startIdx: 起始行数
-//  rowCount: 查询的行数
+//
+//	cacheTag: 缓存标签
+//	startIdx: 起始行数
+//	rowCount: 查询的行数
+//
 // return:
-//  json字符串
+//
+//	json字符串
 func (p *SQLPool) QueryCacheJSON(cacheTag string, startRow, rowsCount int) string {
 	return gopsu.String(gopsu.PB2Json(p.QueryCachePB2(cacheTag, startRow, rowsCount)))
 }
@@ -333,11 +339,14 @@ func (p *SQLPool) QueryCacheJSON(cacheTag string, startRow, rowsCount int) strin
 // QueryCachePB2 查询缓存结果
 //
 // args:
-//  cacheTag: 缓存标签
-//  startIdx: 起始行数
-//  rowCount: 查询的行数
+//
+//	cacheTag: 缓存标签
+//	startIdx: 起始行数
+//	rowCount: 查询的行数
+//
 // return:
-//  &QueryData{}
+//
+//	&QueryData{}
 func (p *SQLPool) QueryCachePB2(cacheTag string, startRow, rowsCount int) *QueryData {
 	if cacheTag == emptyCacheTag {
 		return nil
@@ -379,11 +388,14 @@ func (p *SQLPool) QueryCachePB2(cacheTag string, startRow, rowsCount int) *Query
 // QueryCacheMultirowPage 查询多行分页缓存结果
 //
 // args:
-//  cacheTag: 缓存标签
-//  startIdx: 起始行数
-//  rowCount: 查询的行数
+//
+//	cacheTag: 缓存标签
+//	startIdx: 起始行数
+//	rowCount: 查询的行数
+//
 // return:
-//  &QueryData{}
+//
+//	&QueryData{}
 func (p *SQLPool) QueryCacheMultirowPage(cacheTag string, startRow, rowsCount, keyColumeID int) *QueryData {
 	if cacheTag == emptyCacheTag {
 		return nil
@@ -433,11 +445,14 @@ func (p *SQLPool) QueryCacheMultirowPage(cacheTag string, startRow, rowsCount, k
 // QueryOne 执行查询语句，返回首行结果的json字符串，`{row：[...]}`，该方法不缓存结果
 //
 // args:
-//  s: sql占位符语句
-//  colNum: 列数量
-//  params: 查询参数,语句中的参数用`?`占位
+//
+//	s: sql占位符语句
+//	colNum: 列数量
+//	params: 查询参数,语句中的参数用`?`占位
+//
 // return:
-//  结果集json字符串，error
+//
+//	结果集json字符串，error
 func (p *SQLPool) QueryOne(s string, colNum int, params ...interface{}) (js string, err error) {
 	defer func() (string, error) {
 		if ex := recover(); ex != nil {
@@ -479,11 +494,14 @@ func (p *SQLPool) QueryOne(s string, colNum int, params ...interface{}) (js stri
 // QueryOnePB2 执行查询语句，返回首行结果，该方法不缓存结果
 //
 // args:
-//  s: sql占位符语句
-//  colNum: 列数量
-//  params: 查询参数,语句中的参数用`?`占位
+//
+//	s: sql占位符语句
+//	colNum: 列数量
+//	params: 查询参数,语句中的参数用`?`占位
+//
 // return:
-//  结果集json字符串，error
+//
+//	结果集json字符串，error
 func (p *SQLPool) QueryOnePB2(s string, colNum int, params ...interface{}) (query *QueryData, err error) {
 	query = &QueryData{Rows: make([]*QueryDataRow, 0)}
 	defer func() (*QueryData, error) {
@@ -530,12 +548,15 @@ func (p *SQLPool) QueryOnePB2(s string, colNum int, params ...interface{}) (quer
 // QueryLimit 执行查询语句，限制返回行数
 //
 // args:
-//  s: sql占位符语句
-//  startRow: 起始行号，0开始
-//  rowsCount: 返回数据行数，0-返回全部
-//  params: 查询参数,语句中的参数用`?`占位
+//
+//	s: sql占位符语句
+//	startRow: 起始行号，0开始
+//	rowsCount: 返回数据行数，0-返回全部
+//	params: 查询参数,语句中的参数用`?`占位
+//
 // return:
-//  QueryData结构，error
+//
+//	QueryData结构，error
 func (p *SQLPool) QueryLimit(s string, startRow, rowsCount int, params ...interface{}) (*QueryData, error) {
 	if startRow+rowsCount == 0 {
 		return p.QueryPB2(s, rowsCount, params...)
@@ -557,12 +578,15 @@ func (p *SQLPool) QueryLimit(s string, startRow, rowsCount int, params ...interf
 // QueryPB2Big 可尝试用于大数据集的首页查询，一定程度加快速度，原查询时间在2s内的没必要使用该方法
 //
 // args:
-//  s: sql占位符语句
-//  startRow: 起始行号，0开始
-//  rowsCount: 返回数据行数，从第一行开始，0-返回全部
-//  params: 查询参数,语句中的参数用`?`占位
+//
+//	s: sql占位符语句
+//	startRow: 起始行号，0开始
+//	rowsCount: 返回数据行数，从第一行开始，0-返回全部
+//	params: 查询参数,语句中的参数用`?`占位
+//
 // return:
-//  QueryData结构，error
+//
+//	QueryData结构，error
 func (p *SQLPool) QueryPB2Big(s string, startRow, rowsCount int, params ...interface{}) (*QueryData, error) {
 	// ss := strings.Replace(s, "select ", "select count(*),", 1)
 	ss := "select count(*) " + s[strings.Index(s, "from"):]
@@ -587,11 +611,14 @@ func (p *SQLPool) QueryPB2Big(s string, startRow, rowsCount int, params ...inter
 // QueryJSON 执行查询语句，返回结果集的json字符串
 //
 // args:
-//  s: sql占位符语句
-//  rowsCount: 返回数据行数，从第一行开始，0-返回全部
-//  params: 查询参数,语句中的参数用`?`占位
+//
+//	s: sql占位符语句
+//	rowsCount: 返回数据行数，从第一行开始，0-返回全部
+//	params: 查询参数,语句中的参数用`?`占位
+//
 // return:
-//  结果集json字符串，error
+//
+//	结果集json字符串，error
 func (p *SQLPool) QueryJSON(s string, rowsCount int, params ...interface{}) (string, error) {
 	x, ex := p.QueryPB2(s, rowsCount, params...)
 	if ex != nil {
@@ -603,11 +630,14 @@ func (p *SQLPool) QueryJSON(s string, rowsCount int, params ...interface{}) (str
 // QueryPB2 执行查询语句，返回结果集的pb2序列化字节数组
 //
 // args:
-//  s: sql占位符语句
-//  rowsCount: 返回数据行数，从第一行开始，0-返回全部
-//  params: 查询参数,语句中的参数用`?`占位
+//
+//	s: sql占位符语句
+//	rowsCount: 返回数据行数，从第一行开始，0-返回全部
+//	params: 查询参数,语句中的参数用`?`占位
+//
 // return:
-//  QueryData结构，error
+//
+//	QueryData结构，error
 func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (query *QueryData, err error) {
 	ans := <-p.QueryPB2Chan(s, rowsCount, params...)
 	if ans.Err != nil {
@@ -710,11 +740,14 @@ func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (quer
 
 // QueryPB2Chan 查询v2,采用线程+channel优化超大数据集分页的首页返回时间
 // args:
-//  s: sql占位符语句
-//  rowsCount: 返回数据行数，从第一行开始，0-返回全部
-//  params: 查询参数,语句中的参数用`?`占位
+//
+//	s: sql占位符语句
+//	rowsCount: 返回数据行数，从第一行开始，0-返回全部
+//	params: 查询参数,语句中的参数用`?`占位
+//
 // return:
-//  QueryData结构，error
+//
+//	QueryData结构，error
 func (p *SQLPool) QueryPB2Chan(s string, rowsCount int, params ...interface{}) <-chan *QueryDataChan {
 	qdc := &QueryDataChanWorker{
 		QDC:         make(chan *QueryDataChan, 1),
@@ -872,12 +905,15 @@ func (p *SQLPool) queryChan(qdc chan *QueryDataChan, s string, rowsCount int, pa
 // QueryMultirowPage 执行查询语句，返回结果集的pb2序列化字节数组，检测多个字段进行换行计数
 //
 // args:
-//  s: sql占位符语句
-//  rowsCount: 返回数据行数，从第一行开始，0-返回全部
-//	keyColumeID: sql语句中用于检测换行的字段序号，从0开始
-//  params: 查询参数,语句中的参数用`?`占位
+//
+//	 s: sql占位符语句
+//	 rowsCount: 返回数据行数，从第一行开始，0-返回全部
+//		keyColumeID: sql语句中用于检测换行的字段序号，从0开始
+//	 params: 查询参数,语句中的参数用`?`占位
+//
 // return:
-//  结果集的pb2序列化字节数组，error
+//
+//	结果集的pb2序列化字节数组，error
 func (p *SQLPool) QueryMultirowPage(s string, rowsCount int, keyColumeID int, params ...interface{}) (query *QueryData, err error) {
 	if keyColumeID == -1 {
 		return p.QueryPB2(s, rowsCount, params...)
@@ -984,10 +1020,13 @@ func (p *SQLPool) QueryMultirowPage(s string, rowsCount int, keyColumeID int, pa
 // Exec 执行语句（insert，delete，update）,返回（影响行数,insertId,error）,使用官方的语句参数分离写法
 //
 // args:
-//  s: sql占位符语句
-//  param: 参数,语句中的参数用`?`占位
+//
+//	s: sql占位符语句
+//	param: 参数,语句中的参数用`?`占位
+//
 // return:
-//   影响行数，insert的id，error
+//
+//	影响行数，insert的id，error
 func (p *SQLPool) Exec(s string, params ...interface{}) (rowAffected, insertID int64, err error) {
 	p.execLocker.Lock()
 	defer func() (int64, int64, error) {
@@ -1012,10 +1051,13 @@ func (p *SQLPool) Exec(s string, params ...interface{}) (rowAffected, insertID i
 // ExecV2 事务执行语句（insert，delete，update），可回滚,返回（影响行数,insertId,error）,使用官方的语句参数分离写法
 //
 // args:
-//  s: sql占位符语句
-//  param: 参数,语句中的参数用`?`占位
+//
+//	s: sql占位符语句
+//	param: 参数,语句中的参数用`?`占位
+//
 // return:
-//   影响行数，insert的id，error
+//
+//	影响行数，insert的id，error
 func (p *SQLPool) ExecV2(s string, params ...interface{}) (rowAffected, insertID int64, err error) {
 	// p.execLocker.Lock()
 	defer func() (int64, int64, error) {
@@ -1060,11 +1102,14 @@ func (p *SQLPool) ExecV2(s string, params ...interface{}) (rowAffected, insertID
 // ExecPrepare 批量执行占位符语句 返回 err，使用官方的语句参数分离写法，用于批量执行相同语句
 //
 // args:
-//  s: sql占位符语句
-//  paramNum: 占位符数量,为0时自动计算sql语句中`?`的数量
-//  params: 语句参数 `d := make([]interface{}, 0);d=append(d,xxx)`
+//
+//	s: sql占位符语句
+//	paramNum: 占位符数量,为0时自动计算sql语句中`?`的数量
+//	params: 语句参数 `d := make([]interface{}, 0);d=append(d,xxx)`
+//
 // return:
-//  error
+//
+//	error
 func (p *SQLPool) ExecPrepare(s string, paramNum int, params ...interface{}) (err error) {
 	p.execLocker.Lock()
 	defer func() error {
@@ -1121,11 +1166,14 @@ func (p *SQLPool) ExecPrepare(s string, paramNum int, params ...interface{}) (er
 // ExecPrepareV2 批量执行语句（insert，delete，update）,返回（影响行数,insertId,error）,使用官方的语句参数分离写法，用于批量执行相同语句
 //
 // args:
-//  s: sql占位符语句
-//  paramNum: 占位符数量,为0时自动计算sql语句中`?`的数量
-//  params: 语句参数 `d := make([]interface{}, 0);d=append(d,xxx)`
+//
+//	s: sql占位符语句
+//	paramNum: 占位符数量,为0时自动计算sql语句中`?`的数量
+//	params: 语句参数 `d := make([]interface{}, 0);d=append(d,xxx)`
+//
 // return:
-//  error
+//
+//	error
 func (p *SQLPool) ExecPrepareV2(s string, paramNum int, params ...interface{}) (int64, []int64, error) {
 	p.execLocker.Lock()
 	defer func() {
@@ -1195,9 +1243,12 @@ func (p *SQLPool) ExecPrepareV2(s string, paramNum int, params ...interface{}) (
 // ExecBatch (maybe unsafe)事务执行语句（insert，delete，update）
 //
 // args：
-//  s： sql语句组
+//
+//	s： sql语句组
+//
 // return:
-//  error
+//
+//	error
 func (p *SQLPool) ExecBatch(s []string) (err error) {
 	p.execLocker.Lock()
 	defer func() error {

@@ -145,6 +145,12 @@ func String2UInt64(s string, t int) uint64 {
 	return x
 }
 
+// String2Float32 convert string 2 float64
+func String2Float32(s string) float32 {
+	x, _ := strconv.ParseFloat(s, 32)
+	return float32(x)
+}
+
 // String2Float64 convert string 2 float64
 func String2Float64(s string) float64 {
 	x, _ := strconv.ParseFloat(s, 64)

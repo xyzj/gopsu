@@ -1,20 +1,17 @@
 package main
 
 import (
-	"github.com/xyzj/gopsu"
+	"fmt"
+	"log"
+	"time"
 )
 
+func aaa(a, b, c string, d, e int) {
+	println(fmt.Sprintf("%s, %s, %s, --- %d %d", a, b, c, d, e))
+}
+
 func main() {
-	// e, _ := email.NewEMail(&email.SMTPOpt{
-	// 	SMTPHost: "smtp.office365.com",
-	// 	Username: "minamoto.xu@hotmail.com",
-	// 	Passwd:   "Someone@140821",
-	// })
-	// e.Send(&email.Data{
-	// 	To:      "minamoto.xu@gmail.com",
-	// 	Subject: "cc test",
-	// 	Msg:     "cc to xuyuan",
-	// 	Cc:      "xuyuan8720@189.cn",
-	// })
-	println(gopsu.RealIP(true))
+	log.SetFlags(log.Ltime)
+	log.Println("---- main")
+	time.Sleep(time.Second * 3)
 }

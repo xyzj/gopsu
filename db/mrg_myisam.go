@@ -25,7 +25,7 @@ func (p *SQLPool) ShowTableInfo(tableName string) (string, string, int64, int64,
 	}
 	// 查询引擎
 	strsql := "select engine,count(*) from information_schema.tables where table_schema=? and table_name=?"
-	ans, err := p.QueryOnePB2(strsql, 1, p.DataBase, tableName)
+	ans, err := p.QueryPB2(strsql, 1, p.DataBase, tableName)
 	if err != nil {
 		return subTableName, engine, tableSize, rowsCount, err
 	}
@@ -35,7 +35,7 @@ func (p *SQLPool) ShowTableInfo(tableName string) (string, string, int64, int64,
 	}
 	// 获取最新子表
 	strsql = "show create table " + tableName
-	ans, err = p.QueryOnePB2(strsql, 2)
+	ans, err = p.QueryPB2(strsql, 1)
 	if err != nil || len(ans.Rows) > 0 {
 		return subTableName, engine, tableSize, rowsCount, err
 	}
@@ -45,7 +45,7 @@ func (p *SQLPool) ShowTableInfo(tableName string) (string, string, int64, int64,
 	subTableName = s[idx+1 : idx+idx2+1]
 	// 获取子表大小
 	strsql = "select round(sum(DATA_LENGTH/1024/1024),2) as data,TABLE_ROWS,count(*) from information_schema.tables where table_schema=? and table_name=?"
-	ans, err = p.QueryOnePB2(strsql, 1, p.DataBase, subTableName)
+	ans, err = p.QueryPB2(strsql, 1, p.DataBase, subTableName)
 	if err != nil || len(ans.Rows) > 0 {
 		return subTableName, engine, tableSize, rowsCount, err
 	}
