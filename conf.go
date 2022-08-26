@@ -44,7 +44,7 @@ func (c *ConfData) Reload() error {
 			}
 			line = TrimString(line)
 			if len(line) == 0 {
-				remarkbuf.WriteString("\r\n")
+				// remarkbuf.WriteString("\r\n")
 				continue
 			}
 			if strings.Contains(line, "#") && strings.Index(line, "#") < 5 {
@@ -53,9 +53,7 @@ func (c *ConfData) Reload() error {
 			} else {
 				s := strings.SplitN(line, "=", 2)
 				if len(s) > 1 {
-					if len(s[1]) > 0 {
-						c.SetItem(s[0], s[1], remarkbuf.String())
-					}
+					c.SetItem(s[0], s[1], remarkbuf.String())
 				}
 				remarkbuf.Reset()
 			}
@@ -83,7 +81,7 @@ func (c *ConfData) UpdateItem(key, value string) bool {
 
 // DelItem 删除配置项
 func (c *ConfData) DelItem(key string) {
-	c.items.Delete(key)
+	c.items.Delete(TrimString(key))
 }
 
 // SetItem 设置配置项
@@ -91,8 +89,9 @@ func (c *ConfData) SetItem(key, value, remark string) bool {
 	// defer return false
 	key = TrimString(key)
 	value = TrimString(value)
+	remark = TrimString(remark)
 	if !strings.HasPrefix(remark, "#") {
-		remark = fmt.Sprintf("#%s", TrimString(remark))
+		remark = fmt.Sprintf("#%s", remark)
 	}
 	c.items.Store(key, &confItem{
 		key:    key,
@@ -104,21 +103,20 @@ func (c *ConfData) SetItem(key, value, remark string) bool {
 
 // GetItemDefault 获取配置项的value
 func (c *ConfData) GetItemDefault(key, value string, remark ...string) string {
+	key = TrimString(key)
+	value = TrimString(value)
+	remarks := TrimString(strings.Join(remark, "#"))
 	v, err := c.GetItem(key)
 	if err != nil {
-		if len(remark) > 0 {
-			c.SetItem(key, value, remark[0])
-		} else {
-			c.SetItem(key, value, key)
-		}
-		v = TrimString(value)
+		c.SetItem(key, value, remarks)
+		v = value
 	}
 	return v
 }
 
 // GetItem 获取配置项的value
 func (c *ConfData) GetItem(key string) (string, error) {
-	v, ok := c.items.Load(key)
+	v, ok := c.items.Load(TrimString(key))
 	if ok {
 		return v.(*confItem).value, nil
 	}
@@ -127,7 +125,7 @@ func (c *ConfData) GetItem(key string) (string, error) {
 
 // GetItemDetail 获取配置项的value
 func (c *ConfData) GetItemDetail(key string) (string, string, error) {
-	v, ok := c.items.Load(key)
+	v, ok := c.items.Load(TrimString(key))
 	if ok {
 		return v.(*confItem).value, v.(*confItem).remark, nil
 	}
@@ -146,12 +144,6 @@ func (c *ConfData) GetKeys() []string {
 
 // Save 保存配置文件
 func (c *ConfData) Save() error {
-	file, ex := os.OpenFile(c.fileFullPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
-	if ex != nil {
-		return ex
-	}
-	defer file.Close()
-	var err error
 	var ss = make([]*confItem, c.Len())
 	var i int
 	c.items.Range(func(k, v interface{}) bool {
@@ -162,20 +154,22 @@ func (c *ConfData) Save() error {
 	sort.Slice(ss, func(i, j int) bool {
 		return ss[i].key < ss[j].key
 	})
+	file, err := os.OpenFile(c.fileFullPath, os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 	for _, v := range ss {
-		remark := make([]string, 0)
 		x := strings.Split(v.remark, "#")
 		for _, v := range x {
-			if TrimString(v) != "" {
-				remark = append(remark, "#"+v)
+			v = TrimString(v)
+			if v != "" {
+				file.WriteString(fmt.Sprintf("#%s\r\n", v))
 			}
 		}
-		_, ex := file.WriteString(fmt.Sprintf("%s\r\n%s=%s\r\n\r\n", strings.Join(remark, "\r\n"), v.key, v.value))
-		if ex != nil {
-			return ex
-		}
+		file.WriteString(fmt.Sprintf("%s=%s\r\n\r\n", v.key, v.value))
 	}
-	return err
+	return nil
 }
 
 // GetAll 获取所有配置项的key，value，以json字符串返回
@@ -214,13 +208,14 @@ func (c *ConfData) FullPath() string {
 // LoadConfig load config file
 func LoadConfig(fullpath string) (*ConfData, error) {
 	c := &ConfData{
+		items:        sync.Map{},
 		fileFullPath: fullpath,
 		fileName:     path.Base(fullpath),
 	}
 	err := c.Reload()
-	if err != nil {
-		return c, err
-	}
-	err = c.Save()
+	// if err != nil {
+	// 	return c, err
+	// }
+	// err = c.Save()
 	return c, err
 }
