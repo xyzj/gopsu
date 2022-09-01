@@ -1,3 +1,6 @@
+/*
+Package email : email emtp发送模块
+*/
 package email
 
 import (

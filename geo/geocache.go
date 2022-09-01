@@ -1,3 +1,6 @@
+/*
+Package geohash ： go版的redis-geo模块，貌似有内存泄露问题，待查找和修正，目前不建议使用
+*/
 package geohash
 
 import (

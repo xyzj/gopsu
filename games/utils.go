@@ -1,3 +1,8 @@
+/*
+Package games : 搜罗的一些网页小游戏
+
+try /xgames/ in every go http server build by wlstmicro/v2
+*/
 package games
 
 import (

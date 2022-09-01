@@ -1,68 +1,173 @@
+/*
+Package cache : 数据缓存模块，可定时清理过期数据
+
+Usage
+
+	package main
+
+	import (
+		"github.com/xyzj/gopsu/cache"
+	)
+
+	func main() {
+		mycache:=cache.NewCache(1000) //  max 1000 data
+		defer mycache.End() // clean up and stop zhe data expire check
+		mycache.Set("123","abc")
+		v,ok:=mycache.Get("123")
+		if !ok{
+			println("key not found")
+			return
+		}
+		println(v)
+	}
+*/
 package cache
 
 import (
 	"context"
+	"os"
 	"sync"
-	"sync/atomic"
 	"time"
+
+	"github.com/mohae/deepcopy"
+	"github.com/xyzj/gopsu/loopfunc"
 )
 
-// XCache 可设置超时的缓存字典
-type XCache struct {
-	len    int64
-	am     map[string]*xCacheData
-	locker *sync.RWMutex
-	amIdx  int64
+type mapCache struct {
+	locker sync.RWMutex
+	data   map[string]*xCacheData
+}
+
+func newMap() *mapCache {
+	return &mapCache{
+		locker: sync.RWMutex{},
+		data:   make(map[string]*xCacheData),
+	}
+}
+func (m *mapCache) store(key string, value interface{}, expire time.Duration) {
+	m.locker.Lock()
+	m.data[key] = &xCacheData{
+		Expire: time.Now().Add(expire),
+		Value:  value,
+	}
+	m.locker.Unlock()
+}
+func (m *mapCache) load(key string) (interface{}, bool) {
+	m.locker.RLock()
+	x, ok := m.data[key]
+	m.locker.RUnlock()
+	if !ok {
+		return nil, false
+	}
+	if time.Now().After(x.Expire) {
+		return nil, false
+	}
+	return x.Value, true
+}
+func (m *mapCache) del(key string) {
+	m.locker.Lock()
+	delete(m.data, key)
+	m.locker.Unlock()
+}
+func (m *mapCache) len() int {
+	m.locker.RLock()
+	l := len(m.data)
+	m.locker.RUnlock()
+	return l
+}
+func (m *mapCache) clean() {
+	m.locker.Lock()
+	m.data = make(map[string]*xCacheData)
+	m.locker.Unlock()
+}
+func (m *mapCache) xrange(f func(key string, value interface{}, expire time.Time) bool) {
+	m.locker.RLock()
+	x := deepcopy.Copy(m.data).(map[string]*xCacheData)
+	m.locker.RUnlock()
+	defer func() {
+		if err := recover(); err != nil {
+			println("cache range error: " + err.(error).Error())
+		}
+	}()
+	for k, v := range x {
+		if !f(k, v.Value, v.Expire) {
+			break
+		}
+	}
 }
 
 // xCacheData 可设置超时的缓存字典数据结构
 type xCacheData struct {
-	// key    interface{}
-	value  interface{}
-	expire time.Time
+	Value  interface{}
+	Expire time.Time
 }
 
-// Value 返回缓存值
-func (xcd *xCacheData) Value() interface{} {
-	return xcd.value
+// XCache 可设置超时的缓存字典
+type XCache struct {
+	max  int
+	data *mapCache
+	end  chan string
+}
+
+// End 关掉这个cache
+func (xc *XCache) End() {
+	xc.end <- "end"
 }
 
 // NewCache 创建新的缓存字典
-//	l：字典大小,0-不限制
-func NewCache(l int64) *XCache {
+//
+// max：字典大小,0-不限制(谨慎使用)
+func NewCache(max int) *XCache {
+
 	xc := &XCache{
-		len:    l,
-		locker: &sync.RWMutex{},
-		am:     make(map[string]*xCacheData),
+		max:  max,
+		data: newMap(),
+		end:  make(chan string, 1),
 	}
-	go xc.run()
+	go loopfunc.LoopFunc(func(params ...interface{}) {
+		t := time.NewTicker(time.Minute)
+		for {
+			select {
+			case <-t.C:
+				xc.data.xrange(func(key string, value interface{}, expire time.Time) bool {
+					if time.Now().After(expire) {
+						xc.data.del(key)
+					}
+					return true
+				})
+			case <-xc.end:
+				xc.data.clean()
+				return
+			}
+		}
+	}, "cache expire", os.Stdout)
 	return xc
 }
 
 // Set 设置缓存数据
-//	k: key
-//	v: value
-//	expire: 超时时间，有效单位秒
+//
+// k: key
+//
+// v: value
+//
+// expire: 超时时间，有效单位秒
 func (xc *XCache) Set(k string, v interface{}, expire time.Duration) bool {
-	xc.locker.Lock()
-	defer xc.locker.Unlock()
-	if xc.len > 0 && xc.amIdx >= xc.len {
+	if xc.data.len() >= xc.max {
 		return false
 	}
-	xc.am[k] = &xCacheData{
-		// key:    k,
-		value:  v,
-		expire: time.Now().Add(expire),
-	}
-	atomic.AddInt64(&xc.amIdx, 1)
+	xc.data.store(k, v, expire)
 	return true
 }
 
 // SetWithHold 设置缓存数据
-//	k: key
-//	v: value
-//	expire: 超时时间，有效单位秒
-//	timeout: 写入超时，有效单位秒
+//
+// k: key
+//
+// v: value
+//
+// expire: 超时时间，有效单位秒
+//
+// timeout: 写入超时，有效单位秒
 func (xc *XCache) SetWithHold(k string, v interface{}, expire, timeout time.Duration) bool {
 	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
 	defer cancel()
@@ -80,94 +185,35 @@ func (xc *XCache) SetWithHold(k string, v interface{}, expire, timeout time.Dura
 
 // Get 读取缓存数据
 func (xc *XCache) Get(k string) (interface{}, bool) {
-	xc.locker.RLock()
-	defer xc.locker.RUnlock()
-	v, ok := xc.am[k]
-	if ok {
-		if v.expire.Before(time.Now()) {
-			return nil, false
-		}
-		return v.value, true
-	}
-	return nil, false
+	return xc.data.load(k)
 }
 
 // GetAndExpire 读取缓存数据，并延长缓存时效
 func (xc *XCache) GetAndExpire(k string, expire time.Duration) (interface{}, bool) {
-	xc.locker.Lock()
-	defer xc.locker.Unlock()
-	v, ok := xc.am[k]
+	v, ok := xc.data.load(k)
 	if ok {
-		t := time.Now()
-		if v.expire.Before(t) {
-			delete(xc.am, k)
-			atomic.AddInt64(&xc.amIdx, -1)
-			return nil, false
-		}
-		v.expire = t.Add(expire)
-		return v.value, true
+		xc.data.store(k, v, expire)
+		return v, ok
 	}
 	return nil, false
 }
 
 // GetAndRemove 读取缓存数据，并删除
 func (xc *XCache) GetAndRemove(k string) (interface{}, bool) {
-	xc.locker.Lock()
-	defer xc.locker.Unlock()
-	v, ok := xc.am[k]
-	var xx interface{}
+	v, ok := xc.data.load(k)
 	if ok {
-		if v.expire.After(time.Now()) {
-			xx = v.value
-		}
-		delete(xc.am, k)
-		atomic.AddInt64(&xc.amIdx, -1)
+		xc.data.del(k)
+		return v, ok
 	}
-	return xx, true
+	return nil, false
 }
 
-// Range 遍历缓存
-// func (xc *XCache) Range(f func(key, value interface{}) bool) {
-// 	xc.am.Range(f)
-// }
-
-// Clear 清空缓存
-func (xc *XCache) Clear() {
-	xc.locker.Lock()
-	xc.am = make(map[string]*xCacheData)
-	xc.amIdx = 0
-	xc.locker.Unlock()
+// Clean 清空缓存
+func (xc *XCache) Clean() {
+	xc.data.clean()
 }
 
 // Len 获取缓存数量
-func (xc *XCache) Len() int64 {
-	return xc.amIdx
-}
-
-func (xc *XCache) run() {
-	// var exlocker sync.WaitGroup
-	var t = time.NewTicker(time.Minute)
-	// var t = time.NewTicker(time.Millisecond * 100)
-RUN:
-	// exlocker.Add(1)
-	func() {
-		defer func() {
-			recover()
-			// exlocker.Done()
-		}()
-		for range t.C {
-			tt := time.Now()
-			xc.locker.Lock()
-			for k, v := range xc.am {
-				if v.expire.Before(tt) {
-					delete(xc.am, k)
-				}
-			}
-			xc.amIdx = int64(len(xc.am))
-			xc.locker.Unlock()
-		}
-	}()
-	time.Sleep(time.Second)
-	// exlocker.Wait()
-	goto RUN
+func (xc *XCache) Len() int {
+	return xc.data.len()
 }

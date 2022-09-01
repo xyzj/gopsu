@@ -1,3 +1,6 @@
+/*
+Package gopsu ： 收集，保存的一些常用方法
+*/
 package gopsu
 
 import (

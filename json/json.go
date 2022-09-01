@@ -5,6 +5,9 @@
 //go:build !jsoniter && !go_json
 // +build !jsoniter,!go_json
 
+/*
+Package json ： 使用 github.com/bytedance/sonic 替代 encoding/json，性能更好
+*/
 package json
 
 import (
