@@ -3,23 +3,20 @@ package gopsu
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
-	"path/filepath"
-	"strings"
-	"sync"
 	"time"
+
+	"github.com/xyzj/gopsu/logger"
 )
 
 const (
-	logDebug    = 10
-	logInfo     = 20
-	logWarning  = 30
-	logError    = 40
-	logSystem   = 90
-	maxFileLife = 15*24*60*60 - 10
-	maxFileSize = 1048576000 // 1G
-	logformater = "%s [%02d] %s"
+	logDebug            = 10
+	logInfo             = 20
+	logWarning          = 30
+	logError            = 40
+	logSystem           = 90
+	logformater         = "%s %s"
+	logformaterWithName = "%s [%s] %s"
 )
 
 // Logger 日志接口
@@ -29,11 +26,11 @@ type Logger interface {
 	Warning(msgs string)
 	Error(msgs string)
 	System(msgs string)
-	DebugFormat(f string, msgs ...interface{})
-	InfoFormat(f string, msgs ...interface{})
-	WarningFormat(f string, msgs ...interface{})
-	ErrorFormat(f string, msgs ...interface{})
-	SystemFormat(f string, msgs ...interface{})
+	// DebugFormat(f string, msgs ...interface{})
+	// InfoFormat(f string, msgs ...interface{})
+	// WarningFormat(f string, msgs ...interface{})
+	// ErrorFormat(f string, msgs ...interface{})
+	// SystemFormat(f string, msgs ...interface{})
 	DefaultWriter() io.Writer
 }
 
@@ -55,20 +52,20 @@ func (l *NilLogger) Error(msgs string) {}
 // System System
 func (l *NilLogger) System(msgs string) {}
 
-// DebugFormat Debug
-func (l *NilLogger) DebugFormat(f string, msg ...interface{}) {}
+// // DebugFormat Debug
+// func (l *NilLogger) DebugFormat(f string, msg ...interface{}) {}
 
-// InfoFormat Info
-func (l *NilLogger) InfoFormat(f string, msg ...interface{}) {}
+// // InfoFormat Info
+// func (l *NilLogger) InfoFormat(f string, msg ...interface{}) {}
 
-// WarningFormat Warning
-func (l *NilLogger) WarningFormat(f string, msg ...interface{}) {}
+// // WarningFormat Warning
+// func (l *NilLogger) WarningFormat(f string, msg ...interface{}) {}
 
-// ErrorFormat Error
-func (l *NilLogger) ErrorFormat(f string, msg ...interface{}) {}
+// // ErrorFormat Error
+// func (l *NilLogger) ErrorFormat(f string, msg ...interface{}) {}
 
-// SystemFormat System
-func (l *NilLogger) SystemFormat(f string, msg ...interface{}) {}
+// // SystemFormat System
+// func (l *NilLogger) SystemFormat(f string, msg ...interface{}) {}
 
 // DefaultWriter 返回日志Writer
 func (l *NilLogger) DefaultWriter() io.Writer { return nil }
@@ -78,146 +75,87 @@ type StdLogger struct{}
 
 // Debug Debug
 func (l *StdLogger) Debug(msgs string) {
-	l.writeLog(msgs, 10)
+	l.Write(Bytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msgs)))
 }
 
 // Info Info
 func (l *StdLogger) Info(msgs string) {
-	l.writeLog(msgs, 20)
+	l.Write(Bytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msgs)))
 }
 
 // Warning Warning
 func (l *StdLogger) Warning(msgs string) {
-	l.writeLog(msgs, 30)
+	l.Write(Bytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msgs)))
 }
 
 // Error Error
 func (l *StdLogger) Error(msgs string) {
-	l.writeLog(msgs, 40)
+	l.Write(Bytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msgs)))
 }
 
 // System System
 func (l *StdLogger) System(msgs string) {
-	l.writeLog(msgs, 90)
+	l.Write(Bytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msgs)))
 }
 
-// DebugFormat Debug
-func (l *StdLogger) DebugFormat(f string, msg ...interface{}) {
-	l.writeLog(fmt.Sprintf(f, msg...), 10)
+// Writer Writer
+func (l *StdLogger) Write(p []byte) (n int, err error) {
+	println(String(p) + "\n")
+	return len(p), nil
 }
 
-// InfoFormat Info
-func (l *StdLogger) InfoFormat(f string, msg ...interface{}) {
-	l.writeLog(fmt.Sprintf(f, msg...), 20)
-}
+// // DebugFormat Debug
+// func (l *StdLogger) DebugFormat(f string, msg ...interface{}) {
+// 	l.writeLog(fmt.Sprintf(f, msg...), 10)
+// }
 
-// WarningFormat Warning
-func (l *StdLogger) WarningFormat(f string, msg ...interface{}) {
-	l.writeLog(fmt.Sprintf(f, msg...), 30)
-}
+// // InfoFormat Info
+// func (l *StdLogger) InfoFormat(f string, msg ...interface{}) {
+// 	l.writeLog(fmt.Sprintf(f, msg...), 20)
+// }
 
-// ErrorFormat Error
-func (l *StdLogger) ErrorFormat(f string, msg ...interface{}) {
-	l.writeLog(fmt.Sprintf(f, msg...), 40)
-}
+// // WarningFormat Warning
+// func (l *StdLogger) WarningFormat(f string, msg ...interface{}) {
+// 	l.writeLog(fmt.Sprintf(f, msg...), 30)
+// }
 
-// SystemFormat System
-func (l *StdLogger) SystemFormat(f string, msg ...interface{}) {
-	l.writeLog(fmt.Sprintf(f, msg...), 90)
-}
+// // ErrorFormat Error
+// func (l *StdLogger) ErrorFormat(f string, msg ...interface{}) {
+// 	l.writeLog(fmt.Sprintf(f, msg...), 40)
+// }
+
+// // SystemFormat System
+// func (l *StdLogger) SystemFormat(f string, msg ...interface{}) {
+// 	l.writeLog(fmt.Sprintf(f, msg...), 90)
+// }
 
 // DefaultWriter 返回日志Writer
 func (l *StdLogger) DefaultWriter() io.Writer { return os.Stdout }
 
-func (l *StdLogger) writeLog(msg string, level int) {
-	println(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), level, msg))
-}
-
 // MxLog mx log
 type MxLog struct {
-	pathNow string
-	// fileSize      int64
-	expired       int64
-	fileMaxSize   int64
-	fname         string
-	nameNow       string
-	nameOld       string
-	fileIndex     byte
-	logDir        string
-	fileDay       int
-	fileHour      int
-	fno           *os.File
-	logLevel      int
-	enablegz      bool
-	err           error
-	fileLock      sync.RWMutex
-	chanWriteLog  chan string
-	out           io.Writer
-	logClassified bool
-	cWorker       *CryptoWorker
+	out      io.Writer
+	logLevel int
 }
-
-// type logMessage struct {
-// 	msg   string
-// 	level int
-// }
-
-// SetMaxFileLife set max day log file keep
-// func (l *MxLog) SetMaxFileLife(c int64) {
-// 	l.expired = c*24*60*60 - 10
-// }
-
-// SetMaxFileCount [Discard] use SetMaxFileLife() instead
-// func (l *MxLog) SetMaxFileCount(c uint16) {
-// 	l.SetMaxFileLife(int64(c))
-// }
-
-// SetMaxFileSize set max log file size in M
-// func (l *MxLog) SetMaxFileSize(c int64) {
-// 	l.fileMaxSize = c * 1024000
-// }
 
 // DefaultWriter out
 func (l *MxLog) DefaultWriter() io.Writer {
 	return l.out
 }
 
-// SetLogLevel set file & console log level
-// func (l *MxLog) SetLogLevel(loglevel int, conlevel ...int) {
-// 	l.logLevel = loglevel
-
-// 	if l.logLevel <= 10 {
-// 		l.out = io.MultiWriter(l.fno, os.Stdout)
-// 	} else {
-// 		l.out = io.MultiWriter(l.fno)
-// 	}
-// }
-
 // WriteLog 写日志
-func (l *MxLog) WriteLog(msg string, level int) {
-	l.writeLog(msg, level)
-}
-
-func (l *MxLog) writeLog(msg string, level int, lock ...bool) {
-	// 更新文件
-	// l.rollingFile()
+func (l *MxLog) writeLog(msg string, level int) {
+	if l.logLevel < 1 {
+		return
+	}
+	msg = fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msg)
 	// 写日志
 	if level >= l.logLevel {
-		s := fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), level, msg)
-		if level >= 40 && l.logLevel >= 20 {
-			println(s)
+		l.out.Write(Bytes(msg))
+
+		if level >= 40 && l.logLevel > 1 {
+			println(msg)
 		}
-		if l.logClassified {
-			s = l.cWorker.EncryptNoTail(s)
-		}
-		l.chanWriteLog <- s
-		// go func() {
-		// 	defer func() { recover() }()
-		// 	if l.logClassified {
-		// 		s = l.cWorker.EncryptNoTail(s)
-		// 	}
-		// 	fmt.Fprintln(l.out, s)
-		// }()
 	}
 }
 
@@ -247,224 +185,55 @@ func (l *MxLog) System(msg string) {
 }
 
 // DebugFormat writelog with level 10
-func (l *MxLog) DebugFormat(f string, msg ...interface{}) {
-	l.writeLog(fmt.Sprintf(f, msg...), logDebug)
-}
-
-// InfoFormat writelog with level 20
-func (l *MxLog) InfoFormat(f string, msg ...interface{}) {
-	l.writeLog(fmt.Sprintf(f, msg...), logInfo)
-}
-
-// WarningFormat writelog with level 30
-func (l *MxLog) WarningFormat(f string, msg ...interface{}) {
-	l.writeLog(fmt.Sprintf(f, msg...), logWarning)
-}
-
-// ErrorFormat writelog with level 40
-func (l *MxLog) ErrorFormat(f string, msg ...interface{}) {
-	l.writeLog(fmt.Sprintf(f, msg...), logError)
-}
-
-// SystemFormat writelog with level 90
-func (l *MxLog) SystemFormat(f string, msg ...interface{}) {
-	l.writeLog(fmt.Sprintf(f, msg...), logSystem)
-}
-
-// CurrentFileSize current file size
-// func (l *MxLog) CurrentFileSize() int64 {
-// 	return l.fileSize
+// func (l *MxLog) DebugFormat(f string, msg ...interface{}) {
+// 	l.writeLog(fmt.Sprintf(f, msg...), logDebug)
 // }
 
-// EnableGZ EnableGZ
-// func (l *MxLog) EnableGZ(b bool) {
-// 	l.enablegz = b
+// // InfoFormat writelog with level 20
+// func (l *MxLog) InfoFormat(f string, msg ...interface{}) {
+// 	l.writeLog(fmt.Sprintf(f, msg...), logInfo)
 // }
 
-// InitNewLogger [Discard] use NewLogger() instead
-func InitNewLogger(p string) Logger {
-	return NewLogger(filepath.Dir(p), filepath.Base(p), 20, 15)
-}
+// // WarningFormat writelog with level 30
+// func (l *MxLog) WarningFormat(f string, msg ...interface{}) {
+// 	l.writeLog(fmt.Sprintf(f, msg...), logWarning)
+// }
+
+// // ErrorFormat writelog with level 40
+// func (l *MxLog) ErrorFormat(f string, msg ...interface{}) {
+// 	l.writeLog(fmt.Sprintf(f, msg...), logError)
+// }
+
+// // SystemFormat writelog with level 90
+// func (l *MxLog) SystemFormat(f string, msg ...interface{}) {
+// 	l.writeLog(fmt.Sprintf(f, msg...), logSystem)
+// }
 
 // NewLogger init logger
-// 日志保存路径，日志文件名，日志级别，日志保留天数
+//
+// d: 日志保存路径
+//
+// f:日志文件名，为空时仅输出到控制台
+//
+// logLevel 日志等级，1-输出到控制台，10-debug（输出到控制台和文件）,20-info（输出到文件）,30-warning（输出到文件）,40-error（输出到控制台和文件）,90-system（输出到控制台和文件）
+//
+// logDays 日志文件保留天数
 func NewLogger(d, f string, logLevel, logDays int) Logger {
-	switch logLevel {
-	case 0:
-		return &NilLogger{}
-	case 1:
-		return &StdLogger{}
+	if logLevel < 10 {
+		f = ""
 	}
-	t := time.Now()
-	mylog := &MxLog{
-		expired:       int64(logDays)*24*60*60 - 10,
-		fileMaxSize:   maxFileSize,
-		fname:         f,
-		fileIndex:     0,
-		fileDay:       t.Day(),
-		fileHour:      t.Hour(),
-		logDir:        d,
-		logLevel:      logLevel,
-		chanWriteLog:  make(chan string, 100),
-		enablegz:      true,
-		logClassified: false,
-		cWorker:       GetNewCryptoWorker(CryptoAES128CBC),
+	if f == "" {
+		logLevel = 1
 	}
-	mylog.cWorker.SetKey(":@9j&%D5pA!ISE_P", "JTHp^#h#<2|bgL}e")
-	if IsExist(filepath.Join(GetExecDir(), ".safemode")) {
-		mylog.logClassified = true
+	opt := &logger.OptLog{
+		FileDir:  d,
+		Filename: f,
+		AutoRoll: logLevel >= 10,
+		MaxDays:  logDays,
+		ZipFile:  logDays > 7,
 	}
-
-	for i := byte(255); i > 0; i-- {
-		if IsExist(filepath.Join(mylog.logDir, fmt.Sprintf("%s.%v.%d.log", mylog.fname, t.Format(FileTimeFormat), i))) {
-			mylog.fileIndex = i
-		}
+	return &MxLog{
+		logLevel: logLevel,
+		out:      logger.NewWriter(opt),
 	}
-	mylog.newFile()
-
-	// 创建写入线程
-	go func() {
-		var locker sync.WaitGroup
-		locker.Add(1)
-	RUN:
-		go func() {
-			defer func() {
-				recover()
-				locker.Done()
-			}()
-			tc := time.NewTicker(time.Minute * 10)
-			for {
-				select {
-				case s := <-mylog.chanWriteLog:
-					fmt.Fprintln(mylog.out, s)
-				case <-tc.C:
-					mylog.rollingFile()
-				}
-			}
-		}()
-		locker.Wait()
-		goto RUN
-	}()
-
-	return mylog
-}
-
-// 检查文件大小,返回是否需要切分文件
-func (l *MxLog) rolledWithFileSize() bool {
-	if l.fileHour == time.Now().Hour() {
-		return false
-	}
-	l.fileHour = time.Now().Hour()
-	fs, ex := os.Stat(l.pathNow)
-	if ex == nil {
-		if fs.Size() > l.fileMaxSize {
-			if l.fileIndex >= 255 {
-				l.fileIndex = 0
-			} else {
-				l.fileIndex++
-			}
-			return true
-		}
-	}
-	return false
-}
-
-func (l *MxLog) rollingFileNoLock() bool {
-	t := time.Now()
-	l.rolledWithFileSize()
-	l.nameNow = fmt.Sprintf("%s.%v.%d.log", l.fname, t.Format(FileTimeFormat), l.fileIndex)
-	// 比对文件名，若不同则重新设置io
-	if l.nameNow == l.nameOld {
-		return false
-	}
-	// 关闭旧fno
-	l.fno.Close()
-	// 创建新日志
-	l.newFile()
-	// 清理旧日志
-	l.clearFile()
-
-	return true
-}
-
-// 按日期切分文件
-func (l *MxLog) rollingFile() bool {
-	l.fileLock.Lock()
-	defer l.fileLock.Unlock()
-
-	return l.rollingFileNoLock()
-}
-
-// 压缩旧日志
-func (l *MxLog) zipFile(s string) {
-	if !l.enablegz || len(s) == 0 || !IsExist(filepath.Join(l.logDir, s)) {
-		return
-	}
-	go func(s string) {
-		err := ZIPFile(l.logDir, s, true)
-		if err != nil {
-			l.Error("zip log file error: " + s + " " + err.Error())
-			return
-		}
-	}(s)
-}
-
-// 清理旧日志
-func (l *MxLog) clearFile() {
-	// 若未设置超时，则不清理
-	if l.expired == 0 {
-		return
-	}
-	go func() {
-		defer func() { recover() }()
-		// 遍历文件夹
-		lstfno, ex := ioutil.ReadDir(l.logDir)
-		if ex != nil {
-			println(fmt.Sprintf("clear log files error: %s", ex.Error()))
-			return
-		}
-		t := time.Now()
-		for _, fno := range lstfno {
-			if fno.IsDir() || !strings.Contains(fno.Name(), l.fname) { // 忽略目录，不含日志名的文件，以及当前文件
-				continue
-			}
-			// 比对文件生存期
-			if t.Unix()-fno.ModTime().Unix() >= l.expired {
-				os.Remove(filepath.Join(l.logDir, fno.Name()))
-			}
-		}
-	}()
-}
-
-// 创建新日志文件
-func (l *MxLog) newFile() {
-	t := time.Now()
-	if l.fileDay != t.Day() {
-		l.fileDay = t.Day()
-		l.fileIndex = 0
-	}
-	l.nameNow = fmt.Sprintf("%s.%v.%d.log", l.fname, t.Format(FileTimeFormat), l.fileIndex)
-	l.pathNow = filepath.Join(l.logDir, l.nameNow)
-	// 直接写入当日日志
-	if l.fname == "" {
-		l.out = io.MultiWriter(os.Stdout)
-	} else {
-		// 打开文件
-		l.fno, l.err = os.OpenFile(l.pathNow, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0664)
-		if l.err != nil {
-			ioutil.WriteFile("logerr.log", Bytes("Log file open error: "+l.err.Error()), 0664)
-			l.out = io.MultiWriter(os.Stdout)
-		} else {
-			if l.logLevel <= 10 {
-				l.out = io.MultiWriter(l.fno, os.Stdout)
-			} else {
-				l.out = io.MultiWriter(l.fno)
-			}
-		}
-		// 判断是否压缩旧日志
-		if l.enablegz {
-			l.zipFile(l.nameOld)
-		}
-	}
-	l.nameOld = l.nameNow
 }

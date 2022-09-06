@@ -6,12 +6,16 @@ package loopfunc
 import (
 	"fmt"
 	"io"
-	"log"
+	"os"
 	"reflect"
 	"sync"
 	"time"
 
 	"github.com/pkg/errors"
+)
+
+const (
+	shortTimeFormat = "15:04:05.000"
 )
 
 // LoopFunc 执行循环工作，并提供panic恢复
@@ -26,9 +30,8 @@ import (
 func LoopFunc(f func(params ...interface{}), name string, logWriter io.Writer, params ...interface{}) {
 	locker := &sync.WaitGroup{}
 	end := false
-	if logWriter != nil {
-		log.SetFlags(log.Ltime)
-		log.SetOutput(logWriter)
+	if logWriter == nil {
+		logWriter = os.Stdout
 	}
 RUN:
 	locker.Add(1)
@@ -39,9 +42,9 @@ RUN:
 				end = true
 			} else {
 				if reflect.TypeOf(err).String() == "error" {
-					log.Println(fmt.Sprintf("[LOOP] %s crash: %v", name, errors.WithStack(err.(error))))
+					logWriter.Write([]byte(fmt.Sprintf("%s [LOOP] %s crash: %v\n", time.Now().Format(shortTimeFormat), name, errors.WithStack(err.(error)))))
 				} else {
-					log.Println(fmt.Sprintf("[LOOP] %s crash: %v", name, err))
+					logWriter.Write([]byte(fmt.Sprintf("%s [LOOP] %s crash: %v\n", time.Now().Format(shortTimeFormat), name, err)))
 				}
 			}
 			locker.Done()

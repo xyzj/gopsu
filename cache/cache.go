@@ -118,7 +118,6 @@ func (xc *XCache) End() {
 //
 // max：字典大小,0-不限制(谨慎使用)
 func NewCache(max int) *XCache {
-
 	xc := &XCache{
 		max:  max,
 		data: newMap(),
