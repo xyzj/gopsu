@@ -14,10 +14,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	shortTimeFormat = "15:04:05.000"
-)
-
 // LoopFunc 执行循环工作，并提供panic恢复
 //
 // f: 要执行的循环方法，可控制传入参数
@@ -42,9 +38,9 @@ RUN:
 				end = true
 			} else {
 				if reflect.TypeOf(err).String() == "error" {
-					logWriter.Write([]byte(fmt.Sprintf("%s [LOOP] %s crash: %v\n", time.Now().Format(shortTimeFormat), name, errors.WithStack(err.(error)))))
+					logWriter.Write([]byte(fmt.Sprintf("%s [LOOP] crash: %v\n", name, errors.WithStack(err.(error)))))
 				} else {
-					logWriter.Write([]byte(fmt.Sprintf("%s [LOOP] %s crash: %v\n", time.Now().Format(shortTimeFormat), name, err)))
+					logWriter.Write([]byte(fmt.Sprintf("%s [LOOP] crash: %v\n", name, err)))
 				}
 			}
 			locker.Done()

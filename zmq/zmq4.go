@@ -17,7 +17,7 @@ var (
 
 // ZeroMQ zeromq
 type ZeroMQ struct {
-	Log           gopsu.Logger // 日志
+	Log           logger.Logger // 日志
 	Verbose       bool         // 是否打印信息
 	Pull          *ZeroMQArgs
 	Push          *ZeroMQArgs

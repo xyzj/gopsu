@@ -16,13 +16,13 @@ import (
 
 	// ms-sql driver
 	_ "github.com/denisenkom/go-mssqldb"
-
 	// mysql driver
 	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
 	"github.com/tidwall/sjson"
 	"github.com/xyzj/gopsu"
 	json "github.com/xyzj/gopsu/json"
+	"github.com/xyzj/gopsu/logger"
 )
 
 var (
@@ -125,7 +125,7 @@ type SQLPool struct {
 	// 最大连接数
 	MaxOpenConns int
 	// 日志
-	Logger gopsu.Logger
+	Logger logger.Logger
 	// 是否启用缓存功能，缓存30分钟有效
 	EnableCache bool
 	// 缓存路径
@@ -163,7 +163,7 @@ func (p *SQLPool) New(tls ...string) error {
 		p.CacheDir = gopsu.DefaultCacheDir
 	}
 	if p.Logger == nil {
-		p.Logger = &gopsu.NilLogger{}
+		p.Logger = &logger.NilLogger{}
 	}
 	// p.cacheLocker = make(map[string]*sync.WaitGroup)
 	// 设置参数

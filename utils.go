@@ -1341,7 +1341,7 @@ func SlicesUnion(slice1, slice2 []string) []string {
 		if v == "" {
 			continue
 		}
-		if times := m[v]; times == 0 {
+		if _, ok := m[v]; !ok {
 			slice1 = append(slice1, v)
 		}
 	}
@@ -1363,7 +1363,7 @@ func SlicesIntersect(slice1, slice2 []string) []string {
 		if v == "" {
 			continue
 		}
-		if times := m[v]; times == 1 {
+		if _, ok := m[v]; ok {
 			nn = append(nn, v)
 		}
 	}
@@ -1381,12 +1381,12 @@ func SlicesDifference(slice1, slice2 []string) []string {
 		}
 		m[v]++
 	}
-
-	for _, v := range slice1 {
+	union := SlicesUnion(slice1, slice2)
+	for _, v := range union {
 		if v == "" {
 			continue
 		}
-		if times := m[v]; times == 0 {
+		if _, ok := m[v]; !ok {
 			nn = append(nn, v)
 		}
 	}

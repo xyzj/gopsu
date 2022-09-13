@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"time"
+
+	"github.com/xyzj/go-pinyin"
 )
 
 func aaa(a, b, c string, d, e int) {
@@ -11,7 +11,7 @@ func aaa(a, b, c string, d, e int) {
 }
 
 func main() {
-	log.SetFlags(log.Ltime)
-	log.Println("---- main")
-	time.Sleep(time.Second * 3)
+	s := "长江12南ABc路"
+	println(s)
+	println(pinyin.XPinyin(s, pinyin.ReturnNormal))
 }
