@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"io"
 	"os"
 )
@@ -17,11 +18,15 @@ const (
 
 // Logger 日志接口
 type Logger interface {
-	Debug(msgs string)
-	Info(msgs string)
-	Warning(msgs string)
-	Error(msgs string)
-	System(msgs string)
+	Debug(msg string)
+	Info(msg string)
+	Warning(msg string)
+	Error(msg string)
+	System(msg string)
+	DebugFormat(f string, msg ...interface{})
+	InfoFormat(f string, msg ...interface{})
+	WarningFormat(f string, msg ...interface{})
+	ErrorFormat(f string, msg ...interface{})
 	DefaultWriter() io.Writer
 }
 
@@ -29,19 +34,31 @@ type Logger interface {
 type NilLogger struct{}
 
 // Debug Debug
-func (l *NilLogger) Debug(msgs string) {}
+func (l *NilLogger) Debug(msg string) {}
 
 // Info Info
-func (l *NilLogger) Info(msgs string) {}
+func (l *NilLogger) Info(msg string) {}
 
 // Warning Warning
-func (l *NilLogger) Warning(msgs string) {}
+func (l *NilLogger) Warning(msg string) {}
 
 // Error Error
-func (l *NilLogger) Error(msgs string) {}
+func (l *NilLogger) Error(msg string) {}
+
+// DebugFormat Debug
+func (l *NilLogger) DebugFormat(f string, msg ...interface{}) {}
+
+// InfoFormat Info
+func (l *NilLogger) InfoFormat(f string, msg ...interface{}) {}
+
+// WarningFormat Warning
+func (l *NilLogger) WarningFormat(f string, msg ...interface{}) {}
+
+// ErrorFormat Error
+func (l *NilLogger) ErrorFormat(f string, msg ...interface{}) {}
 
 // System System
-func (l *NilLogger) System(msgs string) {}
+func (l *NilLogger) System(msg string) {}
 
 // DefaultWriter 返回日志Writer
 func (l *NilLogger) DefaultWriter() io.Writer { return nil }
@@ -50,28 +67,28 @@ func (l *NilLogger) DefaultWriter() io.Writer { return nil }
 // type StdLogger struct{}
 
 // // Debug Debug
-// func (l *StdLogger) Debug(msgs string) {
-// 	l.Write(toBytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msgs)))
+// func (l *StdLogger) Debug(msg string) {
+// 	l.Write(toBytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msg)))
 // }
 
 // // Info Info
-// func (l *StdLogger) Info(msgs string) {
-// 	l.Write(toBytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msgs)))
+// func (l *StdLogger) Info(msg string) {
+// 	l.Write(toBytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msg)))
 // }
 
 // // Warning Warning
-// func (l *StdLogger) Warning(msgs string) {
-// 	l.Write(toBytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msgs)))
+// func (l *StdLogger) Warning(msg string) {
+// 	l.Write(toBytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msg)))
 // }
 
 // // Error Error
-// func (l *StdLogger) Error(msgs string) {
-// 	l.Write(toBytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msgs)))
+// func (l *StdLogger) Error(msg string) {
+// 	l.Write(toBytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msg)))
 // }
 
 // // System System
-// func (l *StdLogger) System(msgs string) {
-// 	l.Write(toBytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msgs)))
+// func (l *StdLogger) System(msg string) {
+// 	l.Write(toBytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msg)))
 // }
 
 // // Writer Writer
@@ -128,6 +145,26 @@ func (l *StdLogger) Error(msg string) {
 // System writelog with level 90
 func (l *StdLogger) System(msg string) {
 	l.writeLog(msg, logSystem)
+}
+
+// DebugFormat writelog with level 10
+func (l *StdLogger) DebugFormat(f string, msg ...interface{}) {
+	l.writeLog(fmt.Sprintf(f, msg...), logDebug)
+}
+
+// InfoFormat writelog with level 20
+func (l *StdLogger) InfoFormat(f string, msg ...interface{}) {
+	l.writeLog(fmt.Sprintf(f, msg...), logInfo)
+}
+
+// WarningFormat writelog with level 30
+func (l *StdLogger) WarningFormat(f string, msg ...interface{}) {
+	l.writeLog(fmt.Sprintf(f, msg...), logWarning)
+}
+
+// ErrorFormat writelog with level 40
+func (l *StdLogger) ErrorFormat(f string, msg ...interface{}) {
+	l.writeLog(fmt.Sprintf(f, msg...), logError)
 }
 
 // NewLogger init logger
