@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"compress/zlib"
-	"container/list"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"
@@ -39,7 +38,6 @@ import (
 	"unsafe"
 
 	"github.com/golang/snappy"
-	"github.com/tidwall/sjson"
 	json "github.com/xyzj/gopsu/json"
 )
 
@@ -491,76 +489,6 @@ func (arr *StringSliceSort) Less(i, j int) bool {
 	return arr1[arr.Idx] < arr2[arr.Idx]
 }
 
-// Queue queue for go
-type Queue struct {
-	q      *list.List
-	locker *sync.Mutex
-}
-
-// NewQueue get a new queue
-func NewQueue() *Queue {
-	mq := &Queue{
-		q:      list.New(),
-		locker: &sync.Mutex{},
-	}
-	return mq
-}
-
-// Clear clear queue list
-func (mq *Queue) Clear() {
-	mq.q.Init()
-}
-
-// Put put data to the end of the queue
-func (mq *Queue) Put(value interface{}) {
-	mq.locker.Lock()
-	defer mq.locker.Unlock()
-	mq.q.PushBack(value)
-}
-
-// PutFront put data to the first of the queue
-func (mq *Queue) PutFront(value interface{}) {
-	mq.locker.Lock()
-	defer mq.locker.Unlock()
-	mq.q.PushFront(value)
-}
-
-// Get get data from front
-func (mq *Queue) Get() interface{} {
-	if mq.q.Len() == 0 {
-		return nil
-	}
-	mq.locker.Lock()
-	defer mq.locker.Unlock()
-	e := mq.q.Front()
-	if e != nil {
-		mq.q.Remove(e)
-		return e.Value
-	}
-	return nil
-}
-
-// GetNoDel get data from front
-func (mq *Queue) GetNoDel() interface{} {
-	if mq.q.Len() == 0 {
-		return nil
-	}
-	mq.locker.Lock()
-	defer mq.locker.Unlock()
-	e := mq.q.Front()
-	return e.Value
-}
-
-// Len get queue len
-func (mq *Queue) Len() int64 {
-	return int64(mq.q.Len())
-}
-
-// Empty check if empty
-func (mq *Queue) Empty() bool {
-	return mq.q.Len() == 0
-}
-
 // CacheMarshal 将数据进行序列化后压缩，可做数据缓存
 func CacheMarshal(v interface{}) ([]byte, error) {
 	b, err := json.Marshal(v)
@@ -580,10 +508,8 @@ func CacheUnmarshal(b []byte, v interface{}) error {
 
 // GetAddrFromString get addr from config string
 //
-//	 args:
-//		straddr: something like "1,2,3-6"
-//	 return:
-//		[]int64,something like []int64{1,2,3,4,5,6}
+// straddr: something like "1,2,3-6"
+// return: []int64,something like []int64{1,2,3,4,5,6}
 func GetAddrFromString(straddr string) ([]int64, error) {
 	lst := strings.Split(strings.TrimSpace(straddr), ",")
 	lstAddr := make([]int64, 0)
@@ -901,24 +827,35 @@ func SwapCase(s string) string {
 	return ns.String()
 }
 
+type version struct {
+	Name      string `json:"name"`
+	Version   string `json:"version"`
+	GoVersion string `json:"go_version"`
+	BuildDate string `json:"build_date"`
+	BuildOS   string `json:"build_os"`
+	CodeBy    string `json:"code_by"`
+	StartWith string `json:"start_with"`
+}
+
 // VersionInfo show something
 //
-//	 args:
-//		p: program name
-//		v: program version
-//		gv: golang version
-//		bd: build datetime
-//		pl: platform info
-//		a: auth name
+// p: program name
+// v: program version
+// gv: golang version
+// bd: build datetime
+// pl: platform info
+// a: auth name
 func VersionInfo(p, v, gv, bd, pl, a string) string {
-	js, _ := sjson.Set("", "name", p)
-	js, _ = sjson.Set(js, "version", v)
-	js, _ = sjson.Set(js, "go_version", gv)
-	js, _ = sjson.Set(js, "build_date", bd)
-	js, _ = sjson.Set(js, "build_os", pl)
-	js, _ = sjson.Set(js, "code_by", a)
-	js, _ = sjson.Set(js, "start_with", strings.Join(os.Args[1:], " "))
-	return js
+	b, _ := json.Marshal(&version{
+		Name:      p,
+		Version:   v,
+		GoVersion: gv,
+		BuildDate: bd,
+		BuildOS:   pl,
+		CodeBy:    a,
+		StartWith: strings.Join(os.Args[1:], " "),
+	})
+	return String(b)
 }
 
 // WriteVersionInfo write version info to .ver file
@@ -1476,4 +1413,28 @@ func EraseSyncMap(m *sync.Map) {
 		m.Delete(key)
 		return true
 	})
+}
+
+// PB2Json pb2格式转换为json []byte格式
+func PB2Json(pb interface{}) []byte {
+	jsonBytes, err := json.Marshal(pb)
+	if err != nil {
+		return nil
+	}
+	return jsonBytes
+}
+
+// PB2String pb2格式转换为json 字符串格式
+func PB2String(pb interface{}) string {
+	b, err := json.Marshal(pb)
+	if err != nil {
+		return ""
+	}
+	return String(b)
+}
+
+// JSON2PB json字符串转pb2格式
+func JSON2PB(js string, pb interface{}) error {
+	err := json.Unmarshal(Bytes(js), &pb)
+	return err
 }

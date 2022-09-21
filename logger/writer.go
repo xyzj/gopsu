@@ -25,6 +25,10 @@ const (
 	ShortTimeFormat = "15:04:05.000 "
 )
 
+var (
+	lineEnd = []byte{10}
+)
+
 // OptLog OptLog
 type OptLog struct {
 	// Filename 日志文件名，不需要扩展名，会自动追加时间戳以及.log扩展名，为空时其他参数无效，仅输出到控制台
@@ -39,6 +43,8 @@ type OptLog struct {
 	MaxSize int64
 	// ZipFile 是否压缩旧日志文件，AutoRoll==true时有效
 	ZipFile bool
+	// SyncToConsole 同步输出到控制台
+	SyncToConsole bool
 }
 
 // NewWriter 一个新的log写入器
@@ -73,6 +79,7 @@ func NewWriter(opt *OptLog) io.Writer {
 		logDir:       opt.FileDir,
 		chanWriteLog: make(chan []byte, 100),
 		enablegz:     opt.ZipFile,
+		withConsole:  opt.SyncToConsole,
 	}
 	if opt.Filename != "" && opt.AutoRoll {
 		ymd := t.Format(fileTimeFormat)
@@ -93,32 +100,32 @@ type Writer struct {
 	chanWriteLog chan []byte
 	out          io.Writer
 	fno          *os.File
-	expired      int64
-	fileMaxSize  int64
 	pathNow      string
 	fname        string
 	nameNow      string
 	nameOld      string
 	logDir       string
+	expired      int64
+	fileMaxSize  int64
 	fileDay      int
 	fileHour     int
 	fileIndex    byte
 	enablegz     bool
 	rollfile     bool
+	withConsole  bool
 }
 
 func (w *Writer) startWrite() {
 	go loopfunc.LoopFunc(func(params ...interface{}) {
 		tc := time.NewTicker(time.Minute * 10)
 		buf := &bytes.Buffer{}
-		end := []byte{10}
 		for {
 			select {
 			case p := <-w.chanWriteLog:
 				buf.Reset()
 				buf.Write(toBytes(time.Now().Format(ShortTimeFormat)))
 				buf.Write(p)
-				if !bytes.HasSuffix(p, end) {
+				if !bytes.HasSuffix(p, lineEnd) {
 					buf.WriteByte(10)
 				}
 				w.out.Write(buf.Bytes())
@@ -162,13 +169,17 @@ func (w *Writer) newFile() {
 		ioutil.WriteFile("logerr.log", toBytes("log file open error: "+err.Error()), 0664)
 		w.out = os.Stdout
 	} else {
-		w.out = w.fno
+		if w.withConsole {
+			w.out = io.MultiWriter(os.Stdout, w.fno)
+		} else {
+			w.out = w.fno
+		}
 	}
 	// 判断是否压缩旧日志
 	if w.enablegz {
 		w.zipFile(w.nameOld)
 	}
-	w.out.Write([]byte{10})
+	w.out.Write(lineEnd)
 }
 
 // Write 异步写入日志，返回固定为 0, nil

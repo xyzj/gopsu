@@ -1,4 +1,4 @@
-package gopsu
+package coord
 
 import (
 	"math"

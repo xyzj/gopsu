@@ -2,6 +2,7 @@ package yaml
 
 import (
 	"io/ioutil"
+	"path/filepath"
 
 	"github.com/goccy/go-yaml"
 )
@@ -13,8 +14,12 @@ type Config struct {
 
 // New 初始化
 func New(f string) *Config {
+	x, err := filepath.Abs(f)
+	if err != nil {
+		x = f
+	}
 	return &Config{
-		name: f,
+		name: x,
 	}
 }
 
@@ -34,4 +39,9 @@ func (c *Config) Read(d interface{}) error {
 		return err
 	}
 	return yaml.Unmarshal(b, d)
+}
+
+// Fullpath 配置文件完整路径
+func (c *Config) Fullpath() string {
+	return c.name
 }

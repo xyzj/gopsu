@@ -54,3 +54,27 @@ RUN:
 	time.Sleep(time.Second * 3)
 	goto RUN
 }
+
+// GoFunc 执行安全的子线程工作，包含panic捕获
+//
+// f: 要执行的循环方法，可控制传入参数
+//
+// name：这个方法的名称，用于错误标识
+//
+// logWriter：方法崩溃时的日志记录器，默认os.stdout
+//
+// params： 需要传给f的参数，f内需要进行类型转换
+func GoFunc(f func(params ...interface{}), name string, logWriter io.Writer, params ...interface{}) {
+	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				if reflect.TypeOf(err).String() == "error" {
+					logWriter.Write([]byte(fmt.Sprintf("%s [GO] crash: %v\n", name, errors.WithStack(err.(error)))))
+				} else {
+					logWriter.Write([]byte(fmt.Sprintf("%s [GO] crash: %v\n", name, err)))
+				}
+			}
+		}()
+		f(params...)
+	}()
+}

@@ -16,6 +16,10 @@ const (
 	logformaterWithName = "%s [%s] %s"
 )
 
+var (
+	lineend = []byte{10}
+)
+
 // Logger 日志接口
 type Logger interface {
 	Debug(msg string)
@@ -177,24 +181,21 @@ func (l *StdLogger) ErrorFormat(f string, msg ...interface{}) {
 //
 // logDays 日志文件保留天数
 func NewLogger(d, f string, logLevel, logDays int) Logger {
-	if logLevel < 10 {
-		f = ""
-	}
-	if f == "" {
+	switch logLevel {
+	case 1, 10, 20, 30, 40, 90:
+	default:
 		logLevel = 1
 	}
-	opt := &OptLog{
-		FileDir:  d,
-		Filename: f,
-		AutoRoll: logLevel >= 10,
-		MaxDays:  logDays,
-		ZipFile:  logDays > 7,
+	if f == "" || logLevel == 1 {
+		return NewConsoleLogger()
 	}
-	if logLevel == 10 {
-		return &StdLogger{
-			logLevel: logLevel,
-			out:      io.MultiWriter(NewWriter(opt), os.Stdout),
-		}
+	opt := &OptLog{
+		FileDir:       d,
+		Filename:      f,
+		AutoRoll:      logLevel >= 10,
+		MaxDays:       logDays,
+		ZipFile:       logDays > 7,
+		SyncToConsole: logLevel <= 10,
 	}
 	return &StdLogger{
 		logLevel: logLevel,
@@ -204,13 +205,8 @@ func NewLogger(d, f string, logLevel, logDays int) Logger {
 
 // NewConsoleLogger 返回一个纯控制台日志输出器
 func NewConsoleLogger() Logger {
-	opt := &OptLog{
-		FileDir:  "",
-		Filename: "",
-		AutoRoll: false,
-	}
 	return &StdLogger{
 		logLevel: 1,
-		out:      NewWriter(opt),
+		out:      os.Stdout,
 	}
 }

@@ -4,7 +4,7 @@
 // All calculations (formulas) were extracted from the Solar Calculation Details of the Earth System Research Laboratory:
 // https://www.esrl.noaa.gov/gmd/grad/solcalc/calcdetails.html
 
-package gopsu
+package sunriseset
 
 import (
 	"errors"
@@ -15,26 +15,26 @@ import (
 	"time"
 )
 
-// SunrisesetResult 日出日落结果
-type SunrisesetResult struct {
+// Result 日出日落结果
+type Result struct {
 	Month   int
 	Day     int
 	Sunrise int
 	Sunset  int
 }
 
-// SunrisesetParams The Parameters struct can also be used to manipulate the data and get the sunrise and sunset
+// Params The Parameters struct can also be used to manipulate the data and get the sunrise and sunset
 // sunrise/sunset int hh*60+mm
-type SunrisesetParams struct {
-	Year      int
+type Params struct {
+	SunResult sync.Map
 	Latitude  float64
 	Longitude float64
 	UtcOffset float64
-	SunResult sync.Map
+	Year      int
 }
 
 // Calculation 使用当前年份计算全年日出日落时间hh*60+mm，非润年，2月29日采用28日时间
-func (p *SunrisesetParams) Calculation() bool {
+func (p *Params) Calculation() bool {
 	if p.Year == 0 {
 		p.Year = time.Now().UTC().Year()
 	}
@@ -56,7 +56,7 @@ func (p *SunrisesetParams) Calculation() bool {
 				atomic.AddInt32(&faultCount, 1)
 				return
 			}
-			p.SunResult.Store(fmt.Sprintf("%02d%02d", tt.Month(), tt.Day()), &SunrisesetResult{
+			p.SunResult.Store(fmt.Sprintf("%02d%02d", tt.Month(), tt.Day()), &Result{
 				Month:   int(tt.Month()),
 				Day:     tt.Day(),
 				Sunrise: rise.Hour()*60 + rise.Minute(),
@@ -70,11 +70,11 @@ func (p *SunrisesetParams) Calculation() bool {
 	}
 	feb, ok := p.SunResult.Load("0228")
 	if ok {
-		var feb29 = &SunrisesetResult{
+		var feb29 = &Result{
 			Month:   2,
 			Day:     29,
-			Sunrise: feb.(*SunrisesetResult).Sunrise,
-			Sunset:  feb.(*SunrisesetResult).Sunset,
+			Sunrise: feb.(*Result).Sunrise,
+			Sunset:  feb.(*Result).Sunset,
 		}
 		p.SunResult.LoadOrStore("0229", feb29)
 	} else {
@@ -84,13 +84,13 @@ func (p *SunrisesetParams) Calculation() bool {
 }
 
 // Get 获取指定月日的日出日落时间
-func (p *SunrisesetParams) Get(month, day int) (rise, set int) {
+func (p *Params) Get(month, day int) (rise, set int) {
 	if month > 12 || month < 1 || day < 1 || day > 31 {
 		return 0, 0
 	}
 	r, ok := p.SunResult.Load(fmt.Sprintf("%02d%02d", month, day))
 	if ok {
-		return r.(*SunrisesetResult).Sunrise, r.(*SunrisesetResult).Sunset
+		return r.(*Result).Sunrise, r.(*Result).Sunset
 	}
 	return 0, 0
 }

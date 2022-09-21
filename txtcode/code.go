@@ -1,8 +1,10 @@
-package gopsu
+package txtcode
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
+	"unicode/utf16"
 	"unicode/utf8"
 
 	"golang.org/x/text/encoding/simplifiedchinese"
@@ -103,3 +105,48 @@ func Utf8ToGbk(s []byte) ([]byte, error) {
 // 	}
 // 	return true
 // }
+
+// EncodeUTF16BE 将字符串编码成utf16be的格式，用于cdma短信发送
+func EncodeUTF16BE(s string) []byte {
+	a := utf16.Encode([]rune(s))
+	var b bytes.Buffer
+	for _, v := range a {
+		b.Write([]byte{byte(v >> 8), byte(v)})
+	}
+	return b.Bytes()
+}
+
+// String2Unicode 字符串转4位unicode编码
+func String2Unicode(s string) string {
+	var str string
+	for _, v := range s {
+		str += fmt.Sprintf("%04X", v)
+	}
+	return str
+}
+
+// SMSUnicode 编码短信
+func SMSUnicode(s string) []string {
+	return SplitStringWithLen(String2Unicode(s), 67*4)
+}
+
+// SplitStringWithLen 按指定长度分割字符串
+//
+//	s-原始字符串
+//	l-切割长度
+func SplitStringWithLen(s string, l int) []string {
+	rs := []rune(s)
+	var ss = make([]string, 0)
+	xs := ""
+	for k, v := range rs {
+		xs = xs + string(v)
+		if (k+1)%l == 0 {
+			ss = append(ss, xs)
+			xs = ""
+		}
+	}
+	if len(xs) > 0 {
+		ss = append(ss, xs)
+	}
+	return ss
+}
