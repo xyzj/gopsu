@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 )
 
 func aaa(a, b, c string, d, e int) {
@@ -25,5 +24,8 @@ var (
 )
 
 func main() {
-	println(time.Now().Format("20060102150405000"))
+	s := "=- "
+	for _, v := range s {
+		println(v)
+	}
 }

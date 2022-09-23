@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	"strings"
 )
 
 var (
@@ -32,7 +31,7 @@ func RunBackground() {
 			idx = k + 1
 			continue
 		}
-		if idx > 0 && idx == k && !strings.HasPrefix(v, "-") {
+		if idx > 0 && idx == k && v[0] == 45 {
 			continue
 		}
 		xss = append(xss, v)

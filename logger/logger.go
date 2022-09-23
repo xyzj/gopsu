@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/xyzj/gopsu/tools"
 )
 
 const (
@@ -72,27 +74,27 @@ func (l *NilLogger) DefaultWriter() io.Writer { return nil }
 
 // // Debug Debug
 // func (l *StdLogger) Debug(msg string) {
-// 	l.Write(toBytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msg)))
+// 	l.Write(tools.Bytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msg)))
 // }
 
 // // Info Info
 // func (l *StdLogger) Info(msg string) {
-// 	l.Write(toBytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msg)))
+// 	l.Write(tools.Bytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msg)))
 // }
 
 // // Warning Warning
 // func (l *StdLogger) Warning(msg string) {
-// 	l.Write(toBytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msg)))
+// 	l.Write(tools.Bytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msg)))
 // }
 
 // // Error Error
 // func (l *StdLogger) Error(msg string) {
-// 	l.Write(toBytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msg)))
+// 	l.Write(tools.Bytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msg)))
 // }
 
 // // System System
 // func (l *StdLogger) System(msg string) {
-// 	l.Write(toBytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msg)))
+// 	l.Write(tools.Bytes(fmt.Sprintf(logformater, time.Now().Format(ShortTimeFormat), msg)))
 // }
 
 // // Writer Writer
@@ -122,7 +124,7 @@ func (l *StdLogger) writeLog(msg string, level int) {
 	}
 	// 写日志
 	if l.logLevel == 1 || level >= l.logLevel {
-		l.out.Write(toBytes(msg))
+		l.out.Write(tools.Bytes(msg))
 	}
 }
 
