@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"strings"
+	"time"
 )
 
 func aaa(a, b, c string, d, e int) {
@@ -25,18 +25,5 @@ var (
 )
 
 func main() {
-	s := []string{"-d", "-dir=aa", "-d=true", "-aefef", "-d", "true"}
-	xss := make([]string, 0)
-	idx := 0
-	for k, v := range s {
-		if v == "-d" || v == "-d=true" {
-			idx = k + 1
-			continue
-		}
-		if idx > 0 && idx == k && !strings.HasPrefix(v, "-") {
-			continue
-		}
-		xss = append(xss, v)
-	}
-	println(strings.Join(xss, " "))
+	println(time.Now().Format("20060102150405000"))
 }

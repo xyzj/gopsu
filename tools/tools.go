@@ -41,74 +41,11 @@ func JoinPathFromHere(path ...string) string {
 // GetExecDir get current file path
 func GetExecDir() string {
 	execdir, _ := filepath.EvalSymlinks(os.Args[0])
+	execdir = filepath.Dir(execdir)
 	if strings.Contains(execdir, "go-build") {
 		execdir, _ = filepath.Abs(".")
+	} else {
+		execdir, _ = filepath.Abs(execdir)
 	}
 	return execdir
-}
-
-// SlicesUnion 求并集
-func SlicesUnion(slice1, slice2 []string) []string {
-	m := make(map[string]int)
-	for _, v := range slice1 {
-		if v == "" {
-			continue
-		}
-		m[v]++
-	}
-
-	for _, v := range slice2 {
-		if v == "" {
-			continue
-		}
-		if _, ok := m[v]; !ok {
-			slice1 = append(slice1, v)
-		}
-	}
-	return slice1
-}
-
-// SlicesIntersect 求交集
-func SlicesIntersect(slice1, slice2 []string) []string {
-	m := make(map[string]int)
-	nn := make([]string, 0)
-	for _, v := range slice1 {
-		if v == "" {
-			continue
-		}
-		m[v]++
-	}
-
-	for _, v := range slice2 {
-		if v == "" {
-			continue
-		}
-		if _, ok := m[v]; ok {
-			nn = append(nn, v)
-		}
-	}
-	return nn
-}
-
-// SlicesDifference 求差集 slice1-并集
-func SlicesDifference(slice1, slice2 []string) []string {
-	m := make(map[string]int)
-	nn := make([]string, 0)
-	inter := SlicesIntersect(slice1, slice2)
-	for _, v := range inter {
-		if v == "" {
-			continue
-		}
-		m[v]++
-	}
-	union := SlicesUnion(slice1, slice2)
-	for _, v := range union {
-		if v == "" {
-			continue
-		}
-		if _, ok := m[v]; !ok {
-			nn = append(nn, v)
-		}
-	}
-	return nn
 }

@@ -1,13 +1,12 @@
 package db
 
 import (
-	fmt "fmt"
+	"errors"
 	"strings"
 	"time"
 
-	"github.com/xyzj/gopsu"
-
 	"github.com/tidwall/gjson"
+	"github.com/xyzj/gopsu"
 )
 
 // only support mysql driver
@@ -18,10 +17,10 @@ func (p *SQLPool) ShowTableInfo(tableName string) (string, string, int64, int64,
 	var subTableName, engine string
 	var tableSize, rowsCount int64
 	if p.DriverType != DriverMYSQL {
-		return subTableName, engine, tableSize, rowsCount, fmt.Errorf("this function only support mysql driver")
+		return subTableName, engine, tableSize, rowsCount, errors.New("this function only support mysql driver")
 	}
 	if p.connPool == nil {
-		return subTableName, engine, tableSize, rowsCount, fmt.Errorf("sql connection is not ready")
+		return subTableName, engine, tableSize, rowsCount, errors.New("sql connection is not ready")
 	}
 	// 查询引擎
 	strsql := "select engine,count(*) from information_schema.tables where table_schema=? and table_name=?"
@@ -31,7 +30,7 @@ func (p *SQLPool) ShowTableInfo(tableName string) (string, string, int64, int64,
 	}
 	engine = ans.Rows[0].Cells[0]
 	if strings.ToLower(engine) != "mrg_myisam" {
-		return subTableName, engine, tableSize, rowsCount, fmt.Errorf("engine %s is not support", engine)
+		return subTableName, engine, tableSize, rowsCount, errors.New("engine " + engine + " is not support")
 	}
 	// 获取最新子表
 	strsql = "show create table " + tableName
@@ -65,13 +64,13 @@ func (p *SQLPool) ShowTableInfo(tableName string) (string, string, int64, int64,
 // MergeTable 进行分表操作
 func (p *SQLPool) MergeTable(tableName string, maxSubTables int) error {
 	if maxSubTables < 1 {
-		return fmt.Errorf("maxsubTables should be more than 1")
+		return errors.New("maxsubTables should be more than 1")
 	}
 	if p.DriverType != DriverMYSQL {
-		return fmt.Errorf("this function only support mysql driver")
+		return errors.New("this function only support mysql driver")
 	}
 	if p.connPool == nil {
-		return fmt.Errorf("sql connection is not ready")
+		return errors.New("sql connection is not ready")
 	}
 	// 获取所有子表
 	strsql := "select table_name from information_schema.tables where table_schema=? and table_name like '%" + tableName + "_%' order by table_name desc"
@@ -87,14 +86,14 @@ func (p *SQLPool) MergeTable(tableName string, maxSubTables int) error {
 		return i != maxSubTables
 	})
 	if i == 0 {
-		return fmt.Errorf("no sub tables found")
+		return errors.New("no sub tables found")
 	}
 	// 创建新子表
-	subTableLatest := fmt.Sprintf("%s_%d", tableName, time.Now().Unix())
-	strsql = fmt.Sprintf("create table %s like %s", subTableLatest, subTablelist[0])
+	subTableLatest := tableName + "_" + time.Now().Format("20060102150405")
+	strsql = "create table " + subTableLatest + " like " + subTablelist[0]
 	_, _, err = p.Exec(strsql)
 	if err != nil {
-		return fmt.Errorf("create new table %s error: %s", subTableLatest, err.Error())
+		return errors.New("create new table " + subTableLatest + " error: " + err.Error())
 	}
 	// 修改总表
 	strsql = "ALTER TABLE " + tableName + " ENGINE = MRG_MyISAM DEFAULT CHARSET=utf8 INSERT_METHOD=FIRST UNION=(" + subTableLatest
@@ -107,7 +106,7 @@ func (p *SQLPool) MergeTable(tableName string, maxSubTables int) error {
 	strsql += ")"
 	_, _, err = p.Exec(strsql)
 	if err != nil {
-		return fmt.Errorf("alter table %s error: %s", tableName, err.Error())
+		return errors.New("alter table " + tableName + " error: " + err.Error())
 	}
 	return nil
 }

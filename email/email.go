@@ -5,7 +5,7 @@ package email
 
 import (
 	"crypto/tls"
-	"fmt"
+	"errors"
 	"sync"
 	"time"
 
@@ -49,10 +49,10 @@ type EMail struct {
 // NewEMail get a new email send client
 func NewEMail(opt *SMTPOpt) (*EMail, error) {
 	if opt == nil {
-		return nil, fmt.Errorf("illegal smtp config")
+		return nil, errors.New("illegal smtp config")
 	}
 	if opt.SMTPHost == "" {
-		return nil, fmt.Errorf("illegal smtp config")
+		return nil, errors.New("illegal smtp config")
 	}
 	if opt.SMTPPort < 1 || opt.SMTPPort > 65535 {
 		opt.SMTPPort = 587
@@ -68,19 +68,19 @@ func NewEMail(opt *SMTPOpt) (*EMail, error) {
 		}, nil
 	}
 
-	return nil, fmt.Errorf("unknow error")
+	return nil, errors.New("unknow error")
 }
 
 // Send send email to target
 func (e *EMail) Send(d *Data) error {
 	if e == nil {
-		return fmt.Errorf("email client is not ready")
+		return errors.New("email client is not ready")
 	}
 	if d == nil {
-		return fmt.Errorf("nothing to send")
+		return errors.New("nothing to send")
 	}
 	if d.To == "" {
-		return fmt.Errorf("who do you want to send to?")
+		return errors.New("who do you want to send to?")
 	}
 	e.locker.Lock()
 	defer e.locker.Unlock()

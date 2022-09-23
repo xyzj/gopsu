@@ -84,7 +84,7 @@ func NewWriter(opt *OptLog) io.Writer {
 	if opt.Filename != "" && opt.AutoRoll {
 		ymd := t.Format(fileTimeFormat)
 		for i := 1; i < 255; i++ {
-			if !isExist(filepath.Join(mylog.logDir, fmt.Sprintf("%s.%v.%d.log", mylog.fname, ymd, i))) {
+			if !isExist(filepath.Join(mylog.logDir, fmt.Sprintf("%s.%s.%d.log", mylog.fname, ymd, i))) {
 				mylog.fileIndex = byte(i) - 1
 				break
 			}
@@ -150,7 +150,7 @@ func (w *Writer) newFile() {
 			w.fileDay = t.Day()
 			w.fileIndex = 0
 		}
-		w.nameNow = fmt.Sprintf("%s.%v.%d.log", w.fname, t.Format(fileTimeFormat), w.fileIndex)
+		w.nameNow = fmt.Sprintf("%s.%s.%d.log", w.fname, t.Format(fileTimeFormat), w.fileIndex)
 	} else {
 		w.nameNow = fmt.Sprintf("%s.log", w.fname)
 	}

@@ -5,7 +5,7 @@ package geohash
 
 import (
 	"encoding/binary"
-	"fmt"
+	"errors"
 	"io/ioutil"
 	"sync"
 
@@ -118,7 +118,7 @@ func (g *GeoCache) GeoDist(name1, name2 string) (float64, error) {
 	defer g.locker.RUnlock()
 	gp := g.GeoPos(name1, name2)
 	if len(gp) != 2 {
-		return 0, fmt.Errorf("point not found")
+		return 0, errors.New("point not found")
 	}
 	return Distance(gp[0].Lng, gp[0].Lat, gp[1].Lng, gp[1].Lat), nil
 }
@@ -129,7 +129,7 @@ func (g *GeoCache) GeoDistPoint(lng1, lat1, lng2, lat2 float64) (float64, error)
 	// defer g.locker.RUnlock()
 	// gp := g.GeoPos(name1, name2)
 	// if len(gp) != 2 {
-	// 	return 0, fmt.Errorf("point not found")
+	// 	return 0, errors.New("point not found")
 	// }
 	return Distance(lng1, lat1, lng2, lat2), nil
 }
@@ -175,7 +175,7 @@ func (g *GeoCache) GeoRadiusByMember(name string, radius float64) []*GeoPoint {
 // SaveToFile 保存到文件
 func (g *GeoCache) SaveToFile() error {
 	if g.cachename == "" {
-		return fmt.Errorf("no file name was specified")
+		return errors.New("no file name was specified")
 	}
 	if g.sortedset.Len() == 0 {
 		ioutil.WriteFile(gopsu.JoinPathFromHere("_geo_"+g.cachename), []byte{}, 0664)
@@ -201,7 +201,7 @@ func (g *GeoCache) SaveToFile() error {
 // LoadFromFile 从文件读取缓存
 func (g *GeoCache) LoadFromFile() error {
 	if g.cachename == "" {
-		return fmt.Errorf("no file name was specified")
+		return errors.New("no file name was specified")
 	}
 	b, err := ioutil.ReadFile(gopsu.JoinPathFromHere("_geo_" + g.cachename))
 	if err != nil {

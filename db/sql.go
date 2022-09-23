@@ -147,7 +147,7 @@ type SQLPool struct {
 // tls: 是否启用tls链接。支持以下参数：true,false,skip-verify,preferred
 func (p *SQLPool) New(tls ...string) error {
 	if p.Server == "" || p.User == "" || p.Passwd == "" {
-		return fmt.Errorf("config error")
+		return errors.New("config error")
 	}
 	// 处理参数
 	if p.Timeout > 6000 || p.Timeout < 5 {
@@ -298,7 +298,7 @@ func (p *SQLPool) checkSQL(s string) error {
 	if gopsu.CheckSQLInject(s) {
 		return nil
 	}
-	return fmt.Errorf("SQL statement has risk of injection")
+	return errors.New("SQL statement has risk of injection")
 }
 
 // 维护缓存文件数量
@@ -1071,7 +1071,7 @@ func (p *SQLPool) ExecPrepare(s string, paramNum int, params ...interface{}) (er
 
 	l := len(params)
 	if l%paramNum != 0 {
-		return fmt.Errorf("not enough params")
+		return errors.New("not enough params")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
@@ -1129,7 +1129,7 @@ func (p *SQLPool) ExecPrepareV2(s string, paramNum int, params ...interface{}) (
 
 	l := len(params)
 	if l%paramNum != 0 {
-		return 0, nil, fmt.Errorf("not enough params")
+		return 0, nil, errors.New("not enough params")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
