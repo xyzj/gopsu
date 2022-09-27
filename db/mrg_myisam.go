@@ -2,11 +2,9 @@ package db
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"time"
-
-	"github.com/tidwall/gjson"
-	"github.com/xyzj/gopsu"
 )
 
 // only support mysql driver
@@ -48,8 +46,10 @@ func (p *SQLPool) ShowTableInfo(tableName string) (string, string, int64, int64,
 	if err != nil || len(ans.Rows) > 0 {
 		return subTableName, engine, tableSize, rowsCount, err
 	}
-	tableSize = gopsu.String2Int64(ans.Rows[0].Cells[0], 10)
-	rowsCount = gopsu.String2Int64(ans.Rows[0].Cells[1], 10)
+	tableSize, _ = strconv.ParseInt(ans.Rows[0].Cells[0], 10, 64)
+	rowsCount, _ = strconv.ParseInt(ans.Rows[0].Cells[1], 10, 64)
+	// tableSize = gopsu.String2Int64(ans.Rows[0].Cells[0], 10)
+	// rowsCount = gopsu.String2Int64(ans.Rows[0].Cells[1], 10)
 	// tableSize = int64(gjson.Parse(ans).Get("row.0").Float())
 	// 获取子表行数
 	// strsql = "select count(*) from " + subTableName
@@ -74,17 +74,24 @@ func (p *SQLPool) MergeTable(tableName string, maxSubTables int) error {
 	}
 	// 获取所有子表
 	strsql := "select table_name from information_schema.tables where table_schema=? and table_name like '%" + tableName + "_%' order by table_name desc"
-	ans, err := p.QueryJSON(strsql, 0, p.DataBase)
+	ans, err := p.QueryPB2(strsql, 0, p.DataBase)
 	if err != nil {
 		return err
 	}
 	subTablelist := make([]string, maxSubTables)
 	i := 0
-	gjson.Parse(ans).Get("rows").ForEach(func(key, value gjson.Result) bool {
-		subTablelist[i] = value.Get("cells.0").String()
+	for _, row := range ans.Rows {
+		subTablelist[i] = row.Cells[0]
 		i++
-		return i != maxSubTables
-	})
+		if i >= maxSubTables {
+			break
+		}
+	}
+	// gjson.Parse(ans).Get("rows").ForEach(func(key, value gjson.Result) bool {
+	// 	subTablelist[i] = value.Get("cells.0").String()
+	// 	i++
+	// 	return i != maxSubTables
+	// })
 	if i == 0 {
 		return errors.New("no sub tables found")
 	}

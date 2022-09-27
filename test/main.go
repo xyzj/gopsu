@@ -1,7 +1,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"time"
+
+	"github.com/xyzj/gopsu/loopfunc"
 )
 
 func aaa(a, b, c string, d, e int) {
@@ -24,8 +28,10 @@ var (
 )
 
 func main() {
-	s := "=- "
-	for _, v := range s {
-		println(v)
-	}
+	loopfunc.LoopFunc(func(params ...interface{}) {
+		for {
+			time.Sleep(time.Second * 5)
+			panic(errors.New("after sleep error"))
+		}
+	}, "name string", nil)
 }

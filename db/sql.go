@@ -19,9 +19,8 @@ import (
 	// mysql driver
 	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
-	"github.com/tidwall/sjson"
 	"github.com/xyzj/gopsu"
-	json "github.com/xyzj/gopsu/json"
+	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/logger"
 )
 
@@ -437,41 +436,15 @@ func (p *SQLPool) QueryCacheMultirowPage(cacheTag string, startRow, rowsCount, k
 //
 // params: 查询参数,对应查询语句中的`？`占位符
 func (p *SQLPool) QueryOne(s string, colNum int, params ...interface{}) (js string, err error) {
-	defer func() (string, error) {
-		if ex := recover(); ex != nil {
-			err = errors.WithStack(ex.(error))
-			return "", err
-		}
-		return js, nil
-	}()
-
-	values := make([]interface{}, colNum)
-	scanArgs := make([]interface{}, colNum)
-
-	for i := range values {
-		scanArgs[i] = &values[i]
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
-	defer cancel()
-	err = p.connPool.QueryRowContext(ctx, s, params...).Scan(scanArgs...)
-	switch {
-	case err == sql.ErrNoRows:
-		return "", nil
-	case err != nil:
+	pb, err := p.QueryPB2(s, colNum, params...)
+	if err != nil {
 		return "", err
-	default:
-		for i := range scanArgs {
-			v := values[i]
-			b, ok := v.([]byte)
-			if ok {
-				js, _ = sjson.Set(js, "row.-1", gopsu.String(b))
-			} else {
-				js, _ = sjson.Set(js, "row.-1", v)
-			}
-		}
-		return js, nil
 	}
+	ss := pb.Rows[0].Cells
+	if len(ss) == 0 {
+		return `{"row":[]}`, nil
+	}
+	return `{"row":["` + strings.Join(ss, "\",\"") + `"]}`, nil
 }
 
 // QueryOnePB2 执行查询语句，返回首行结果的QueryData结构，该方法不缓存结果

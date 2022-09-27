@@ -4,14 +4,10 @@ Package loopfunc ： 用于控制需要持续运行的循环方法，当方法�
 package loopfunc
 
 import (
-	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"sync"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 // LoopFunc 执行循环工作，并提供panic恢复
@@ -37,11 +33,21 @@ RUN:
 				// 非panic,不需要恢复
 				end = true
 			} else {
-				if reflect.TypeOf(err).String() == "error" {
-					logWriter.Write([]byte(fmt.Sprintf("%s [LOOP] crash: %v\n", name, errors.WithStack(err.(error)))))
-				} else {
-					logWriter.Write([]byte(fmt.Sprintf("%s [LOOP] crash: %v\n", name, err)))
+				msg := ""
+				switch err.(type) {
+				case error:
+					msg = err.(error).Error()
+				case string:
+					msg = err.(string)
 				}
+				if msg != "" {
+					logWriter.Write([]byte(name + " [LOOP] crash: " + msg + "\n"))
+				}
+				// if reflect.TypeOf(err).String() == "error" {
+				// 	logWriter.Write([]byte(fmt.Sprintf("%s [LOOP] crash: %v\n", name, errors.WithStack(err.(error)))))
+				// } else {
+				// 	logWriter.Write([]byte(fmt.Sprintf("%s [LOOP] crash: %v\n", name, err)))
+				// }
 			}
 			locker.Done()
 		}()
@@ -68,11 +74,21 @@ func GoFunc(f func(params ...interface{}), name string, logWriter io.Writer, par
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
-				if reflect.TypeOf(err).String() == "error" {
-					logWriter.Write([]byte(fmt.Sprintf("%s [GO] crash: %v\n", name, errors.WithStack(err.(error)))))
-				} else {
-					logWriter.Write([]byte(fmt.Sprintf("%s [GO] crash: %v\n", name, err)))
+				msg := ""
+				switch err.(type) {
+				case error:
+					msg = err.(error).Error()
+				case string:
+					msg = err.(string)
 				}
+				if msg != "" {
+					logWriter.Write([]byte(name + " [LOOP] crash: " + msg + "\n"))
+				}
+				// if reflect.TypeOf(err).String() == "error" {
+				// 	logWriter.Write([]byte(fmt.Sprintf("%s [GO] crash: %v\n", name, errors.WithStack(err.(error)))))
+				// } else {
+				// 	logWriter.Write([]byte(fmt.Sprintf("%s [GO] crash: %v\n", name, err)))
+				// }
 			}
 		}()
 		f(params...)
