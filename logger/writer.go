@@ -56,6 +56,7 @@ func NewWriter(opt *OptLog) io.Writer {
 	}
 	if opt.Filename == "" {
 		opt.AutoRoll = false
+		opt.SyncToConsole = true
 	}
 	if opt.AutoRoll { // 检查关联参数
 		if opt.MaxDays < 1 {

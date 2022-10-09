@@ -35,7 +35,12 @@ func IsExist(p string) bool {
 func JoinPathFromHere(path ...string) string {
 	s := []string{GetExecDir()}
 	s = append(s, path...)
-	return filepath.Join(s...)
+	sp := filepath.Join(s...)
+	p, err := filepath.Abs(sp)
+	if err != nil {
+		return sp
+	}
+	return p
 }
 
 // GetExecDir get current file path

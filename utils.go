@@ -1261,7 +1261,12 @@ func CopyFile(src, dst string) (int64, error) {
 func JoinPathFromHere(path ...string) string {
 	s := []string{GetExecDir()}
 	s = append(s, path...)
-	return filepath.Join(s...)
+	sp := filepath.Join(s...)
+	p, err := filepath.Abs(sp)
+	if err != nil {
+		return sp
+	}
+	return p
 }
 
 // SlicesUnion 求并集

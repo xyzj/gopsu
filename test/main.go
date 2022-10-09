@@ -1,11 +1,11 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"time"
 
-	"github.com/xyzj/gopsu/loopfunc"
+	"github.com/tidwall/gjson"
+
+	"github.com/tidwall/sjson"
 )
 
 func aaa(a, b, c string, d, e int) {
@@ -28,10 +28,9 @@ var (
 )
 
 func main() {
-	loopfunc.LoopFunc(func(params ...interface{}) {
-		for {
-			time.Sleep(time.Second * 5)
-			panic(errors.New("after sleep error"))
-		}
-	}, "name string", nil)
+	s, _ := sjson.Set("", "a.-1", "value interface{}")
+	s, _ = sjson.Set(s, "a.-1", "value interface{}")
+	s, _ = sjson.Set(s, "a.-1", "value interface{}")
+	println(s)
+	println(gjson.Parse(s).Get("a").String())
 }

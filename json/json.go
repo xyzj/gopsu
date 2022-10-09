@@ -13,15 +13,16 @@ package json
 import (
 	"unsafe"
 
-	// json "github.com/goccy/go-json"
-	"github.com/bytedance/sonic"
+	json "github.com/goccy/go-json"
+	// "github.com/bytedance/sonic"
 )
 
 var (
-	json = sonic.Config{
-		// NoNullSliceOrMap:     true,
-		NoQuoteTextMarshaler: true,
-	}.Froze()
+	// json = sonic.Config{
+	// 	// NoNullSliceOrMap:     true,
+	// 	NoQuoteTextMarshaler: true,
+	// }.Froze()
+
 	// Marshal is exported by gin/json package.
 	Marshal = xMarshal
 	// Unmarshal is exported by gin/json package.
@@ -42,8 +43,8 @@ var (
 
 // xMarshal json.MarshalWithOption
 func xMarshal(v interface{}) ([]byte, error) {
-	return json.Marshal(v)
-	// return json.MarshalWithOption(v, json.DisableHTMLEscape(), json.UnorderedMap())
+	// return json.Marshal(v)
+	return json.MarshalWithOption(v, json.DisableHTMLEscape(), json.UnorderedMap())
 }
 
 // xMarshalToString json.MarshalWithOption and return string
@@ -57,8 +58,8 @@ func xMarshalToString(v interface{}) (string, error) {
 
 // xUnmarshal json.UnmarshalWithOption
 func xUnmarshal(data []byte, v interface{}) error {
-	return json.Unmarshal(data, v)
-	// return json.UnmarshalNoEscape(data, v, json.DecodeFieldPriorityFirstWin())
+	// return json.Unmarshal(data, v)
+	return json.UnmarshalNoEscape(data, v, json.DecodeFieldPriorityFirstWin())
 }
 
 // xUnmarshalFromString json.UnmarshalFromString

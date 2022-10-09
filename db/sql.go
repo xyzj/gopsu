@@ -440,6 +440,9 @@ func (p *SQLPool) QueryOne(s string, colNum int, params ...interface{}) (js stri
 	if err != nil {
 		return "", err
 	}
+	if pb.Total == 0 {
+		return "", fmt.Errorf("no data found")
+	}
 	ss := pb.Rows[0].Cells
 	if len(ss) == 0 {
 		return `{"row":[]}`, nil
