@@ -78,3 +78,9 @@ func CaughtSignal(fQuit func()) {
 		os.Exit(0)
 	}(sigc)
 }
+
+// SignalQuit 关闭
+func SignalQuit() {
+	println("the program ask to quit")
+	sigc <- syscall.SIGQUIT
+}

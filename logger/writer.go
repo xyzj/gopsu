@@ -169,12 +169,12 @@ func (w *Writer) newFile() {
 	if err != nil {
 		ioutil.WriteFile("logerr.log", tools.Bytes("log file open error: "+err.Error()), 0664)
 		w.out = os.Stdout
+		return
+	}
+	if w.withConsole {
+		w.out = io.MultiWriter(os.Stdout, w.fno)
 	} else {
-		if w.withConsole {
-			w.out = io.MultiWriter(os.Stdout, w.fno)
-		} else {
-			w.out = w.fno
-		}
+		w.out = w.fno
 	}
 	// 判断是否压缩旧日志
 	if w.enablegz {

@@ -26,7 +26,7 @@ import (
 	"github.com/unrolled/secure"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/db"
-	json "github.com/xyzj/gopsu/json"
+	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/rate"
 )
 
@@ -406,8 +406,9 @@ func TLSRedirect() gin.HandlerFunc {
 }
 
 // RateLimit 限流器，基于官方库
-//  r: 每秒可访问次数,1-100
-//  b: 缓冲区大小
+//
+//	r: 每秒可访问次数,1-100
+//	b: 缓冲区大小
 func RateLimit(r, b int) gin.HandlerFunc {
 	if r < 1 || r > 100 {
 		r = 5
@@ -423,8 +424,9 @@ func RateLimit(r, b int) gin.HandlerFunc {
 }
 
 // RateLimitWithIP ip限流器，基于官方库
-//  r: 每秒可访问次数,1-100
-//  b: 缓冲区大小
+//
+//	r: 每秒可访问次数,1-100
+//	b: 缓冲区大小
 func RateLimitWithIP(r, b int) gin.HandlerFunc {
 	if r < 1 || r > 100 {
 		r = 5
@@ -447,9 +449,10 @@ func RateLimitWithIP(r, b int) gin.HandlerFunc {
 }
 
 // RateLimitWithTimeout 超时限流器，基于官方库
-//  r: 每秒可访问次数,1-100
-//  b: 缓冲区大小
-//  t: 超时时长
+//
+//	r: 每秒可访问次数,1-100
+//	b: 缓冲区大小
+//	t: 超时时长
 func RateLimitWithTimeout(r, b int, t time.Duration) gin.HandlerFunc {
 	if r < 1 || r > 100 {
 		r = 5

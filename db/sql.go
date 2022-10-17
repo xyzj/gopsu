@@ -441,11 +441,11 @@ func (p *SQLPool) QueryOne(s string, colNum int, params ...interface{}) (js stri
 		return "", err
 	}
 	if pb.Total == 0 {
-		return "", fmt.Errorf("no data found")
+		return "", nil
 	}
 	ss := pb.Rows[0].Cells
 	if len(ss) == 0 {
-		return `{"row":[]}`, nil
+		return "", nil //`{"row":[]}`, nil
 	}
 	return `{"row":["` + strings.Join(ss, "\",\"") + `"]}`, nil
 }
