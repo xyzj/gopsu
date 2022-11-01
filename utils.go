@@ -27,7 +27,6 @@ import (
 	"math/rand"
 	"net"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -678,7 +677,7 @@ func GetExecName() string {
 	if exe == "" {
 		return ""
 	}
-	return path.Base(exe)
+	return filepath.Base(exe)
 }
 
 // SplitDateTime SplitDateTime
