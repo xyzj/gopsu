@@ -20,6 +20,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
 	"github.com/xyzj/gopsu"
+	"github.com/xyzj/gopsu/cache"
 	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/logger"
 )
@@ -140,6 +141,8 @@ type SQLPool struct {
 	chanQuery chan *QueryDataChanWorker
 	// 缓存锁，避免缓存没写完前读取
 	cacheLocker sync.Map
+	// 内存缓存
+	memCache *cache.XCache
 }
 
 // New 初始化
@@ -216,6 +219,7 @@ func (p *SQLPool) New(tls ...string) error {
 	if p.CacheHead == "" {
 		p.CacheHead = gopsu.CalcCRC32String([]byte(connstr))
 	}
+	p.memCache = cache.NewCache(0, p.Logger.DefaultWriter())
 	// 连接/测试
 	db, err := sql.Open(p.DriverType.string(), strings.ReplaceAll(connstr, "\n", ""))
 	if err != nil {
@@ -351,13 +355,15 @@ func (p *SQLPool) QueryCachePB2(cacheTag string, startRow, rowsCount int) *Query
 		CacheTag: cacheTag,
 		Rows:     make([]*QueryDataRow, 0),
 	}
-	// 读取前等待写入完毕
-	if lo, ok := p.cacheLocker.Load(cacheTag); ok {
-		lo.(*sync.WaitGroup).Wait()
-	}
+	// 读取前等待写入完毕,使用memcache不需要等
+	// if lo, ok := p.cacheLocker.Load(cacheTag); ok {
+	// 	lo.(*sync.WaitGroup).Wait()
+	// }
 	// 开始读取
-	if src, err := ioutil.ReadFile(filepath.Join(p.CacheDir, cacheTag)); err == nil {
-		if msg := qdUnmarshal(src); msg != nil {
+	if src, ok := p.memCache.GetAndExpire(cacheTag, time.Minute*30); ok {
+		if msg := src.(*QueryData); msg != nil {
+			// if src, err := ioutil.ReadFile(filepath.Join(p.CacheDir, cacheTag)); err == nil {
+			// if msg := qdUnmarshal(src); msg != nil {
 			query.Total = msg.Total
 			startRow = startRow - 1
 			endRow := startRow + rowsCount
@@ -396,8 +402,10 @@ func (p *SQLPool) QueryCacheMultirowPage(cacheTag string, startRow, rowsCount, k
 		rowsCount = 0
 	}
 	query := &QueryData{CacheTag: cacheTag}
-	if src, err := ioutil.ReadFile(filepath.Join(p.CacheDir, cacheTag)); err == nil {
-		if msg := qdUnmarshal(src); msg != nil {
+	if src, ok := p.memCache.GetAndExpire(cacheTag, time.Minute*30); ok {
+		if msg := src.(*QueryData); msg != nil {
+			// if src, err := ioutil.ReadFile(filepath.Join(p.CacheDir, cacheTag)); err == nil {
+			// if msg := qdUnmarshal(src); msg != nil {
 			startRow = startRow - 1
 			query.Total = msg.Total
 			endRow := startRow + rowsCount
@@ -829,14 +837,15 @@ func (p *SQLPool) queryChan(qdc chan *QueryDataChan, s string, rowsCount int, pa
 	}
 	// 开始缓存，方便导出，有数据即缓存,这里因为已经返回数据，所以不用再开线程
 	if p.EnableCache && rowIdx > 0 { // && rowsCount < rowIdx {
-		lo := &sync.WaitGroup{}
-		lo.Add(1)
-		p.cacheLocker.Store(queryCache.CacheTag, lo)
-		if b, err := qdMarshal(queryCache); err == nil {
-			ioutil.WriteFile(filepath.Join(gopsu.DefaultCacheDir, queryCache.CacheTag), b, 0664)
-		}
-		lo.Done()
-		p.cacheLocker.Delete(queryCache.CacheTag)
+		p.memCache.Set(queryCache.CacheTag, queryCache, time.Minute*30)
+		// lo := &sync.WaitGroup{}
+		// lo.Add(1)
+		// p.cacheLocker.Store(queryCache.CacheTag, lo)
+		// if b, err := qdMarshal(queryCache); err == nil {
+		// 	ioutil.WriteFile(filepath.Join(gopsu.DefaultCacheDir, queryCache.CacheTag), b, 0664)
+		// }
+		// lo.Done()
+		// p.cacheLocker.Delete(queryCache.CacheTag)
 	}
 }
 
@@ -939,14 +948,15 @@ func (p *SQLPool) QueryMultirowPage(s string, rowsCount int, keyColumeID int, pa
 		query.CacheTag = cacheTag
 		queryCache.CacheTag = cacheTag
 		go func(qd *QueryData) {
-			lo := &sync.WaitGroup{}
-			lo.Add(1)
-			p.cacheLocker.Store(queryCache.CacheTag, lo)
-			if b, err := qdMarshal(queryCache); err == nil {
-				ioutil.WriteFile(filepath.Join(p.CacheDir, cacheTag), b, 0664)
-			}
-			lo.Done()
-			p.cacheLocker.Delete(queryCache.CacheTag)
+			p.memCache.Set(queryCache.CacheTag, queryCache, time.Minute*30)
+			// lo := &sync.WaitGroup{}
+			// lo.Add(1)
+			// p.cacheLocker.Store(queryCache.CacheTag, lo)
+			// if b, err := qdMarshal(queryCache); err == nil {
+			// 	ioutil.WriteFile(filepath.Join(p.CacheDir, cacheTag), b, 0664)
+			// }
+			// lo.Done()
+			// p.cacheLocker.Delete(queryCache.CacheTag)
 		}(queryCache)
 	}
 	return query, nil

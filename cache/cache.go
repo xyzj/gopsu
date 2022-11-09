@@ -25,6 +25,7 @@ package cache
 
 import (
 	"context"
+	"io"
 	"os"
 	"sync"
 	"time"
@@ -117,11 +118,14 @@ func (xc *XCache) End() {
 // NewCache 创建新的缓存字典
 //
 // max：字典大小,0-不限制(谨慎使用)
-func NewCache(max int) *XCache {
+func NewCache(max int, logw io.Writer) *XCache {
 	xc := &XCache{
 		max:  max,
 		data: newMap(),
 		end:  make(chan string, 1),
+	}
+	if logw == nil {
+		logw = os.Stdout
 	}
 	go loopfunc.LoopFunc(func(params ...interface{}) {
 		t := time.NewTicker(time.Minute)
@@ -139,7 +143,7 @@ func NewCache(max int) *XCache {
 				return
 			}
 		}
-	}, "cache expire", os.Stdout)
+	}, "cache expire", logw)
 	return xc
 }
 
@@ -151,7 +155,7 @@ func NewCache(max int) *XCache {
 //
 // expire: 超时时间，有效单位秒
 func (xc *XCache) Set(k string, v interface{}, expire time.Duration) bool {
-	if xc.data.len() >= xc.max {
+	if xc.max > 0 && xc.data.len() >= xc.max {
 		return false
 	}
 	xc.data.store(k, v, expire)

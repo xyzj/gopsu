@@ -3,6 +3,7 @@ package gopsu
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -196,6 +197,9 @@ func (c *ConfData) GetKeys() []string {
 
 // Save 保存配置文件
 func (c *ConfData) Save() error {
+	if c.fileFullPath == "" {
+		return fmt.Errorf("No file specified")
+	}
 	var ss = make([]*item, c.items.len())
 	var i int
 	x := c.items.copy()
@@ -247,6 +251,11 @@ func (c *ConfData) FullPath() string {
 	return c.fileFullPath
 }
 
+// SetFullPath 设置配置文件目录
+func (c *ConfData) SetFullPath(p string) {
+	c.fileFullPath = p
+}
+
 // LoadConfig load config file
 func LoadConfig(fullpath string) (*ConfData, error) {
 	c := &ConfData{
@@ -256,6 +265,9 @@ func LoadConfig(fullpath string) (*ConfData, error) {
 		},
 		fileFullPath: fullpath,
 		fileName:     path.Base(fullpath),
+	}
+	if fullpath == "" {
+		return c, nil
 	}
 	dir := filepath.Dir(fullpath)
 	if !IsExist(dir) {
