@@ -45,6 +45,8 @@ type OptLog struct {
 	ZipFile bool
 	// SyncToConsole 同步输出到控制台
 	SyncToConsole bool
+	// DelayWrite 延迟写入，每秒检查写入缓存，并写入文件，非实时写入
+	DelayWrite bool
 }
 
 // NewWriter 一个新的log写入器
@@ -71,16 +73,19 @@ func NewWriter(opt *OptLog) io.Writer {
 	}
 	t := time.Now()
 	mylog := &Writer{
-		expired:      int64(opt.MaxDays)*24*60*60 - 10,
-		fileMaxSize:  opt.MaxSize,
-		fname:        opt.Filename,
-		rollfile:     opt.AutoRoll,
-		fileDay:      t.Day(),
-		fileHour:     t.Hour(),
-		logDir:       opt.FileDir,
-		chanWriteLog: make(chan []byte, 100),
-		enablegz:     opt.ZipFile,
-		withConsole:  opt.SyncToConsole,
+		cno:         os.Stdout,
+		expired:     int64(opt.MaxDays)*24*60*60 - 10,
+		fileMaxSize: opt.MaxSize,
+		fname:       opt.Filename,
+		rollfile:    opt.AutoRoll,
+		fileDay:     t.Day(),
+		fileHour:    t.Hour(),
+		logDir:      opt.FileDir,
+		chanGoWrite: make(chan []byte, 100),
+		enablegz:    opt.ZipFile,
+		withConsole: opt.SyncToConsole,
+		withFile:    true,
+		delayWrite:  opt.DelayWrite,
 	}
 	if opt.Filename != "" && opt.AutoRoll {
 		ymd := t.Format(fileTimeFormat)
@@ -98,8 +103,9 @@ func NewWriter(opt *OptLog) io.Writer {
 
 // Writer 自定义Writer
 type Writer struct {
-	chanWriteLog chan []byte
-	out          io.Writer
+	chanGoWrite  chan []byte
+	chanEndWrite chan int
+	cno          io.Writer
 	fno          *os.File
 	pathNow      string
 	fname        string
@@ -114,25 +120,49 @@ type Writer struct {
 	enablegz     bool
 	rollfile     bool
 	withConsole  bool
+	withFile     bool
+	delayWrite   bool
 }
 
 func (w *Writer) startWrite() {
 	go loopfunc.LoopFunc(func(params ...interface{}) {
 		tc := time.NewTicker(time.Minute * 10)
+		tw := time.NewTicker(time.Second)
 		buf := &bytes.Buffer{}
+		buftick := &bytes.Buffer{}
+		if w.delayWrite {
+			tw.Stop()
+		}
 		for {
 			select {
-			case p := <-w.chanWriteLog:
+			case p := <-w.chanGoWrite:
 				buf.Reset()
 				buf.Write(tools.Bytes(time.Now().Format(ShortTimeFormat)))
 				buf.Write(p)
 				if !bytes.HasSuffix(p, lineEnd) {
 					buf.WriteByte(10)
 				}
-				w.out.Write(buf.Bytes())
+				if w.withFile {
+					if w.delayWrite {
+						buftick.Write(buf.Bytes())
+					} else {
+						w.fno.Write(buf.Bytes())
+					}
+				}
+				if w.withConsole {
+					w.cno.Write(buf.Bytes())
+				}
+				// w.out.Write(buf.Bytes())
 			case <-tc.C:
 				if w.rollfile {
 					w.rollingFileNoLock()
+				}
+			case <-tw.C:
+				if w.withFile {
+					if buftick.Len() > 0 {
+						w.fno.Write(buftick.Bytes())
+						buftick.Reset()
+					}
 				}
 			}
 		}
@@ -142,7 +172,7 @@ func (w *Writer) startWrite() {
 // 创建新日志文件
 func (w *Writer) newFile() {
 	if w.fname == "" {
-		w.out = os.Stdout
+		w.withFile = false
 		return
 	}
 	if w.rollfile {
@@ -168,19 +198,20 @@ func (w *Writer) newFile() {
 	w.fno, err = os.OpenFile(w.pathNow, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0664)
 	if err != nil {
 		ioutil.WriteFile("logerr.log", tools.Bytes("log file open error: "+err.Error()), 0664)
-		w.out = os.Stdout
+		w.withFile = false
 		return
 	}
-	if w.withConsole {
-		w.out = io.MultiWriter(os.Stdout, w.fno)
-	} else {
-		w.out = w.fno
-	}
+	w.withFile = true
+	// if w.withConsole {
+	// 	w.out = io.MultiWriter(os.Stdout, w.fno)
+	// } else {
+	// w.out = w.fno
+	// }
 	// 判断是否压缩旧日志
 	if w.enablegz {
 		w.zipFile(w.nameOld)
 	}
-	w.out.Write(lineEnd)
+	w.fno.Write(lineEnd)
 }
 
 // Write 异步写入日志，返回固定为 0, nil
@@ -191,7 +222,7 @@ func (w *Writer) Write(p []byte) (n int, err error) {
 	// if p[len(p)-1] != 10 {
 	// 	w.buf.WriteByte(10)
 	// }
-	w.chanWriteLog <- p
+	w.chanGoWrite <- p
 	return 0, nil
 }
 

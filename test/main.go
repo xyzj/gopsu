@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"time"
-
-	"github.com/xyzj/gopsu/sunriseset"
 )
 
 func aaa(a, b, c string, d, e int) {
@@ -26,28 +24,31 @@ var (
 	dirs sliceFlag
 )
 
-func main() {
-	var tNow = time.Now()
-	var tStart = time.Date(tNow.Year(), 1, 1, 0, 0, 0, 0, time.Local)
-	var sunTime = make(map[string][]int)
-	// var locker = sync.WaitGroup{}
-	var maxdays = 365
+// xCacheData 可设置超时的缓存字典数据结构
+type xCacheData struct {
+	Value  interface{}
+	Expire time.Time
+}
 
-	if sunriseset.LeapYear(tNow.Year()) {
-		maxdays = 366
+func main() {
+	aa := make(map[string]*xCacheData)
+	aa["123"] = &xCacheData{
+		Value:  "12334",
+		Expire: time.Now().Add(time.Hour),
 	}
-	for i := 0; i < maxdays; i++ {
-		tCalc := tStart.AddDate(0, 0, i)
-		rise, set, err := sunriseset.CalcSuntimeAstro(31.2465, 121.4914, tCalc)
-		if err == nil {
-			sunTime[fmt.Sprintf("%02d%02d", rise.Month(), rise.Day())] = []int{rise.Hour()*60 + rise.Minute(), set.Hour()*60 + set.Minute()}
-		}
+	aa["456"] = &xCacheData{
+		Value:  "12356657",
+		Expire: time.Now().Add(time.Hour),
 	}
-	if _, ok := sunTime["0229"]; !ok {
-		sunTime["0229"] = sunTime["0228"]
+	println("1. ", aa["456"], aa["456"].Expire.GoString())
+	v, ok := aa["456"]
+	if ok {
+		v.Value = "abcddw"
+		v.Expire = time.Now().Add(time.Hour * 4)
 	}
-	for k, v := range sunTime {
-		println(k, fmt.Sprintf("%+v", v))
-	}
-	println(len(sunTime))
+	println("2. ", v, v.Expire.GoString(), aa["456"].Expire.GoString())
+	aa["456"] = v
+	println("3. ", aa["456"])
+	aa["456"].Expire = time.Now().Add(time.Hour * 4)
+	println("4. ", aa["456"])
 }

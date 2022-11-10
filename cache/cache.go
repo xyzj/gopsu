@@ -53,6 +53,17 @@ func (m *mapCache) store(key string, value interface{}, expire time.Duration) {
 	}
 	m.locker.Unlock()
 }
+func (m *mapCache) expire(key string, expire time.Duration) bool {
+	m.locker.Lock()
+	defer m.locker.Unlock()
+	v, ok := m.data[key]
+	if ok {
+		v.Expire = time.Now().Add(expire)
+		return true
+		// m.data[key] = v
+	}
+	return false
+}
 func (m *mapCache) load(key string) (interface{}, bool) {
 	m.locker.RLock()
 	x, ok := m.data[key]
@@ -115,10 +126,10 @@ func (xc *XCache) End() {
 	xc.end <- "end"
 }
 
-// NewCache 创建新的缓存字典
+// NewCacheWithWriter 创建新的缓存字典,并指定panic日志输出writer
 //
 // max：字典大小,0-不限制(谨慎使用)
-func NewCache(max int, logw io.Writer) *XCache {
+func NewCacheWithWriter(max int, logw io.Writer) *XCache {
 	xc := &XCache{
 		max:  max,
 		data: newMap(),
@@ -143,8 +154,15 @@ func NewCache(max int, logw io.Writer) *XCache {
 				return
 			}
 		}
-	}, "cache expire", logw)
+	}, "mem cache expire", logw)
 	return xc
+}
+
+// NewCache 创建新的缓存字典
+//
+// max：字典大小,0-不限制(谨慎使用)
+func NewCache(max int) *XCache {
+	return NewCacheWithWriter(max, os.Stdout)
 }
 
 // Set 设置缓存数据
@@ -195,7 +213,7 @@ func (xc *XCache) Get(k string) (interface{}, bool) {
 func (xc *XCache) GetAndExpire(k string, expire time.Duration) (interface{}, bool) {
 	v, ok := xc.data.load(k)
 	if ok {
-		xc.data.store(k, v, expire)
+		xc.data.expire(k, expire)
 		return v, ok
 	}
 	return nil, false
