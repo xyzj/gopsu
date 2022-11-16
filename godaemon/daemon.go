@@ -74,7 +74,7 @@ func CaughtSignal(fQuit func()) {
 		if fQuit != nil {
 			fQuit()
 		}
-		time.Sleep(time.Millisecond * 300)
+		time.Sleep(time.Millisecond * 777)
 		os.Exit(0)
 	}(sigc)
 }

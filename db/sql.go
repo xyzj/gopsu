@@ -176,7 +176,7 @@ func (p *SQLPool) New(tls ...string) error {
 			"password=%s;"+
 			"server=%s;"+
 			"database=%s;"+
-			"connection timeout=10",
+			"connection timeout=60",
 			p.User, p.Passwd, p.Server, p.DataBase)
 		if len(tls) > 0 {
 			if tls[0] != "false" {
@@ -197,7 +197,7 @@ func (p *SQLPool) New(tls ...string) error {
 			DBName:               p.DataBase,
 			MultiStatements:      true,
 			ParseTime:            true,
-			Timeout:              time.Second * 10,
+			Timeout:              time.Second * 30,
 			ColumnsWithAlias:     true,
 			ClientFoundRows:      true,
 			InterpolateParams:    true,
@@ -1191,7 +1191,7 @@ func (p *SQLPool) ExecBatch(s []string) (err error) {
 		}
 	}
 	// 开启事务
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(p.Timeout))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	tx, err := p.connPool.BeginTx(ctx, nil)
 	if err != nil {
@@ -1204,6 +1204,9 @@ func (p *SQLPool) ExecBatch(s []string) (err error) {
 		}
 	}()
 	for _, v := range s {
+		if v == "" {
+			continue
+		}
 		_, err = tx.ExecContext(ctx, v)
 		if err != nil {
 			return err

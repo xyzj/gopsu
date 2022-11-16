@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"time"
+
+	"github.com/tidwall/gjson"
 )
 
 func aaa(a, b, c string, d, e int) {
@@ -31,24 +33,9 @@ type xCacheData struct {
 }
 
 func main() {
-	aa := make(map[string]*xCacheData)
-	aa["123"] = &xCacheData{
-		Value:  "12334",
-		Expire: time.Now().Add(time.Hour),
-	}
-	aa["456"] = &xCacheData{
-		Value:  "12356657",
-		Expire: time.Now().Add(time.Hour),
-	}
-	println("1. ", aa["456"], aa["456"].Expire.GoString())
-	v, ok := aa["456"]
-	if ok {
-		v.Value = "abcddw"
-		v.Expire = time.Now().Add(time.Hour * 4)
-	}
-	println("2. ", v, v.Expire.GoString(), aa["456"].Expire.GoString())
-	aa["456"] = v
-	println("3. ", aa["456"])
-	aa["456"].Expire = time.Now().Add(time.Hour * 4)
-	println("4. ", aa["456"])
+	s := "{\"row\":[\"\\灯杆\\单臂\"]}"
+	println(s,
+		gjson.Parse(s).Get("row").String())
+	a := gjson.Parse(s).Get("row").Array()
+	println(len(a), gjson.Parse(s).Get("row").IsArray())
 }

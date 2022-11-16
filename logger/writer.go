@@ -130,7 +130,7 @@ func (w *Writer) startWrite() {
 		tw := time.NewTicker(time.Second)
 		buf := &bytes.Buffer{}
 		buftick := &bytes.Buffer{}
-		if w.delayWrite {
+		if !w.delayWrite {
 			tw.Stop()
 		}
 		for {
