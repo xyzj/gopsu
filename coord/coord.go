@@ -14,7 +14,9 @@ const (
 	// OFFSET OFFSET
 	OFFSET = 0.00669342162296594323
 	// AXIS AXIS
-	AXIS = 6378245.0
+	AXIS        = 6378245.0
+	dr          = math.Pi / 180.0
+	earthRadius = 6372797.560856
 )
 
 // BD09toGCJ02 百度坐标系->火星坐标系
@@ -110,4 +112,18 @@ func coordTransform(lon, lat float64) (x, y float64) {
 
 func isOutOFChina(lon, lat float64) bool {
 	return !(lon > 72.004 && lon < 135.05 && lat > 3.86 && lat < 53.55)
+}
+
+func degRad(ang float64) float64 {
+	return ang * dr
+}
+
+// Distance computes the distance between two given coordinates in meter
+func Distance(longitude1, latitude1, longitude2, latitude2 float64) float64 {
+	radLat1 := degRad(latitude1)
+	radLat2 := degRad(latitude2)
+	a := radLat1 - radLat2
+	b := degRad(longitude1) - degRad(longitude2)
+	return 2 * earthRadius * math.Asin(math.Sqrt(math.Pow(math.Sin(a/2), 2)+
+		math.Cos(radLat1)*math.Cos(radLat2)*math.Pow(math.Sin(b/2), 2)))
 }
