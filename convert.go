@@ -373,7 +373,7 @@ func Bytes2Uint64(b []byte, bigorder bool) uint64 {
 	return u
 }
 
-// Bytes2Int64 字节数组转换为uint64
+// Bytes2Int64 字节数组转换为int64
 //
 //	b-字节数组
 //	bigorder-是否高位在前
@@ -574,4 +574,22 @@ func String2Unicode(s string) string {
 // SMSUnicode 编码短信
 func SMSUnicode(s string) []string {
 	return SplitStringWithLen(String2Unicode(s), 67*4)
+}
+
+// SignedBytes2Int64 有符号字节数组转int64,低前
+func SignedBytes2Int64(b []byte) int64 {
+	s := ""
+	for _, v := range b {
+		s = fmt.Sprintf("%08b", v) + s
+	}
+	x, err := strconv.ParseInt(s[1:], 2, 64)
+	if err != nil {
+		return 0
+	}
+	switch s[0] {
+	case 49:
+		return -1 * x
+	default:
+		return x
+	}
 }

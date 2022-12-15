@@ -298,10 +298,14 @@ func (p *SQLPool) IsReady() bool {
 //
 // s： sql语句
 func (p *SQLPool) checkSQL(s string) error {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
 	if gopsu.CheckSQLInject(s) {
 		return nil
 	}
-	return errors.New("SQL statement has risk of injection")
+	return errors.New("SQL statement has risk of injection: " + s)
 }
 
 // 维护缓存文件数量
@@ -1204,6 +1208,7 @@ func (p *SQLPool) ExecBatch(s []string) (err error) {
 		}
 	}()
 	for _, v := range s {
+		v = strings.TrimSpace(v)
 		if v == "" {
 			continue
 		}

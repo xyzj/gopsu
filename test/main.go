@@ -5,7 +5,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/xyzj/gopsu/coord"
+	"github.com/xyzj/gopsu"
 )
 
 const (
@@ -83,7 +83,5 @@ func GetDistance(lng1, lat1, lng2, lat2 float64) float64 {
 	return dist * radius
 }
 func main() {
-	println(fmt.Sprintf("%.12f", coord.Distance(116.423528, 39.939889, 116.362875, 39.929488)))
-	println(fmt.Sprintf("%.12f", GetDistance(116.423528, 39.939889, 116.362875, 39.929488)))
-	println(fmt.Sprintf("%.12f", GeoDistance2(116.423528, 39.939889, 116.362875, 39.929488)))
+	println(gopsu.SignedBytes2Int64([]byte{0x33, 0x01}))
 }
