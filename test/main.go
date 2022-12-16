@@ -5,7 +5,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/xyzj/gopsu"
+	"github.com/xyzj/go-pinyin"
 )
 
 const (
@@ -83,5 +83,10 @@ func GetDistance(lng1, lat1, lng2, lat2 float64) float64 {
 	return dist * radius
 }
 func main() {
-	println(gopsu.SignedBytes2Int64([]byte{0x33, 0x01}))
+	println(pinyin.XPinyinMatch("常和路308号", "ch"))
+	println(pinyin.XPinyinMatch("常和路308号", "cl"))
+	println(pinyin.XPinyinMatch("常和路308号", "308"))
+	println(pinyin.XPinyinMatch("常和路308号", "changhe"))
+	println(pinyin.XPinyinMatch("常和路308号", "常"))
+	println(pinyin.XPinyinMatch("常和路308号", "lu3"))
 }
