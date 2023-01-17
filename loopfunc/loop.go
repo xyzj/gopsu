@@ -82,7 +82,7 @@ func GoFunc(f func(params ...interface{}), name string, logWriter io.Writer, par
 					msg = err.(string)
 				}
 				if msg != "" {
-					logWriter.Write([]byte(name + " [LOOP] crash: " + msg + "\n"))
+					logWriter.Write([]byte(name + " [GoFunc] crash: " + msg + "\n"))
 				}
 				// if reflect.TypeOf(err).String() == "error" {
 				// 	logWriter.Write([]byte(fmt.Sprintf("%s [GO] crash: %v\n", name, errors.WithStack(err.(error)))))

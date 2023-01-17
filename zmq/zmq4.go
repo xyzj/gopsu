@@ -9,16 +9,18 @@ import (
 	"github.com/pebbe/zmq4"
 	"github.com/pkg/errors"
 	"github.com/xyzj/gopsu"
+	"github.com/xyzj/gopsu/logger"
 )
 
 var (
+	// ZMQRShwm ZMQRShwm
 	ZMQRShwm = 7000 // 0MQ缓存队列大小
 )
 
 // ZeroMQ zeromq
 type ZeroMQ struct {
 	Log           logger.Logger // 日志
-	Verbose       bool         // 是否打印信息
+	Verbose       bool          // 是否打印信息
 	Pull          *ZeroMQArgs
 	Push          *ZeroMQArgs
 	Pub           *ZeroMQArgs
