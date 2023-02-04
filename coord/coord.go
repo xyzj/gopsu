@@ -1,7 +1,6 @@
 package coord
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"time"
@@ -145,11 +144,9 @@ func RandomGPS(lon, lat float64, radius float64) (float64, float64) {
 	radiusInDegrees := radius / 111300
 	u := rand.Float64()
 	v := rand.Float64()
-	println(fmt.Sprintf("%.06f  %.06f", u, v))
 	w := radiusInDegrees * math.Sqrt(u)
 	t := math.Pi * v * 2
 	x := w * math.Cos(t)
 	y := w * math.Sin(t)
-	println(fmt.Sprintf("%.06f  %.06f", x, y))
 	return lon + y, lat + x
 }
