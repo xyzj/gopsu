@@ -1,7 +1,10 @@
 package coord
 
 import (
+	"fmt"
 	"math"
+	"math/rand"
+	"time"
 )
 
 // WGS84坐标系：即地球坐标系，国际上通用的坐标系。
@@ -18,6 +21,10 @@ const (
 	dr          = math.Pi / 180.0
 	earthRadius = 6372797.560856
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 // BD09toGCJ02 百度坐标系->火星坐标系
 func BD09toGCJ02(lon, lat float64) (float64, float64) {
@@ -126,4 +133,23 @@ func Distance(longitude1, latitude1, longitude2, latitude2 float64) float64 {
 	b := degRad(longitude1) - degRad(longitude2)
 	return 2 * earthRadius * math.Asin(math.Sqrt(math.Pow(math.Sin(a/2), 2)+
 		math.Cos(radLat1)*math.Cos(radLat2)*math.Pow(math.Sin(b/2), 2)))
+}
+
+// RandomGPS 生成半径内的随机经纬度
+//
+//	lon,lat: 中心点
+//	radius：范围半径，单位米
+//	返回：经度，纬度
+func RandomGPS(lon, lat float64, radius float64) (float64, float64) {
+	// rand.Seed(time.Now().UnixNano())
+	radiusInDegrees := radius / 111300
+	u := rand.Float64()
+	v := rand.Float64()
+	println(fmt.Sprintf("%.06f  %.06f", u, v))
+	w := radiusInDegrees * math.Sqrt(u)
+	t := math.Pi * v * 2
+	x := w * math.Cos(t)
+	y := w * math.Sin(t)
+	println(fmt.Sprintf("%.06f  %.06f", x, y))
+	return lon + y, lat + x
 }
