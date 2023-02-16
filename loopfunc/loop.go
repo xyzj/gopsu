@@ -10,6 +10,27 @@ import (
 	"time"
 )
 
+const (
+	longTimeFormat = "2006-01-02 15:04:05.000"
+)
+
+// CrashLogger 主进程崩溃用日志
+type CrashLogger struct {
+	FilePath string
+	fn       *os.File
+}
+
+func (m *CrashLogger) Write(p []byte) (n int, err error) {
+	m.fn, err = os.OpenFile(m.FilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0664)
+	if err != nil {
+		return 0, err
+	}
+	defer m.fn.Close()
+	b := []byte(time.Now().Format(longTimeFormat) + " ")
+	b = append(b, p...)
+	return m.fn.Write(b)
+}
+
 // LoopFunc 执行循环工作，并提供panic恢复
 //
 // f: 要执行的循环方法，可控制传入参数

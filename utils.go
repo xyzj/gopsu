@@ -680,6 +680,12 @@ func GetExecName() string {
 	return filepath.Base(exe)
 }
 
+// GetExecNameWithoutExt 获取可执行文件的名称,去除扩展名
+func GetExecNameWithoutExt() string {
+	name := GetExecName()
+	return strings.ReplaceAll(name, filepath.Ext(name), "")
+}
+
 // SplitDateTime SplitDateTime
 func SplitDateTime(sdt int64) (y, m, d, h, mm, s, wd byte) {
 	if sdt == 0 {

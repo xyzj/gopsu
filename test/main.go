@@ -86,6 +86,6 @@ func main() {
 	for i := 0; i < 10; i++ {
 		x, y := coord.RandomGPS(117.2572385, 31.8527047, 100)
 		println(fmt.Sprintf("%.6f,  %.6f", x, y))
-		println(fmt.Sprintf("%.6f\n", GetDistance(117.2572385, 31.8527047, x, y)))
+		println(fmt.Sprintf("%+v, %+v\n", coord.WGS84toBD09(coord.RandomGPS(117.2572385, 31.8527047, 100))))
 	}
 }
