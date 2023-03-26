@@ -77,13 +77,13 @@ func GetSocketTimeout() time.Duration {
 	return getSocketTimeout()
 }
 func getSocketTimeout() time.Duration {
-	var t = 120
+	var t = 300
 	b, err := ioutil.ReadFile(".sockettimeout")
 	if err == nil {
 		t = gopsu.String2Int(gopsu.TrimString(gopsu.String(b)), 10)
 	}
-	if t < 120 {
-		t = 120
+	if t < 300 {
+		t = 300
 	}
 	return time.Second * time.Duration(t)
 }

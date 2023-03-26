@@ -833,13 +833,14 @@ func SwapCase(s string) string {
 }
 
 type version struct {
-	Name      string `json:"name"`
-	Version   string `json:"version"`
-	GoVersion string `json:"go_version"`
-	BuildDate string `json:"build_date"`
-	BuildOS   string `json:"build_os"`
-	CodeBy    string `json:"code_by"`
-	StartWith string `json:"start_with"`
+	Dependencies []string `json:"deps,omitempty"`
+	Name         string   `json:"name,omitempty"`
+	Version      string   `json:"version,omitempty"`
+	GoVersion    string   `json:"go_version,omitempty"`
+	BuildDate    string   `json:"build_date,omitempty"`
+	BuildOS      string   `json:"build_os,omitempty"`
+	CodeBy       string   `json:"code_by,omitempty"`
+	StartWith    string   `json:"start_with,omitempty"`
 }
 
 // VersionInfo show something
