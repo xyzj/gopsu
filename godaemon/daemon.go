@@ -6,13 +6,14 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"strconv"
 	"syscall"
 	"time"
 )
 
 var (
-	god   = flag.Bool("b", false, "run program in the background")
+	god   = flag.Bool("b", false, "run program in the background, only support linux")
 	pname = flag.String("p", "", "save the pid file, only work with -b")
 )
 var (
@@ -23,6 +24,10 @@ var (
 //
 // fQuit: 捕获信号时执行的清理工作
 func Start(fQuit func()) {
+	if runtime.GOOS != "linux" {
+		println("The parameter -b can only be used on Linux systems")
+		return
+	}
 	if !flag.Parsed() {
 		flag.Parse()
 	}

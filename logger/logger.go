@@ -3,7 +3,6 @@ package logger
 import (
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/xyzj/gopsu/tools"
 )
@@ -209,6 +208,6 @@ func NewLogger(d, f string, logLevel, logDays int) Logger {
 func NewConsoleLogger() Logger {
 	return &StdLogger{
 		logLevel: 1,
-		out:      os.Stdout,
+		out:      NewWriter(nil),
 	}
 }
