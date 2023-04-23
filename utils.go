@@ -67,6 +67,8 @@ const (
 	CryptoSHA512
 	// CryptoHMACSHA1 hmacsha1摘要算法
 	CryptoHMACSHA1
+	// CryptoHMACSHA256 hmacsha256摘要算法
+	CryptoHMACSHA256
 	// CryptoAES128CBC aes128cbc算法
 	CryptoAES128CBC
 	// CryptoAES128CFB aes128cfb算法
@@ -136,6 +138,8 @@ func GetNewCryptoWorker(cryptoType byte) *CryptoWorker {
 		h.cryptoHash = sha256.New()
 	case CryptoSHA512:
 		h.cryptoHash = sha512.New()
+	case CryptoHMACSHA1:
+		h.cryptoHash = hmac.New(sha1.New, []byte{})
 	}
 	return h
 }
@@ -156,6 +160,8 @@ func (h *CryptoWorker) SetKey(key, iv string) error {
 	switch h.cryptoType {
 	case CryptoHMACSHA1:
 		h.cryptoHash = hmac.New(sha1.New, Bytes(key))
+	case CryptoHMACSHA256:
+		h.cryptoHash = hmac.New(sha256.New, Bytes(key))
 	case CryptoAES128CBC:
 		if len(key) < 16 || len(iv) < 16 {
 			return fmt.Errorf("key and iv must be longer than 16")

@@ -41,45 +41,7 @@ func (m *CrashLogger) Write(p []byte) (n int, err error) {
 //
 // params： 需要传给f的参数，f内需要进行类型转换
 func LoopFunc(f func(params ...interface{}), name string, logWriter io.Writer, params ...interface{}) {
-	locker := &sync.WaitGroup{}
-	end := false
-	if logWriter == nil {
-		logWriter = os.Stdout
-	}
-RUN:
-	locker.Add(1)
-	func() {
-		defer func() {
-			if err := recover(); err == nil {
-				// 非panic,不需要恢复
-				end = true
-			} else {
-				msg := ""
-				switch err.(type) {
-				case error:
-					msg = err.(error).Error()
-				case string:
-					msg = err.(string)
-				}
-				if msg != "" {
-					logWriter.Write([]byte(name + " [LOOP] crash: " + msg + "\n"))
-				}
-				// if reflect.TypeOf(err).String() == "error" {
-				// 	logWriter.Write([]byte(fmt.Sprintf("%s [LOOP] crash: %v\n", name, errors.WithStack(err.(error)))))
-				// } else {
-				// 	logWriter.Write([]byte(fmt.Sprintf("%s [LOOP] crash: %v\n", name, err)))
-				// }
-			}
-			locker.Done()
-		}()
-		f(params...)
-	}()
-	locker.Wait()
-	if end {
-		return
-	}
-	time.Sleep(time.Second * 3)
-	goto RUN
+	LoopWithWait(f, name, logWriter, time.Second*10, params...)
 }
 
 // LoopWithWait 执行循环工作，并在指定的等待时间后提供panic恢复
