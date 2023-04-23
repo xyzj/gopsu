@@ -8,6 +8,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 const (
@@ -70,7 +72,7 @@ RUN:
 				msg := ""
 				switch err.(type) {
 				case error:
-					msg = err.(error).Error()
+					msg = errors.WithStack(err.(error)).Error()
 				case string:
 					msg = err.(string)
 				}
@@ -111,7 +113,7 @@ func GoFunc(f func(params ...interface{}), name string, logWriter io.Writer, par
 				msg := ""
 				switch err.(type) {
 				case error:
-					msg = err.(error).Error()
+					msg = errors.WithStack(err.(error)).Error()
 				case string:
 					msg = err.(string)
 				}

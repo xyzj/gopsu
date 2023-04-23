@@ -2,6 +2,8 @@ package mapfx
 
 import (
 	"sync"
+
+	"github.com/pkg/errors"
 )
 
 // NewSliceMap 返回一个线程安全的基于基本数据类型的map,key为string,value为slice
@@ -20,6 +22,7 @@ type SliceMap[T byte | int8 | int | int32 | int64 | float32 | float64 | string] 
 	data   map[string][]T
 }
 
+// Store 添加内容
 func (m *SliceMap[T]) Store(key string, value []T) {
 	if key == "" {
 		return
@@ -28,6 +31,8 @@ func (m *SliceMap[T]) Store(key string, value []T) {
 	m.data[key] = value
 	m.locker.Unlock()
 }
+
+// StoreItem 向指定的key的切片内添加一个值，重复值不会添加
 func (m *SliceMap[T]) StoreItem(key string, item T) {
 	if key == "" {
 		return
@@ -45,6 +50,8 @@ func (m *SliceMap[T]) StoreItem(key string, item T) {
 		m.data[key] = []T{item}
 	}
 }
+
+// Delete 删除内容
 func (m *SliceMap[T]) Delete(key string) {
 	if key == "" {
 		return
@@ -53,17 +60,23 @@ func (m *SliceMap[T]) Delete(key string) {
 	delete(m.data, key)
 	m.locker.Unlock()
 }
+
+// Clean 清空内容
 func (m *SliceMap[T]) Clean() {
 	m.locker.Lock()
 	m.data = make(map[string][]T)
 	m.locker.Unlock()
 }
+
+// Len 获取长度
 func (m *SliceMap[T]) Len() int {
 	m.locker.RLock()
 	l := len(m.data)
 	m.locker.RUnlock()
 	return l
 }
+
+// Load 读取一个值
 func (m *SliceMap[T]) Load(key string) ([]T, bool) {
 	m.locker.RLock()
 	v, ok := m.data[key]
@@ -73,7 +86,22 @@ func (m *SliceMap[T]) Load(key string) ([]T, bool) {
 	}
 	return v, false
 }
-func (m *SliceMap[T]) Has(key string, item any) bool {
+
+// Has 判断Key是否存在
+func (m *SliceMap[T]) Has(key string) bool {
+	if key == "" {
+		return false
+	}
+	m.locker.RLock()
+	defer m.locker.RUnlock()
+	if _, ok := m.data[key]; ok {
+		return true
+	}
+	return false
+}
+
+// HasItem 判断Key-item是否存在
+func (m *SliceMap[T]) HasItem(key string, item any) bool {
 	if key == "" {
 		return false
 	}
@@ -88,6 +116,8 @@ func (m *SliceMap[T]) Has(key string, item any) bool {
 	}
 	return false
 }
+
+// Clone 深拷贝map,可安全编辑
 func (m *SliceMap[T]) Clone() map[string][]T {
 	x := make(map[string][]T)
 	m.locker.RLock()
@@ -97,11 +127,13 @@ func (m *SliceMap[T]) Clone() map[string][]T {
 	m.locker.RUnlock()
 	return x
 }
+
+// ForEach 遍历map的key和value
 func (m *SliceMap[T]) ForEach(f func(key string, value []T) bool) {
 	x := m.Clone()
 	defer func() {
 		if err := recover(); err != nil {
-			println(err.(error).Error())
+			println(errors.WithStack(err.(error)).Error())
 		}
 	}()
 	for k, v := range x {
