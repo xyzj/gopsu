@@ -6,6 +6,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+// 使用示例：
+// var a = NewBaseMap[string]()
+// a.Store("a","1")
+
 // NewBaseMap 返回一个线程安全的基于基本数据类型的map,key为string,value为基本数据类型，支持空结构
 //
 //	value类型支持 byte | int8 | int | int32 | int64 | float32 | float64 | string | struct{}

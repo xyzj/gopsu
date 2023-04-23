@@ -6,16 +6,22 @@ import (
 	"github.com/pkg/errors"
 )
 
+// 使用示例：
+// type sample struct {
+// 	a string
+// }
+//
+// var z = NewStructMap[sample]()
+// z.Store("a", &sample{
+// 	a: "132313",
+// })
+
 // StructMapI 结构体接口
 //
-//	just add an empty func named DoNothing()
-type StructMapI interface {
-	DoNoting()
-}
+//	这里不用any,因为any需要在代码中指定类型，使用泛型，在编译时会检查类型
+type StructMapI interface{}
 
 // NewStructMap 返回一个线程安全的基于基本数据类型的map,key为string,value为StructMapI 类型的struct
-//
-//	StructMapI 只需要一个DoNothing()方法，不需要做任何事情
 func NewStructMap[T StructMapI]() *StructMap[T] {
 	return &StructMap[T]{
 		locker: sync.RWMutex{},

@@ -6,6 +6,15 @@ import (
 	"github.com/pkg/errors"
 )
 
+// 使用示例：
+// var a = NewSliceMap[int64]()
+// a.Store("a",[]int64{1})
+// -- a["a"]=[]int64{1}
+// a.StoreItem("a",int64(1)) // 重复值不会被添加
+// a.StoreItem("a",int64(2))
+// a.StoreItem("a",int64(3))
+// -- a["a"]=[]int64{1,2,3}
+
 // NewSliceMap 返回一个线程安全的基于基本数据类型的map,key为string,value为slice
 //
 // value类型支持 byte | int8 | int | int32 | int64 | float32 | float64 | string
