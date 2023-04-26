@@ -77,10 +77,10 @@ func (u *UniqueSlice[T]) Has(item T) bool {
 // NewUniqueSliceSafe 利用map构建一个内容不重复的slice
 //
 //	线程安全
-func NewUniqueSliceSafe[T byte | int8 | int | int32 | int64 | float32 | float64 | string]() *UniqueSlice[T] {
-	return &UniqueSlice[T]{
-		// locker: sync.RWMutex{},
-		data: make(map[T]struct{}),
+func NewUniqueSliceSafe[T byte | int8 | int | int32 | int64 | float32 | float64 | string]() *UniqueSliceSafe[T] {
+	return &UniqueSliceSafe[T]{
+		locker: sync.RWMutex{},
+		data:   make(map[T]struct{}),
 	}
 }
 
