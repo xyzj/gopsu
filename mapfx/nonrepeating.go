@@ -51,6 +51,9 @@ func (u *UniqueSlice[T]) StoreMany(items ...T) {
 		u.data[item] = struct{}{}
 	}
 }
+func (u *UniqueSlice[T]) Clean() {
+	u.data = make(map[T]struct{})
+}
 func (u *UniqueSlice[T]) Len() int {
 	// u.locker.RLock()
 	// defer u.locker.RUnlock()
@@ -108,6 +111,11 @@ func (u *UniqueSliceSafe[T]) StoreMany(items ...T) {
 		}
 		u.data[item] = struct{}{}
 	}
+}
+func (u *UniqueSliceSafe[T]) Clean() {
+	u.locker.Lock()
+	defer u.locker.Unlock()
+	u.data = make(map[T]struct{})
 }
 func (u *UniqueSliceSafe[T]) Len() int {
 	u.locker.RLock()
