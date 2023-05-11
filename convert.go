@@ -415,7 +415,7 @@ func Float642BcdBytes(v float64, f string) []byte {
 	}
 	for i := len(s); i > 1; i -= 2 {
 		if i == 2 {
-			if v > 0 {
+			if v >= 0 {
 				b.WriteByte(String2Byte(s[i-2:i], 16))
 			} else {
 				b.WriteByte(String2Byte(s[i-2:i], 16) + 0x80)

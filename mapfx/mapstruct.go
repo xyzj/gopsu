@@ -1,6 +1,8 @@
 package mapfx
 
 import (
+	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -99,6 +101,23 @@ func (m *StructMap[KEY, VALUE]) Has(key KEY) bool {
 		return true
 	}
 	return false
+}
+
+// HasPrefix 模糊判断Key是否存在
+func (m *StructMap[KEY, VALUE]) HasPrefix(key string) bool {
+	if key == "" {
+		return false
+	}
+	m.locker.RLock()
+	defer m.locker.RUnlock()
+	ok := false
+	for k := range m.data {
+		if strings.HasPrefix(fmt.Sprintf("%v", k), key) {
+			ok = true
+			break
+		}
+	}
+	return ok
 }
 
 // Clone 深拷贝map,可安全编辑

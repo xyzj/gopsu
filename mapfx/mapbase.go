@@ -1,6 +1,7 @@
 package mapfx
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -85,6 +86,23 @@ func (m *BaseMap[T]) Has(key string) bool {
 		return true
 	}
 	return false
+}
+
+// HasPrefix 模糊判断Key是否存在
+func (m *BaseMap[T]) HasPrefix(key string) bool {
+	if key == "" {
+		return false
+	}
+	m.locker.RLock()
+	defer m.locker.RUnlock()
+	ok := false
+	for k := range m.data {
+		if strings.HasPrefix(k, key) {
+			ok = true
+			break
+		}
+	}
+	return ok
 }
 
 // Clone 深拷贝map,可安全编辑
