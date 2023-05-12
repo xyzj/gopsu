@@ -15,6 +15,7 @@ require (
 	github.com/pebbe/zmq4 v1.2.9
 	github.com/pkg/errors v0.9.1
 	github.com/starainrt/astro v0.0.0-20220517045710-51b9f1642f72
+	github.com/streadway/amqp v1.0.0
 	github.com/tealeg/xlsx v1.0.5
 	github.com/tidwall/gjson v1.14.4
 	github.com/tidwall/sjson v1.2.5
