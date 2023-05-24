@@ -4,6 +4,7 @@ Package loopfunc ： 用于控制需要持续运行的循环方法，当方法�
 package loopfunc
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"sync"
@@ -72,7 +73,7 @@ RUN:
 				msg := ""
 				switch err.(type) {
 				case error:
-					msg = errors.WithStack(err.(error)).Error()
+					msg = fmt.Sprintf("%v", errors.WithStack(err.(error)))
 				case string:
 					msg = err.(string)
 				}
@@ -113,7 +114,7 @@ func GoFunc(f func(params ...interface{}), name string, logWriter io.Writer, par
 				msg := ""
 				switch err.(type) {
 				case error:
-					msg = errors.WithStack(err.(error)).Error()
+					msg = fmt.Sprintf("%v", errors.WithStack(err.(error)))
 				case string:
 					msg = err.(string)
 				}
