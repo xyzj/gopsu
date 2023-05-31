@@ -44,7 +44,7 @@ func (m *CrashLogger) Write(p []byte) (n int, err error) {
 //
 // params： 需要传给f的参数，f内需要进行类型转换
 func LoopFunc(f func(params ...interface{}), name string, logWriter io.Writer, params ...interface{}) {
-	LoopWithWait(f, name, logWriter, time.Second*10, params...)
+	loopAndRetry(f, name, logWriter, time.Second*10, 0, params...)
 }
 
 // LoopWithWait 执行循环工作，并在指定的等待时间后提供panic恢复
@@ -57,11 +57,31 @@ func LoopFunc(f func(params ...interface{}), name string, logWriter io.Writer, p
 //
 // params： 需要传给f的参数，f内需要进行类型转换
 func LoopWithWait(f func(params ...interface{}), name string, logWriter io.Writer, timewait time.Duration, params ...interface{}) {
+	loopAndRetry(f, name, logWriter, timewait, 0, params...)
+}
+
+// LoopWithMax 执行循环工作，并在指定的等待时间后提供panic恢复，panic次数可设置
+//
+// f: 要执行的循环方法，可控制传入参数
+//
+// name：这个方法的名称，用于错误标识
+//
+// logWriter：方法崩溃时的日志记录器，默认os.stdout
+//
+// retry：panic最大次数
+//
+// params： 需要传给f的参数，f内需要进行类型转换
+func LoopWithMax(f func(params ...interface{}), name string, logWriter io.Writer, timewait time.Duration, retry int, params ...interface{}) {
+	loopAndRetry(f, name, logWriter, timewait, retry, params...)
+}
+
+func loopAndRetry(f func(params ...interface{}), name string, logWriter io.Writer, timewait time.Duration, retry int, params ...interface{}) {
 	locker := &sync.WaitGroup{}
 	end := false
 	if logWriter == nil {
 		logWriter = os.Stdout
 	}
+	errCount := 0
 RUN:
 	locker.Add(1)
 	func() {
@@ -79,6 +99,11 @@ RUN:
 				}
 				if msg != "" {
 					logWriter.Write([]byte(name + " [LOOP] crash: " + msg + "\n"))
+				}
+				errCount++
+				if retry > 0 && errCount >= retry {
+					logWriter.Write([]byte(name + " [LOOP] the maximum number of retries has been reached, the end.\n"))
+					end = true
 				}
 				// if reflect.TypeOf(err).String() == "error" {
 				// 	logWriter.Write([]byte(fmt.Sprintf("%s [LOOP] crash: %v\n", name, errors.WithStack(err.(error)))))
