@@ -593,3 +593,28 @@ func SignedBytes2Int64(b []byte) int64 {
 		return x
 	}
 }
+
+// Days2String 将天数转换为年月日显示
+func Days2String(days int) string {
+	t1, _ := time.Parse("2006-01-02", "0001-01-01")
+	t2 := t1.Add(time.Hour * time.Duration(24*days))
+	y := t2.Year() - 1
+	if y < 0 {
+		y = 0
+	}
+	m := int(t2.Month()) - 1
+	if m < 0 {
+		m = 0
+	}
+	d := t2.Day() - 1
+	if d < 0 {
+		d = 0
+	}
+	if y == 0 {
+		if m == 0 {
+			return fmt.Sprintf("%d天", d)
+		}
+		return fmt.Sprintf("%d个月%d天", m, d)
+	}
+	return fmt.Sprintf("%d年%d个月%d天", y, m, d)
+}

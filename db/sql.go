@@ -870,7 +870,7 @@ func (p *SQLPool) QueryMultirowPage(s string, rowsCount int, keyColumeID int, pa
 	// p.queryLocker.Lock()
 	defer func() (*QueryData, error) {
 		if ex := recover(); ex != nil {
-			err = errors.WithStack(err.(error))
+			err = errors.WithStack(ex.(error))
 			return nil, err
 		}
 		// p.queryLocker.Unlock()

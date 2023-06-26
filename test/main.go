@@ -1,10 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"sync"
-
-	"github.com/xyzj/gopsu/mapfx"
 )
 
 // 结构定义
@@ -26,17 +23,7 @@ type BaseMap struct {
 }
 
 func main() {
-	a := mapfx.NewStructMap[int64, devmod]()
-	a.Store(1273678123, &devmod{
-		ID:   "23412",
-		Name: "123123",
-	})
-	println(a.HasPrefix("127"))
-	println(a.HasPrefix("27"))
-
-	b := BaseMap{
-		// sync.RWMutex{},
-		data: make(map[string]string),
-	}
-	println(fmt.Sprintf("%+v", b))
+	var a map[string]byte
+	a = nil
+	println(len(a))
 }
