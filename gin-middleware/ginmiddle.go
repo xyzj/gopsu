@@ -185,10 +185,14 @@ RUN:
 				fmt.Fprintf(io.MultiWriter(gin.DefaultWriter, os.Stdout), "cert update crash: %s\n", err.(error).Error())
 			}
 		}()
-		for range time.After(time.Hour * time.Duration(1+rand.Int31n(5))) {
-			newcert, err := tls.LoadX509KeyPair(certfile, keyfile)
-			if err == nil {
-				s.TLSConfig.Certificates[0] = newcert
+		t := time.NewTicker(time.Hour * time.Duration(1+rand.Int31n(5)))
+		for {
+			select {
+			case <-t.C:
+				newcert, err := tls.LoadX509KeyPair(certfile, keyfile)
+				if err == nil {
+					s.TLSConfig.Certificates[0] = newcert
+				}
 			}
 		}
 	}()

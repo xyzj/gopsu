@@ -1,6 +1,7 @@
 package mq
 
 import (
+	"crypto/tls"
 	"fmt"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 
 // MqttOpt mqtt 配置
 type MqttOpt struct {
+	TLSConf   *tls.Config     // tls配置
 	Subscribe map[string]byte // 订阅消息，map[topic]qos
 	ClientID  string
 	Addr      string
@@ -22,6 +24,9 @@ type MqttOpt struct {
 
 // NewMQTTClient 创建一个mqtt客户端
 func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic string, body []byte)) mqtt.Client {
+	if opt == nil {
+		return nil
+	}
 	if recvCallback == nil {
 		recvCallback = func(topic string, body []byte) {}
 	}
@@ -65,6 +70,6 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 			case <-t.C:
 			}
 		}
-	}, "mqtt", logg.DefaultWriter())
+	}, "[MQTT]", logg.DefaultWriter())
 	return client
 }

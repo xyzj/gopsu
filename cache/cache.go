@@ -192,11 +192,12 @@ func (xc *XCache) Set(k string, v interface{}, expire time.Duration) bool {
 func (xc *XCache) SetWithHold(k string, v interface{}, expire, timeout time.Duration) bool {
 	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
 	defer cancel()
+	t := time.NewTicker(time.Millisecond * 300)
 	for {
 		select {
 		case <-ctx.Done():
 			return false
-		case <-time.After(time.Millisecond * 300):
+		case <-t.C:
 			if xc.Set(k, v, expire) {
 				return true
 			}

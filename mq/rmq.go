@@ -2,7 +2,6 @@ package mq
 
 import (
 	"crypto/tls"
-	"encoding/base64"
 	"fmt"
 	"strings"
 	"sync"
@@ -11,13 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 	"github.com/xyzj/gopsu"
-	json "github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/logger"
-)
-
-const (
-	xMaxLength  = 77777
-	xMessageTTL = 600000
 )
 
 // RabbitMQData rabbit-mq data send struct
@@ -127,6 +120,7 @@ func (sessn *Session) handleReconnect() {
 				sessn.logger.Error(errors.WithStack(err.(error)).Error())
 			}
 		}()
+		t := time.NewTicker(7 * time.Second)
 		for {
 			if sessn.closeMe {
 				break
@@ -137,7 +131,7 @@ func (sessn *Session) handleReconnect() {
 				sessn.channel.Close()
 				sessn.connection.Close()
 				sessn.connection = nil
-			case <-time.After(7 * time.Second):
+			case <-t.C:
 				if sessn.IsReady() {
 					continue
 				}
@@ -217,10 +211,6 @@ func (sessn *Session) WaitReady(second int) bool {
 	tc := time.NewTicker(time.Second * time.Duration(second))
 	for {
 		select {
-		case <-time.After(time.Millisecond * 100):
-			if sessn.IsReady() {
-				return true
-			}
 		case <-tc.C:
 			if sessn.IsReady() {
 				return true
@@ -399,12 +389,4 @@ func (sessn *Session) SendCustom(d *RabbitMQData) error {
 		// sessn.connection = nil
 	}
 	return err
-}
-
-// FormatMQBody 格式化日志输出
-func FormatMQBody(d []byte) string {
-	if json.Valid(d) {
-		return gopsu.String(d)
-	}
-	return base64.StdEncoding.EncodeToString(d)
 }
