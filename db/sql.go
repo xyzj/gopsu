@@ -240,7 +240,7 @@ func (p *SQLPool) New(tls ...string) error {
 		go func() {
 			defer func() {
 				if err := recover(); err != nil {
-					p.Logger.Error("SQL Cache file clean error:" + errors.WithStack(err.(error)).Error())
+					p.Logger.Error("[DB] SQL Cache file clean error:" + errors.WithStack(err.(error)).Error())
 				}
 			}()
 			t := time.NewTicker(time.Minute * 45)
@@ -260,7 +260,7 @@ func (p *SQLPool) New(tls ...string) error {
 			go func() {
 				defer func() {
 					if err := recover(); err != nil {
-						p.Logger.Error("SQL channel worker error:" + errors.WithStack(err.(error)).Error())
+						p.Logger.Error("[DB] SQL channel worker error:" + errors.WithStack(err.(error)).Error())
 					}
 					locker.Done()
 				}()
@@ -274,7 +274,7 @@ func (p *SQLPool) New(tls ...string) error {
 		}()
 	}
 	// 启动结束
-	p.Logger.System("Success connect to server " + p.Server)
+	p.Logger.System("[DB] Success connect to server " + p.Server)
 	return nil
 }
 
@@ -1021,7 +1021,7 @@ func (p *SQLPool) ExecV2(s string, params ...interface{}) (rowAffected, insertID
 	defer func() {
 		err := tx.Rollback()
 		if err != nil && err != sql.ErrTxDone {
-			p.Logger.Error(err.Error())
+			p.Logger.Error("[DB] " + err.Error())
 		}
 	}()
 	res, err := tx.ExecContext(ctx, s, params...)
@@ -1083,7 +1083,7 @@ func (p *SQLPool) ExecPrepare(s string, paramNum int, params ...interface{}) (er
 	defer func() {
 		err := tx.Rollback()
 		if err != nil && err != sql.ErrTxDone {
-			p.Logger.Error(err.Error())
+			p.Logger.Error("[DB] " + err.Error())
 		}
 	}()
 	for i := 0; i < l; i += paramNum {
@@ -1113,7 +1113,7 @@ func (p *SQLPool) ExecPrepareV2(s string, paramNum int, params ...interface{}) (
 	p.execLocker.Lock()
 	defer func() {
 		if err := recover(); err != nil {
-			p.Logger.Error("ExecPrepareV2 Err: " + err.(error).Error())
+			p.Logger.Error("[DB] ExecPrepareV2 Err: " + err.(error).Error())
 		}
 		p.execLocker.Unlock()
 	}()
@@ -1141,7 +1141,7 @@ func (p *SQLPool) ExecPrepareV2(s string, paramNum int, params ...interface{}) (
 	defer func() {
 		err := tx.Rollback()
 		if err != nil && err != sql.ErrTxDone {
-			p.Logger.Error(err.Error())
+			p.Logger.Error("[DB] " + err.Error())
 		}
 	}()
 	rowAffected := int64(0)
@@ -1208,7 +1208,7 @@ func (p *SQLPool) ExecBatch(s []string) (err error) {
 	defer func() {
 		err := tx.Rollback()
 		if err != nil && err != sql.ErrTxDone {
-			p.Logger.Error(err.Error())
+			p.Logger.Error("[DB] " + err.Error())
 		}
 	}()
 	for _, v := range s {

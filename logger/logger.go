@@ -1,10 +1,10 @@
 package logger
 
 import (
-	"fmt"
 	"io"
-
-	"github.com/xyzj/gopsu/tools"
+	"os"
+	"time"
+	"unsafe"
 )
 
 const (
@@ -28,10 +28,10 @@ type Logger interface {
 	Warning(msg string)
 	Error(msg string)
 	System(msg string)
-	DebugFormat(f string, msg ...interface{})
-	InfoFormat(f string, msg ...interface{})
-	WarningFormat(f string, msg ...interface{})
-	ErrorFormat(f string, msg ...interface{})
+	// DebugFormat(f string, msg ...interface{})
+	// InfoFormat(f string, msg ...interface{})
+	// WarningFormat(f string, msg ...interface{})
+	// ErrorFormat(f string, msg ...interface{})
 	DefaultWriter() io.Writer
 }
 
@@ -50,17 +50,17 @@ func (l *NilLogger) Warning(msg string) {}
 // Error Error
 func (l *NilLogger) Error(msg string) {}
 
-// DebugFormat Debug
-func (l *NilLogger) DebugFormat(f string, msg ...interface{}) {}
+// // DebugFormat Debug
+// func (l *NilLogger) DebugFormat(f string, msg ...interface{}) {}
 
-// InfoFormat Info
-func (l *NilLogger) InfoFormat(f string, msg ...interface{}) {}
+// // InfoFormat Info
+// func (l *NilLogger) InfoFormat(f string, msg ...interface{}) {}
 
-// WarningFormat Warning
-func (l *NilLogger) WarningFormat(f string, msg ...interface{}) {}
+// // WarningFormat Warning
+// func (l *NilLogger) WarningFormat(f string, msg ...interface{}) {}
 
-// ErrorFormat Error
-func (l *NilLogger) ErrorFormat(f string, msg ...interface{}) {}
+// // ErrorFormat Error
+// func (l *NilLogger) ErrorFormat(f string, msg ...interface{}) {}
 
 // System System
 func (l *NilLogger) System(msg string) {}
@@ -107,8 +107,10 @@ func (l *NilLogger) DefaultWriter() io.Writer { return nil }
 
 // StdLogger mx log
 type StdLogger struct {
+	cout     io.Writer
 	out      io.Writer
-	logLevel int
+	clevel   map[byte]struct{}
+	logLevel byte
 }
 
 // DefaultWriter out
@@ -117,13 +119,13 @@ func (l *StdLogger) DefaultWriter() io.Writer {
 }
 
 // WriteLog 写日志
-func (l *StdLogger) writeLog(msg string, level int) {
-	if l.logLevel < 1 {
-		return
-	}
+func (l *StdLogger) writeLog(msg string, level byte) {
 	// 写日志
-	if l.logLevel == 1 || level >= l.logLevel {
-		l.out.Write(tools.Bytes(msg))
+	if level >= l.logLevel {
+		l.out.Write(toBytes(msg))
+	}
+	if _, ok := l.clevel[level]; ok {
+		l.cout.Write(toBytes(time.Now().Format(ShortTimeFormat) + msg + "\n"))
 	}
 }
 
@@ -152,25 +154,25 @@ func (l *StdLogger) System(msg string) {
 	l.writeLog(msg, logSystem)
 }
 
-// DebugFormat writelog with level 10
-func (l *StdLogger) DebugFormat(f string, msg ...interface{}) {
-	l.writeLog(fmt.Sprintf(f, msg...), logDebug)
-}
+// // DebugFormat writelog with level 10
+// func (l *StdLogger) DebugFormat(f string, msg ...interface{}) {
+// 	l.writeLog(fmt.Sprintf(f, msg...), logDebug)
+// }
 
-// InfoFormat writelog with level 20
-func (l *StdLogger) InfoFormat(f string, msg ...interface{}) {
-	l.writeLog(fmt.Sprintf(f, msg...), logInfo)
-}
+// // InfoFormat writelog with level 20
+// func (l *StdLogger) InfoFormat(f string, msg ...interface{}) {
+// 	l.writeLog(fmt.Sprintf(f, msg...), logInfo)
+// }
 
-// WarningFormat writelog with level 30
-func (l *StdLogger) WarningFormat(f string, msg ...interface{}) {
-	l.writeLog(fmt.Sprintf(f, msg...), logWarning)
-}
+// // WarningFormat writelog with level 30
+// func (l *StdLogger) WarningFormat(f string, msg ...interface{}) {
+// 	l.writeLog(fmt.Sprintf(f, msg...), logWarning)
+// }
 
-// ErrorFormat writelog with level 40
-func (l *StdLogger) ErrorFormat(f string, msg ...interface{}) {
-	l.writeLog(fmt.Sprintf(f, msg...), logError)
-}
+// // ErrorFormat writelog with level 40
+// func (l *StdLogger) ErrorFormat(f string, msg ...interface{}) {
+// 	l.writeLog(fmt.Sprintf(f, msg...), logError)
+// }
 
 // NewLogger init logger
 //
@@ -181,33 +183,60 @@ func (l *StdLogger) ErrorFormat(f string, msg ...interface{}) {
 // logLevel 日志等级，1-输出到控制台，10-debug（输出到控制台和文件）,20-info（输出到文件）,30-warning（输出到文件）,40-error（输出到控制台和文件）,90-system（输出到控制台和文件）
 //
 // logDays 日志文件保留天数
-func NewLogger(d, f string, logLevel, logDays int) Logger {
+func NewLogger(d, f string, logLevel, logDays int, delayWrite bool, consoleLevels ...byte) Logger {
+	var ll byte
 	switch logLevel {
-	case 1, 10, 20, 30, 40, 90:
+	case 10, 20, 30, 40, 90:
+		ll = byte(logLevel)
 	default:
-		logLevel = 1
+		ll = 10
 	}
-	if f == "" || logLevel == 1 {
+	if f == "" {
 		return NewConsoleLogger()
 	}
 	opt := &OptLog{
 		FileDir:       d,
 		Filename:      f,
-		AutoRoll:      logLevel >= 10,
+		AutoRoll:      ll >= 10,
 		MaxDays:       logDays,
 		ZipFile:       logDays > 7,
-		SyncToConsole: logLevel <= 10,
+		SyncToConsole: ll <= 10,
+		DelayWrite:    delayWrite,
+	}
+	cl := make(map[byte]struct{})
+	if !opt.SyncToConsole {
+		for _, v := range consoleLevels {
+			cl[v] = struct{}{}
+		}
 	}
 	return &StdLogger{
-		logLevel: logLevel,
+		logLevel: ll,
 		out:      NewWriter(opt),
+		cout:     os.Stdout,
+		clevel:   cl,
 	}
 }
 
 // NewConsoleLogger 返回一个纯控制台日志输出器
 func NewConsoleLogger() Logger {
 	return &StdLogger{
-		logLevel: 1,
-		out:      NewWriter(nil),
+		// out:      NewWriter(nil),
+		logLevel: 10,
+		cout:     os.Stdout,
+		clevel: map[byte]struct{}{
+			10: struct{}{},
+			20: struct{}{},
+			30: struct{}{},
+			40: struct{}{},
+			90: struct{}{},
+		},
 	}
+}
+func toBytes(s string) []byte {
+	return *(*[]byte)(unsafe.Pointer(
+		&struct {
+			string
+			cap int
+		}{s, len(s)},
+	))
 }

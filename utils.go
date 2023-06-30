@@ -140,6 +140,8 @@ func GetNewCryptoWorker(cryptoType byte) *CryptoWorker {
 		h.cryptoHash = sha512.New()
 	case CryptoHMACSHA1:
 		h.cryptoHash = hmac.New(sha1.New, []byte{})
+	case CryptoHMACSHA256:
+		h.cryptoHash = hmac.New(sha256.New, []byte{})
 	}
 	return h
 }
@@ -263,14 +265,20 @@ func (h *CryptoWorker) Hash(b []byte) string {
 	h.cryptoLocker.Lock()
 	defer h.cryptoLocker.Unlock()
 	switch h.cryptoType {
-	case CryptoMD5, CryptoSHA256, CryptoSHA512:
+	case CryptoMD5, CryptoSHA256, CryptoSHA512, CryptoHMACSHA1, CryptoHMACSHA256:
 		h.cryptoHash.Reset()
 		h.cryptoHash.Write(b)
 		return fmt.Sprintf("%x", h.cryptoHash.Sum(nil))
-	case CryptoHMACSHA1:
-		if h.cryptoHash == nil {
-			return ""
-		}
+	}
+	return ""
+}
+
+// HashB64 返回base64编码格式
+func (h *CryptoWorker) HashB64(b []byte) string {
+	h.cryptoLocker.Lock()
+	defer h.cryptoLocker.Unlock()
+	switch h.cryptoType {
+	case CryptoMD5, CryptoSHA256, CryptoSHA512, CryptoHMACSHA1, CryptoHMACSHA256:
 		h.cryptoHash.Reset()
 		h.cryptoHash.Write(b)
 		return base64.StdEncoding.EncodeToString(h.cryptoHash.Sum(nil))

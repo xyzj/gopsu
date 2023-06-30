@@ -2,12 +2,12 @@ package mq
 
 import (
 	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
@@ -25,11 +25,11 @@ const (
 type RabbitMQOpt struct {
 	TLSConf            *tls.Config // tls配置
 	Subscribe          []string    // 订阅topic
-	ExchangeName       string      // 交换机名称
 	Addr               string      // 地址
 	Username           string      // 用户名
 	Passwd             string      // 密码
 	VHost              string      // vhost名称
+	ExchangeName       string      // 交换机名称
 	QueueName          string      // 队列名
 	QueueDurable       bool        // 队列是否持久化
 	QueueAutoDelete    bool        // 队列在不用时是否删除
@@ -37,7 +37,7 @@ type RabbitMQOpt struct {
 	ExchangeAutoDelete bool        //交换机在不用时是否删除
 }
 
-func rmqConnect(opt *RabbitMQOpt) (*amqp.Connection, *amqp.Channel, error) {
+func rmqConnect(opt *RabbitMQOpt, isConsumer bool) (*amqp.Connection, *amqp.Channel, error) {
 	var connstr string
 	var conn *amqp.Connection
 	var err error
@@ -56,6 +56,7 @@ func rmqConnect(opt *RabbitMQOpt) (*amqp.Connection, *amqp.Channel, error) {
 		conn.Close()
 		return nil, nil, err
 	}
+REEXCHANGE:
 	err = channel.ExchangeDeclare(
 		opt.ExchangeName,       // name
 		"topic",                // type
@@ -68,12 +69,56 @@ func rmqConnect(opt *RabbitMQOpt) (*amqp.Connection, *amqp.Channel, error) {
 	if err != nil {
 		if strings.Contains(err.Error(), "durable") {
 			opt.ExchangeDurable = !opt.ExchangeDurable
+			time.Sleep(time.Second)
+			goto REEXCHANGE
 		}
 		if strings.Contains(err.Error(), "auto_delete") {
 			opt.ExchangeAutoDelete = !opt.ExchangeAutoDelete
+			time.Sleep(time.Second)
+			goto REEXCHANGE
 		}
 		conn.Close()
 		return nil, nil, err
+	}
+	if isConsumer {
+	REQUEUE:
+		_, err = channel.QueueDeclare(
+			opt.QueueName,       // name
+			opt.QueueDurable,    // durable
+			opt.QueueAutoDelete, // delete when unused
+			false,               // exclusive
+			false,               // no-wait
+			amqp.Table{
+				"x-max-length":  xMaxLength,
+				"x-message-ttl": xMessageTTL,
+			}, // arguments
+		)
+		if err != nil {
+			if strings.Contains(err.Error(), "durable") {
+				opt.QueueDurable = !opt.QueueDurable
+				time.Sleep(time.Second)
+				goto REQUEUE
+			}
+			if strings.Contains(err.Error(), "auto_delete") {
+				opt.QueueAutoDelete = !opt.QueueAutoDelete
+				time.Sleep(time.Second)
+				goto REQUEUE
+			}
+			channel.Close()
+			conn.Close()
+			return nil, nil, err
+		}
+		for _, v := range opt.Subscribe {
+			if err := channel.QueueBind(opt.QueueName,
+				v,
+				opt.ExchangeName,
+				false,
+				nil); err != nil {
+				channel.Close()
+				conn.Close()
+				return nil, nil, err
+			}
+		}
 	}
 	return conn, channel, nil
 }
@@ -93,34 +138,10 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 		recvCallback = func(topic string, body []byte) {}
 	}
 	go loopfunc.LoopFunc(func(params ...interface{}) {
-		conn, channel, err := rmqConnect(opt)
+		conn, channel, err := rmqConnect(opt, true)
 		if err != nil {
 			panic(err)
 		}
-		_, err = channel.QueueDeclare(
-			opt.QueueName,       // name
-			opt.QueueDurable,    // durable
-			opt.QueueAutoDelete, // delete when unused
-			false,               // exclusive
-			false,               // no-wait
-			amqp.Table{
-				"x-max-length":  xMaxLength,
-				"x-message-ttl": xMessageTTL,
-			}, // arguments
-		)
-		if err != nil {
-			channel.Close()
-			conn.Close()
-			panic(err)
-		}
-		for _, v := range opt.Subscribe {
-			channel.QueueBind(opt.QueueName,
-				v,
-				opt.ExchangeName,
-				false,
-				nil)
-		}
-		logg.System("[RMQ-C] Success connect to " + opt.Addr)
 		rcvMQ, err := channel.Consume(
 			opt.QueueName,
 			"",    // Consumer
@@ -134,19 +155,20 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 			conn.Close()
 			panic(err)
 		}
+		logg.System("[RMQ-C] Success connect to " + opt.Addr)
 		for {
 			select {
 			case d := <-rcvMQ:
 				if d.ContentType == "" && d.DeliveryTag == 0 { // 接收错误，可能服务断开
 					channel.Close()
 					conn.Close()
-					panic(errors.New("Rcv Err: Possible service error"))
+					panic(errors.New("[RMQ-C] E: Possible service error"))
 				}
-				logg.Debug("[RMQ-C] D: " + d.RoutingKey + " | " + FormatMQBody(d.Body))
+				logg.Debug("[RMQ-C] D:" + d.RoutingKey + " | " + FormatMQBody(d.Body, ""))
 				func() {
 					defer func() {
 						if err := recover(); err != nil {
-							logg.Error(fmt.Sprintf("%+v", errors.WithStack(err.(error))))
+							logg.Error(fmt.Sprintf("[RMQ-C] E: calllback error, %+v", errors.WithStack(err.(error))))
 						}
 					}()
 					recvCallback(d.RoutingKey, d.Body)
@@ -179,6 +201,7 @@ type rmqSendData struct {
 	expire time.Duration
 	body   []byte
 	topic  string
+	format string
 }
 
 // NewRMQProducer 新的rmq生产者
@@ -193,7 +216,7 @@ func NewRMQProducer(opt *RabbitMQOpt, logg logger.Logger) *RMQProducer {
 		sendData: make(chan *rmqSendData, 1000),
 	}
 	go loopfunc.LoopFunc(func(params ...interface{}) {
-		conn, channel, err := rmqConnect(opt)
+		conn, channel, err := rmqConnect(opt, false)
 		if err != nil {
 			panic(err)
 		}
@@ -221,13 +244,12 @@ func NewRMQProducer(opt *RabbitMQOpt, logg logger.Logger) *RMQProducer {
 				)
 				if err != nil {
 					logg.Error("[RMQ-P] E:" + err.Error())
+					sender.ready = false
 					channel.Close()
 					conn.Close()
-					sender.ready = false
 					panic(err)
-				} else {
-					logg.Debug("[RMQ-P] D: " + d.topic + " | " + FormatMQBody(d.body))
 				}
+				logg.Debug("[RMQ-P] D:" + d.topic + " | " + FormatMQBody(d.body, d.format))
 			}
 		}
 	}, "[RMQ-P]", logg.DefaultWriter())
@@ -235,9 +257,15 @@ func NewRMQProducer(opt *RabbitMQOpt, logg logger.Logger) *RMQProducer {
 }
 
 // FormatMQBody 格式化日志输出
-func FormatMQBody(d []byte) string {
+func FormatMQBody(d []byte, format string) string {
 	if json.Valid(d) {
 		return gopsu.String(d)
 	}
-	return base64.StdEncoding.EncodeToString(d)
+	return strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return r
+		}
+		return -1
+	}, gopsu.String(d))
+	// return base64.StdEncoding.EncodeToString(d)
 }

@@ -1,12 +1,12 @@
 package main
 
 import (
+	"encoding/json"
+	"strings"
 	"sync"
-	"time"
+	"unicode"
 
 	"github.com/xyzj/gopsu"
-	"github.com/xyzj/gopsu/logger"
-	"github.com/xyzj/gopsu/mq"
 )
 
 // 结构定义
@@ -27,38 +27,18 @@ type BaseMap struct {
 	data map[string]string
 }
 
-func main() {
-	opt := &mq.RabbitMQOpt{
-		Subscribe:       []string{"test.#"},
-		ExchangeName:    "luwak_topic",
-		Addr:            "192.168.50.83:5672",
-		Username:        "arx7",
-		Passwd:          "arbalest",
-		VHost:           "",
-		QueueName:       "test_" + gopsu.GetRandomString(10, true),
-		QueueDurable:    false,
-		QueueAutoDelete: true,
+func FormatMQBody(d []byte) string {
+	if json.Valid(d) {
+		return gopsu.String(d)
 	}
-	opt2 := &mq.RabbitMQOpt{
-		Subscribe:       []string{"test.#"},
-		ExchangeName:    "luwak_topic",
-		Addr:            "192.168.50.83:5672",
-		Username:        "arx7",
-		Passwd:          "arbalest",
-		VHost:           "",
-		QueueName:       "test_" + gopsu.GetRandomString(10, true),
-		QueueDurable:    false,
-		QueueAutoDelete: true,
-	}
-	mq.NewRMQConsumer(opt, logger.NewConsoleLogger(), func(topic string, body []byte) {
-		println("recv: "+topic, len(body))
-	})
-	sen := mq.NewRMQProducer(opt2, logger.NewConsoleLogger())
-	go func() {
-		for {
-			time.Sleep(time.Second * 5)
-			sen.Send("test.abc", []byte(gopsu.GetRandomString(20, true)), 0)
+	return strings.Map(func(r rune) rune {
+		if unicode.IsPrint(r) {
+			return r
 		}
-	}()
-	select {}
+		return -1
+	}, gopsu.String(d))
+	// return base64.StdEncoding.EncodeToString(d)
+}
+func main() {
+	println(FormatMQBody([]byte("skjhdf23ldsfhasdf")))
 }
