@@ -15,7 +15,13 @@ import (
 	gingzip "github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/xyzj/gopsu"
+
+	// 载入资源
+	_ "embed"
 )
+
+//go:embed favicon.webp
+var favicon []byte
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
@@ -38,17 +44,17 @@ const (
 // ServiceOption 通用化http框架
 type ServiceOption struct {
 	EngineFunc   func() *gin.Engine
+	Hosts        []string
 	CertFile     string
 	KeyFile      string
-	HTTPPort     int
-	HTTPSPort    int
-	Hosts        []string
+	LogFile      string
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 	IdleTimeout  time.Duration
-	Debug        bool
-	LogFile      string
+	HTTPPort     int
+	HTTPSPort    int
 	LogDays      int
+	Debug        bool
 }
 
 // ListenAndServeWithOption 启动服务
@@ -76,16 +82,29 @@ func ListenAndServeWithOption(opt *ServiceOption) {
 	}
 	// 路由处理
 	var findRoot = false
+	var findIcon = false
 	h := opt.EngineFunc()
 	for _, v := range h.Routes() {
 		if v.Path == "/" {
 			findRoot = true
+			continue
+		}
+		if v.Path == "/favicon.ico" {
+			findIcon = true
+		}
+		if findRoot && findIcon {
 			break
 		}
 	}
 	if !findRoot {
 		h.GET("/", PageDefault)
 	}
+	if !findIcon {
+		h.GET("/favicon.ico", func(c *gin.Context) {
+			c.Writer.Write(favicon)
+		})
+	}
+
 	// 启动https服务
 	if opt.HTTPSPort > 0 {
 		go func() {

@@ -164,7 +164,7 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 					conn.Close()
 					panic(errors.New("[RMQ-C] E: Possible service error"))
 				}
-				logg.Debug("[RMQ-C] D:" + d.RoutingKey + " | " + FormatMQBody(d.Body, ""))
+				logg.Debug("[RMQ-C] D:" + d.RoutingKey + " | " + FormatMQBody(d.Body))
 				func() {
 					defer func() {
 						if err := recover(); err != nil {
@@ -201,7 +201,6 @@ type rmqSendData struct {
 	expire time.Duration
 	body   []byte
 	topic  string
-	format string
 }
 
 // NewRMQProducer 新的rmq生产者
@@ -249,7 +248,7 @@ func NewRMQProducer(opt *RabbitMQOpt, logg logger.Logger) *RMQProducer {
 					conn.Close()
 					panic(err)
 				}
-				logg.Debug("[RMQ-P] D:" + d.topic + " | " + FormatMQBody(d.body, d.format))
+				logg.Debug("[RMQ-P] D:" + d.topic + " | " + FormatMQBody(d.body))
 			}
 		}
 	}, "[RMQ-P]", logg.DefaultWriter())
@@ -257,7 +256,7 @@ func NewRMQProducer(opt *RabbitMQOpt, logg logger.Logger) *RMQProducer {
 }
 
 // FormatMQBody 格式化日志输出
-func FormatMQBody(d []byte, format string) string {
+func FormatMQBody(d []byte) string {
 	if json.Valid(d) {
 		return gopsu.String(d)
 	}
