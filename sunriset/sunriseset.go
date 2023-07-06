@@ -13,6 +13,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/xyzj/gopsu/mapfx"
 )
 
 // Result 日出日落结果
@@ -26,7 +28,7 @@ type Result struct {
 // Params The Parameters struct can also be used to manipulate the data and get the sunrise and sunset
 // sunrise/sunset int hh*60+mm
 type Params struct {
-	SunResult sync.Map
+	SunResult *mapfx.StructMap[string, Result]
 	Latitude  float64
 	Longitude float64
 	UtcOffset float64
@@ -73,10 +75,10 @@ func (p *Params) Calculation() bool {
 		var feb29 = &Result{
 			Month:   2,
 			Day:     29,
-			Sunrise: feb.(*Result).Sunrise,
-			Sunset:  feb.(*Result).Sunset,
+			Sunrise: feb.Sunrise,
+			Sunset:  feb.Sunset,
 		}
-		p.SunResult.LoadOrStore("0229", feb29)
+		p.SunResult.Store("0229", feb29)
 	} else {
 		return false
 	}
@@ -90,7 +92,7 @@ func (p *Params) Get(month, day int) (rise, set int) {
 	}
 	r, ok := p.SunResult.Load(fmt.Sprintf("%02d%02d", month, day))
 	if ok {
-		return r.(*Result).Sunrise, r.(*Result).Sunset
+		return r.Sunrise, r.Sunset
 	}
 	return 0, 0
 }

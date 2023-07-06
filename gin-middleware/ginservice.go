@@ -3,7 +3,6 @@ package ginmiddleware
 import (
 	"crypto/tls"
 	"fmt"
-	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -22,10 +21,6 @@ import (
 
 //go:embed favicon.webp
 var favicon []byte
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 /*
 // ServiceProtocol http协议类型
@@ -57,6 +52,33 @@ type ServiceOption struct {
 	Debug        bool
 }
 
+// ListenAndServe 启用监听
+// port：端口号
+// h： http.hander, like gin.New()
+func ListenAndServe(port int, h *gin.Engine) error {
+	ListenAndServeWithOption(&ServiceOption{
+		HTTPPort:   port,
+		EngineFunc: func() *gin.Engine { return h },
+	})
+	return nil
+}
+
+// ListenAndServeTLS 启用TLS监听
+// port：端口号
+// h： http.hander, like gin.New()
+// certfile： cert file path
+// keyfile： key file path
+// clientca: 客户端根证书用于验证客户端合法性
+func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, clientca ...string) error {
+	ListenAndServeWithOption(&ServiceOption{
+		EngineFunc: func() *gin.Engine { return h },
+		HTTPSPort:  port,
+		CertFile:   certfile,
+		KeyFile:    keyfile,
+	})
+	return nil
+}
+
 // ListenAndServeWithOption 启动服务
 func ListenAndServeWithOption(opt *ServiceOption) {
 	if opt.HTTPPort == 0 && opt.HTTPSPort == 0 {
@@ -77,7 +99,7 @@ func ListenAndServeWithOption(opt *ServiceOption) {
 	}
 	if opt.EngineFunc == nil {
 		opt.EngineFunc = func() *gin.Engine {
-			return LiteEngine("", 0)
+			return LiteEngine(opt.LogFile, opt.LogDays, opt.Hosts...)
 		}
 	}
 	// 路由处理
@@ -133,7 +155,7 @@ func ListenAndServeWithOption(opt *ServiceOption) {
 								Certificates: []tls.Certificate{cc},
 							}
 						}
-						time.Sleep(time.Hour * time.Duration(6+rand.Int31n(7)))
+						time.Sleep(time.Hour * 23)
 					}
 				}()
 				time.Sleep(time.Second)

@@ -2,24 +2,15 @@ package ginmiddleware
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"fmt"
-	"io"
 	"io/ioutil"
-	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
-	"github.com/gin-contrib/cors"
-	gingzip "github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -29,48 +20,6 @@ import (
 	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/rate"
 )
-
-// NewGinEngine 返回一个新的gin路由
-// logName：日志文件名
-// logDays：日志保留天数
-// logLevel：日志等级（已废弃）
-func NewGinEngine(logDir, logName string, logDays int, logLevel ...int) *gin.Engine {
-	r := gin.New()
-	// 中间件
-	//cors
-	r.Use(cors.New(cors.Config{
-		MaxAge:           time.Hour * 24,
-		AllowAllOrigins:  true,
-		AllowCredentials: true,
-		AllowWildcard:    true,
-		AllowMethods:     []string{"*"},
-		AllowHeaders:     []string{"*"},
-	}))
-	// 日志
-	r.Use(LoggerWithRolling(logDir, logName, logDays))
-	// 错误恢复
-	// r.Use(gin.Recovery())
-	r.Use(Recovery())
-	// 数据压缩
-	r.Use(gingzip.Gzip(9))
-	// 黑名单
-	r.Use(Blacklist(""))
-	// 读取请求参数
-	// r.Use(ReadParams())
-	// 渲染模板
-	// r.HTMLRender = multiRender()
-	// 基础路由
-	// 404,405
-	r.HandleMethodNotAllowed = true
-	r.NoMethod(Page405)
-	r.NoRoute(Page404)
-	// r.GET("/", PageDefault)
-	// r.POST("/", PageDefault)
-	r.GET("/health", PageDefault)
-	r.GET("/clearlog", CheckRequired("name"), Clearlog)
-	r.Static("/static", gopsu.JoinPathFromHere("static"))
-	return r
-}
 
 // GetSocketTimeout 获取超时时间
 func GetSocketTimeout() time.Duration {
@@ -86,118 +35,6 @@ func getSocketTimeout() time.Duration {
 		t = 300
 	}
 	return time.Second * time.Duration(t)
-}
-
-// 遍历所有路由
-// func getRoutes(h *gin.Engine) string {
-// 	var sss string
-// 	for _, v := range h.Routes() {
-// 		if strings.ContainsAny(v.Path, "*") && !strings.HasSuffix(v.Path, "filepath") {
-// 			return ""
-// 		}
-// 		if v.Path == "/" || v.Method == "HEAD" || strings.HasSuffix(v.Path, "*filepath") {
-// 			continue
-// 		}
-// 		sss += fmt.Sprintf(`<a>%s: %s</a><br><br>`, v.Method, v.Path)
-// 	}
-// 	return sss
-// }
-
-// ListenAndServe 启用监听
-// port：端口号
-// h： http.hander, like gin.New()
-func ListenAndServe(port int, h *gin.Engine) error {
-	return ListenAndServeTLS(port, h, "", "")
-}
-
-// ListenAndServeTLS 启用TLS监听
-// port：端口号
-// h： http.hander, like gin.New()
-// certfile： cert file path
-// keyfile： key file path
-// clientca: 客户端根证书用于验证客户端合法性
-func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, clientca ...string) error {
-	// 路由处理
-	var findRoot = false
-	for _, v := range h.Routes() {
-		if v.Path == "/" {
-			findRoot = true
-			break
-		}
-	}
-	if !findRoot {
-		h.GET("/", PageDefault)
-	}
-	// 设置全局超时
-	st := getSocketTimeout()
-	// 初始化
-	s := &http.Server{
-		Addr:         fmt.Sprintf(":%d", port),
-		Handler:      h,
-		ReadTimeout:  st,
-		WriteTimeout: st,
-		IdleTimeout:  st,
-	}
-	// 设置日志
-	var writer io.Writer
-	if gin.Mode() == gin.ReleaseMode {
-		writer = io.MultiWriter(gin.DefaultWriter, os.Stdout)
-	} else {
-		writer = io.MultiWriter(gin.DefaultWriter)
-	}
-	// 启动http服务
-	if strings.TrimSpace(certfile)+strings.TrimSpace(keyfile) == "" {
-		fmt.Fprintf(writer, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTP server at :"+strconv.Itoa(port))
-		return s.ListenAndServe()
-	}
-	// 初始化证书
-	var tc = &tls.Config{
-		Certificates: make([]tls.Certificate, 1),
-	}
-	var err error
-	tc.Certificates[0], err = tls.LoadX509KeyPair(certfile, keyfile)
-	if err != nil {
-		return err
-	}
-	if len(clientca) > 0 {
-		pool := x509.NewCertPool()
-		caCrt, err := ioutil.ReadFile(clientca[0])
-		if err == nil {
-			pool.AppendCertsFromPEM(caCrt)
-			tc.ClientCAs = pool
-			tc.ClientAuth = tls.RequireAndVerifyClientCert
-		}
-	}
-	s.TLSConfig = tc
-	// 启动证书维护线程
-	go renewCA(s, certfile, keyfile)
-	// 启动https
-	fmt.Fprintf(writer, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Success start HTTPS server at :"+strconv.Itoa(port))
-	return s.ListenAndServeTLS("", "")
-}
-
-// 后台更新证书
-func renewCA(s *http.Server, certfile, keyfile string) {
-RUN:
-	func() {
-		defer func() {
-			if err := recover(); err != nil {
-				fmt.Fprintf(io.MultiWriter(gin.DefaultWriter, os.Stdout), "cert update crash: %s\n", err.(error).Error())
-			}
-		}()
-		t := time.NewTicker(time.Hour * time.Duration(1+rand.Int31n(5)))
-		for {
-			select {
-			case <-t.C:
-				newcert, err := tls.LoadX509KeyPair(certfile, keyfile)
-				if err == nil {
-					s.TLSConfig.Certificates[0] = newcert
-				}
-			}
-		}
-	}()
-	time.Sleep(time.Second)
-	goto RUN
 }
 
 // XForwardedIP 替换realip
@@ -518,21 +355,6 @@ func ReadCachePB2(mydb db.SQLInterface) gin.HandlerFunc {
 	}
 }
 
-type abortRecord struct {
-	locker sync.RWMutex
-	abortC map[string]uint64
-}
-
-func (ar *abortRecord) Add(ip string) {
-	ar.locker.Lock()
-	defer ar.locker.Unlock()
-	if v, ok := ar.abortC[ip]; !ok {
-		ar.abortC[ip] = 1
-	} else {
-		atomic.AddUint64(&v, 1)
-	}
-}
-
 // Blacklist IP黑名单
 func Blacklist(filename string) gin.HandlerFunc {
 	if filename == "" {
@@ -564,12 +386,5 @@ func Blacklist(filename string) gin.HandlerFunc {
 				return
 			}
 		}
-	}
-}
-
-// AntiDDOS 阻止超流量ip
-func AntiDDOS() gin.HandlerFunc {
-	return func(c *gin.Context) {
-
 	}
 }

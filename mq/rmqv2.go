@@ -124,15 +124,16 @@ REEXCHANGE:
 }
 
 // NewRMQConsumer 创建新的rmq消费者
-func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topic string, body []byte)) {
+func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topic string, body []byte)) *bool {
+	x := false
 	if opt == nil {
-		return
+		return &x
 	}
 	if logg == nil {
 		logg = &logger.NilLogger{}
 	}
 	if len(opt.Subscribe) == 0 {
-		return
+		return &x
 	}
 	if recvCallback == nil {
 		recvCallback = func(topic string, body []byte) {}
@@ -156,10 +157,12 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 			panic(err)
 		}
 		logg.System("[RMQ-C] Success connect to " + opt.Addr)
+		x = true
 		for {
 			select {
 			case d := <-rcvMQ:
 				if d.ContentType == "" && d.DeliveryTag == 0 { // 接收错误，可能服务断开
+					x = false
 					channel.Close()
 					conn.Close()
 					panic(errors.New("[RMQ-C] E: Possible service error"))
@@ -176,12 +179,18 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 			}
 		}
 	}, "[RMQ-C]", logg.DefaultWriter())
+	return &x
 }
 
 // RMQProducer rmq发送者
 type RMQProducer struct {
 	sendData chan *rmqSendData
 	ready    bool
+}
+
+// Enable rmq发送是否可用
+func (r *RMQProducer) Enable() bool {
+	return r.ready
 }
 
 // Send rmq发送数据
