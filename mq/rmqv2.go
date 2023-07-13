@@ -25,6 +25,7 @@ const (
 type RabbitMQOpt struct {
 	TLSConf            *tls.Config // tls配置
 	Subscribe          []string    // 订阅topic
+	LogHeader          string      // 日志头
 	Addr               string      // 地址
 	Username           string      // 用户名
 	Passwd             string      // 密码
@@ -135,6 +136,9 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 	if len(opt.Subscribe) == 0 {
 		return &x
 	}
+	if opt.LogHeader == "" {
+		opt.LogHeader = "[RMQ-C] "
+	}
 	if recvCallback == nil {
 		recvCallback = func(topic string, body []byte) {}
 	}
@@ -156,7 +160,7 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 			conn.Close()
 			panic(err)
 		}
-		logg.System("[RMQ-C] Success connect to " + opt.Addr)
+		logg.System(opt.LogHeader + "Success connect to " + opt.Addr)
 		x = true
 		for {
 			select {
@@ -165,13 +169,13 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 					x = false
 					channel.Close()
 					conn.Close()
-					panic(errors.New("[RMQ-C] E: Possible service error"))
+					panic(errors.New(opt.LogHeader + "E: Possible service error"))
 				}
-				logg.Debug("[RMQ-C] D:" + d.RoutingKey + " | " + FormatMQBody(d.Body))
+				logg.Debug(opt.LogHeader + "D:" + d.RoutingKey + " | " + FormatMQBody(d.Body))
 				func() {
 					defer func() {
 						if err := recover(); err != nil {
-							logg.Error(fmt.Sprintf("[RMQ-C] E: calllback error, %+v", errors.WithStack(err.(error))))
+							logg.Error(fmt.Sprintf(opt.LogHeader+"E: calllback error, %+v", errors.WithStack(err.(error))))
 						}
 					}()
 					recvCallback(d.RoutingKey, d.Body)
@@ -220,6 +224,9 @@ func NewRMQProducer(opt *RabbitMQOpt, logg logger.Logger) *RMQProducer {
 	if logg == nil {
 		logg = &logger.NilLogger{}
 	}
+	if opt.LogHeader == "" {
+		opt.LogHeader = "[RMQ-P] "
+	}
 	var sender = &RMQProducer{
 		sendData: make(chan *rmqSendData, 1000),
 	}
@@ -228,7 +235,7 @@ func NewRMQProducer(opt *RabbitMQOpt, logg logger.Logger) *RMQProducer {
 		if err != nil {
 			panic(err)
 		}
-		logg.System("[RMQ-P] Success connect to " + opt.Addr)
+		logg.System(opt.LogHeader + "Success connect to " + opt.Addr)
 		sender.ready = true
 		for {
 			select {
@@ -251,16 +258,16 @@ func NewRMQProducer(opt *RabbitMQOpt, logg logger.Logger) *RMQProducer {
 					},
 				)
 				if err != nil {
-					logg.Error("[RMQ-P] E:" + err.Error())
+					logg.Error(opt.LogHeader + "E:" + err.Error())
 					sender.ready = false
 					channel.Close()
 					conn.Close()
 					panic(err)
 				}
-				logg.Debug("[RMQ-P] D:" + d.topic + " | " + FormatMQBody(d.body))
+				logg.Debug(opt.LogHeader + "D:" + d.topic + " | " + FormatMQBody(d.body))
 			}
 		}
-	}, "[RMQ-P]", logg.DefaultWriter())
+	}, opt.LogHeader, logg.DefaultWriter())
 	return sender
 }
 
