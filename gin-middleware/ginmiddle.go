@@ -2,6 +2,7 @@ package ginmiddleware
 
 import (
 	"context"
+	"encoding/base64"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -386,5 +387,32 @@ func Blacklist(filename string) gin.HandlerFunc {
 				return
 			}
 		}
+	}
+}
+
+// BasicAuth 返回basicauth信息
+func BasicAuth(accountpairs ...string) gin.HandlerFunc {
+	realm := "Basic realm=Identify yourself"
+	accounts := make([]string, 0)
+	for _, v := range accountpairs {
+		accounts = append(accounts, "Basic "+base64.StdEncoding.EncodeToString([]byte(v)))
+	}
+	if len(accounts) == 0 {
+		accounts = []string{
+			"Basic " + base64.StdEncoding.EncodeToString([]byte("luwak:programs33810")),
+			"Basic " + base64.StdEncoding.EncodeToString([]byte("iamarat:mynameisjerry")),
+		}
+	}
+
+	return func(c *gin.Context) {
+		if v := c.Request.Header.Get("Authorization"); v != "" {
+			for _, account := range accounts {
+				if v == account {
+					return
+				}
+			}
+		}
+		c.Header("WWW-Authenticate", realm)
+		c.AbortWithStatus(http.StatusUnauthorized)
 	}
 }
