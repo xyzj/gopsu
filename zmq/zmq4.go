@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/pebbe/zmq4"
+	zmq4 "github.com/pebbe/zmq4"
 	"github.com/pkg/errors"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/logger"
@@ -66,6 +66,7 @@ func (z *ZeroMQ) showMessages(s string, level int) {
 	if z.Verbose {
 		println(s)
 	}
+
 }
 
 func (z *ZeroMQ) coreWatcher() {

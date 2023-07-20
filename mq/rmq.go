@@ -209,15 +209,10 @@ func (sessn *Session) WaitReady(second int) bool {
 	}
 	time.Sleep(time.Second)
 	tc := time.NewTicker(time.Second * time.Duration(second))
-	for {
-		select {
-		case <-tc.C:
-			if sessn.IsReady() {
-				return true
-			}
-			return false
-		}
+	for range tc.C {
+		return sessn.IsReady()
 	}
+	return false
 }
 
 // Close 关闭

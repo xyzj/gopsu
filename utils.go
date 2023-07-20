@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"compress/zlib"
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"
@@ -25,6 +26,7 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -102,7 +104,55 @@ var (
 
 var (
 	trimReplacer = strings.NewReplacer("\r", "", "\n", "", "\000", "", "\t", " ")
+	httpClient   = &http.Client{
+		Transport: &http.Transport{
+			IdleConnTimeout:     time.Second * 10,
+			MaxConnsPerHost:     7777,
+			MaxIdleConns:        1,
+			MaxIdleConnsPerHost: 1,
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
+	}
 )
+
+// DoRequestWithTimeout 发起请求
+func DoRequestWithTimeout(req *http.Request, timeo time.Duration) (int, []byte, map[string]string, error) {
+	// 处理头
+	if req.Header.Get("Content-Type") == "" {
+		switch req.Method {
+		case "GET":
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		case "POST":
+			req.Header.Set("Content-Type", "application/json")
+		}
+	}
+	// 超时
+	ctx, cancel := context.WithTimeout(context.Background(), timeo)
+	defer cancel()
+	// 请求
+	start := time.Now()
+	resp, err := httpClient.Do(req.WithContext(ctx))
+	if err != nil {
+		return 502, nil, nil, err
+	}
+	defer resp.Body.Close()
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 502, nil, nil, err
+	}
+	end := time.Since(start).String()
+	// 处理头
+	h := make(map[string]string)
+	h["resp_from"] = req.Host
+	h["resp_duration"] = end
+	for k := range resp.Header {
+		h[k] = resp.Header.Get(k)
+	}
+	sc := resp.StatusCode
+	return sc, b, h, nil
+}
 
 // SliceFlag 切片型参数，仅支持字符串格式
 type SliceFlag []string

@@ -16,6 +16,7 @@ import (
 // Float32ToByte 32位浮点转bytes
 func Float32ToByte(float float32) []byte {
 	bits := math.Float32bits(float)
+
 	bytes := make([]byte, 4)
 	binary.LittleEndian.PutUint32(bytes, bits)
 
