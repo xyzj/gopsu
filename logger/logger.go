@@ -224,11 +224,11 @@ func NewConsoleLogger() Logger {
 		logLevel: 10,
 		cout:     os.Stdout,
 		clevel: map[byte]struct{}{
-			10: struct{}{},
-			20: struct{}{},
-			30: struct{}{},
-			40: struct{}{},
-			90: struct{}{},
+			10: {},
+			20: {},
+			30: {},
+			40: {},
+			90: {},
 		},
 	}
 }

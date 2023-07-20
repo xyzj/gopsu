@@ -3,10 +3,11 @@ package ginmiddleware
 import (
 	"context"
 	"encoding/base64"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,7 +29,7 @@ func GetSocketTimeout() time.Duration {
 }
 func getSocketTimeout() time.Duration {
 	var t = 300
-	b, err := ioutil.ReadFile(".sockettimeout")
+	b, err := os.ReadFile(".sockettimeout")
 	if err == nil {
 		t = gopsu.String2Int(gopsu.TrimString(gopsu.String(b)), 10)
 	}
@@ -130,7 +131,7 @@ func ReadParams() gin.HandlerFunc {
 			// 先检查url参数
 			x, _ = url.ParseQuery(c.Request.URL.RawQuery)
 			// 检查body，若和url里面出现相同的关键字，以body内容为准
-			if b, err := ioutil.ReadAll(c.Request.Body); err == nil {
+			if b, err := io.ReadAll(c.Request.Body); err == nil {
 				ans := gjson.ParseBytes(b)
 				if ans.IsObject() { // body是json
 					ans.ForEach(func(key gjson.Result, value gjson.Result) bool {
@@ -220,7 +221,7 @@ func CheckSecurityCode(codeType string, codeRange int) gin.HandlerFunc {
 func Delay() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
-		b, err := ioutil.ReadFile(".performance")
+		b, err := os.ReadFile(".performance")
 		if err == nil {
 			t, _ := strconv.Atoi(gopsu.TrimString(gopsu.String(b)))
 			if t > 5000 || t < 0 {
@@ -361,7 +362,7 @@ func Blacklist(filename string) gin.HandlerFunc {
 	if filename == "" {
 		filename = gopsu.JoinPathFromHere(".blacklist")
 	}
-	b, err := ioutil.ReadFile(filename)
+	b, err := os.ReadFile(filename)
 	if err != nil {
 		b = []byte{}
 	}
@@ -391,6 +392,8 @@ func Blacklist(filename string) gin.HandlerFunc {
 }
 
 // BasicAuth 返回basicauth信息
+//
+//	使用`username:password`格式提交
 func BasicAuth(accountpairs ...string) gin.HandlerFunc {
 	realm := "Basic realm=Identify yourself"
 	accounts := make([]string, 0)

@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -197,7 +196,7 @@ func (w *Writer) newFile() {
 	var err error
 	w.fno, err = os.OpenFile(w.pathNow, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0664)
 	if err != nil {
-		ioutil.WriteFile("logerr.log", tools.Bytes("log file open error: "+err.Error()), 0664)
+		os.WriteFile("logerr.log", tools.Bytes("log file open error: "+err.Error()), 0664)
 		w.withFile = false
 		return
 	}
@@ -287,14 +286,21 @@ func (w *Writer) clearFile() {
 	go func() {
 		defer func() { recover() }()
 		// 遍历文件夹
-		lstfno, ex := ioutil.ReadDir(w.logDir)
+		lstfno, ex := os.ReadDir(w.logDir)
 		if ex != nil {
 			println(fmt.Sprintf("clear log files error: %s", ex.Error()))
 			return
 		}
 		t := time.Now()
-		for _, fno := range lstfno {
-			if fno.IsDir() || !strings.Contains(fno.Name(), w.fname) { // 忽略目录，不含日志名的文件，以及当前文件
+		for _, d := range lstfno {
+			if d.IsDir() { // 忽略目录，不含日志名的文件，以及当前文件
+				continue
+			}
+			fno, err := d.Info()
+			if err != nil {
+				continue
+			}
+			if !strings.Contains(fno.Name(), w.fname) {
 				continue
 			}
 			// 比对文件生存期

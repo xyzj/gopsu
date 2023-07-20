@@ -5,7 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -102,7 +102,7 @@ func DoRequestWithTimeout(req *http.Request, timeo time.Duration) (int, []byte, 
 		return 502, nil, nil, err
 	}
 	defer resp.Body.Close()
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return 502, nil, nil, err
 	}

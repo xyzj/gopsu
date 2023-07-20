@@ -2,7 +2,6 @@ package ginmiddleware
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -94,13 +93,20 @@ func Clearlog(c *gin.Context) {
 	if dir == "" {
 		dir = gopsu.DefaultLogDir
 	}
-	lstfno, ex := ioutil.ReadDir(dir)
+	lstfno, ex := os.ReadDir(dir)
 	if ex != nil {
-		ioutil.WriteFile("ginlogerr.log", gopsu.Bytes(fmt.Sprintf("clear log files error: %s", ex.Error())), 0664)
+		os.WriteFile("ginlogerr.log", gopsu.Bytes(fmt.Sprintf("clear log files error: %s", ex.Error())), 0664)
 	}
 	t := time.Now()
-	for _, fno := range lstfno {
-		if fno.IsDir() || !strings.Contains(fno.Name(), c.Param("name")) { // 忽略目录，不含日志名的文件，以及当前文件
+	for _, d := range lstfno {
+		if d.IsDir() { // 忽略目录，不含日志名的文件，以及当前文件
+			continue
+		}
+		fno, err := d.Info()
+		if err != nil {
+			continue
+		}
+		if !strings.Contains(fno.Name(), c.Param("name")) {
 			continue
 		}
 		// 比对文件生存期

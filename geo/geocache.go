@@ -6,7 +6,7 @@ package geohash
 import (
 	"encoding/binary"
 	"errors"
-	"io/ioutil"
+	"os"
 	"sync"
 
 	"github.com/xyzj/gopsu"
@@ -178,7 +178,7 @@ func (g *GeoCache) SaveToFile() error {
 		return errors.New("no file name was specified")
 	}
 	if g.sortedset.Len() == 0 {
-		ioutil.WriteFile(gopsu.JoinPathFromHere("_geo_"+g.cachename), []byte{}, 0664)
+		os.WriteFile(gopsu.JoinPathFromHere("_geo_"+g.cachename), []byte{}, 0664)
 		return nil
 	}
 	g.locker.RLock()
@@ -195,7 +195,7 @@ func (g *GeoCache) SaveToFile() error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(gopsu.JoinPathFromHere("_geo_"+g.cachename), gopsu.CompressData(b, gopsu.ArchiveZlib), 0664)
+	return os.WriteFile(gopsu.JoinPathFromHere("_geo_"+g.cachename), gopsu.CompressData(b, gopsu.ArchiveZlib), 0664)
 }
 
 // LoadFromFile 从文件读取缓存
@@ -203,7 +203,7 @@ func (g *GeoCache) LoadFromFile() error {
 	if g.cachename == "" {
 		return errors.New("no file name was specified")
 	}
-	b, err := ioutil.ReadFile(gopsu.JoinPathFromHere("_geo_" + g.cachename))
+	b, err := os.ReadFile(gopsu.JoinPathFromHere("_geo_" + g.cachename))
 	if err != nil {
 		return err
 	}

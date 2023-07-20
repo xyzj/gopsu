@@ -1,3 +1,4 @@
+// Package mq mqtt 和 rmq 相关功能模块
 package mq
 
 import (
@@ -66,9 +67,7 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 				})
 				doneSub = true
 			}
-			select {
-			case <-t.C:
-			}
+			<-t.C
 		}
 	}, "[MQTT]", logg.DefaultWriter())
 	return client

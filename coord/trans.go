@@ -1,14 +1,10 @@
+// Package coord 坐标相关功能模块
 package coord
 
 import (
 	"math"
 	"math/rand"
-	"time"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 const (
 	offset      = 0.00669342162296594323

@@ -1,6 +1,9 @@
 package mapfx
 
-import "sync"
+import (
+	"reflect"
+	"sync"
+)
 
 // 使用示例
 //
@@ -136,6 +139,68 @@ func (u *UniqueSliceSafe[T]) Has(item T) bool {
 	defer u.locker.RUnlock()
 	for k := range u.data {
 		if k == item {
+			return true
+		}
+	}
+	return false
+}
+
+// UniqueStructSlice 一个不重复的struct切片结构
+type UniqueStructSlice[T StructMapI] struct {
+	locker sync.RWMutex
+	data   []T
+}
+
+func (u *UniqueStructSlice[T]) Store(item T) bool {
+	u.locker.Lock()
+	defer u.locker.Unlock()
+	for _, v := range u.data {
+		if reflect.DeepEqual(v, item) {
+			return false
+		}
+	}
+	u.data = append(u.data, item)
+	return true
+}
+func (u *UniqueStructSlice[T]) StoreMany(items ...T) {
+	u.locker.Lock()
+	defer u.locker.Unlock()
+	for _, item := range items {
+		found := false
+		for _, v := range u.data {
+			if reflect.DeepEqual(v, item) {
+				found = true
+				break
+			}
+		}
+		if found {
+			continue
+		}
+		u.data = append(u.data, item)
+	}
+}
+func (u *UniqueStructSlice[T]) Clean() {
+	u.locker.Lock()
+	defer u.locker.Unlock()
+	u.data = make([]T, 0)
+}
+func (u *UniqueStructSlice[T]) Len() int {
+	u.locker.RLock()
+	defer u.locker.RUnlock()
+	return len(u.data)
+}
+func (u *UniqueStructSlice[T]) Slice() []T {
+	u.locker.RLock()
+	defer u.locker.RUnlock()
+	x := make([]T, 0, len(u.data))
+	x = append(x, u.data...)
+	return x
+}
+func (u *UniqueStructSlice[T]) Has(item T) bool {
+	u.locker.RLock()
+	defer u.locker.RUnlock()
+	for _, k := range u.data {
+		if reflect.DeepEqual(k, item) {
 			return true
 		}
 	}

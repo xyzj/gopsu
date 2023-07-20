@@ -23,7 +23,6 @@ import (
 	"hash"
 	"hash/crc32"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"os"
@@ -117,10 +116,6 @@ func (f *SliceFlag) String() string {
 func (f *SliceFlag) Set(value string) error {
 	*f = append(*f, value)
 	return nil
-}
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
 }
 
 // GetNewCryptoWorker 获取新的序列化或加密管理器
@@ -345,7 +340,7 @@ func GetNewArchiveWorker(archiveType ArchiveType) *ArchiveWorker {
 	switch archiveType {
 	case ArchiveSnappy:
 		a.snappyReader = snappy.NewReader(a.in)
-		a.snappyWriter = snappy.NewWriter(a.code)
+		a.snappyWriter = snappy.NewBufferedWriter(a.code)
 	case ArchiveGZip:
 		a.gzipReader, _ = gzip.NewReader(a.in)
 		a.gzipWriter = gzip.NewWriter(a.code)
@@ -403,7 +398,7 @@ func CompressData(src []byte, t ArchiveType) []byte {
 	var in = &bytes.Buffer{}
 	switch t {
 	case ArchiveSnappy:
-		w := snappy.NewWriter(in)
+		w := snappy.NewBufferedWriter(in)
 		w.Write(src)
 		w.Close()
 	case ArchiveGZip:
@@ -1063,7 +1058,7 @@ func GetServerTLSConfig(certfile, keyfile, clientca string) (*tls.Config, error)
 		return nil, err
 	}
 	tc.Certificates = []tls.Certificate{cliCrt}
-	caCrt, err := ioutil.ReadFile(clientca)
+	caCrt, err := os.ReadFile(clientca)
 	if err != nil {
 		return nil, err
 	}
@@ -1085,7 +1080,7 @@ func GetClientTLSConfig(certfile, keyfile, rootca string) (*tls.Config, error) {
 		InsecureSkipVerify: true,
 	}
 	var err error
-	caCrt, err := ioutil.ReadFile(rootca)
+	caCrt, err := os.ReadFile(rootca)
 	if err == nil {
 		pool := x509.NewCertPool()
 		if pool.AppendCertsFromPEM(caCrt) {

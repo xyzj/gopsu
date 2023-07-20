@@ -44,7 +44,7 @@ func (m *CrashLogger) Write(p []byte) (n int, err error) {
 //
 // params： 需要传给f的参数，f内需要进行类型转换
 func LoopFunc(f func(params ...interface{}), name string, logWriter io.Writer, params ...interface{}) {
-	loopAndRetry(f, name, logWriter, time.Second*10, 0, params...)
+	loopAndRetry(f, name, logWriter, time.Second*20, 0, params...)
 }
 
 // LoopWithWait 执行循环工作，并在指定的等待时间后提供panic恢复
@@ -91,11 +91,11 @@ RUN:
 				end = true
 			} else {
 				msg := ""
-				switch err.(type) {
+				switch err := err.(type) {
 				case error:
-					msg = fmt.Sprintf("%v", errors.WithStack(err.(error)))
+					msg = fmt.Sprintf("%v", errors.WithStack(err))
 				case string:
-					msg = err.(string)
+					msg = err
 				}
 				if msg != "" {
 					logWriter.Write([]byte(name + " [LOOP] crash: " + msg + "\n"))
@@ -137,11 +137,11 @@ func GoFunc(f func(params ...interface{}), name string, logWriter io.Writer, par
 		defer func() {
 			if err := recover(); err != nil {
 				msg := ""
-				switch err.(type) {
+				switch err := err.(type) {
 				case error:
-					msg = fmt.Sprintf("%v", errors.WithStack(err.(error)))
+					msg = fmt.Sprintf("%v", errors.WithStack(err))
 				case string:
-					msg = err.(string)
+					msg = err
 				}
 				if msg != "" {
 					logWriter.Write([]byte(name + " [GoFunc] crash: " + msg + "\n"))

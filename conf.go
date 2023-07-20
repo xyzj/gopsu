@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -86,7 +85,7 @@ type ConfData struct {
 
 // Reload reload config file
 func (c *ConfData) Reload() error {
-	b, err := ioutil.ReadFile(c.fileFullPath)
+	b, err := os.ReadFile(c.fileFullPath)
 	if err != nil {
 		return err
 	}
@@ -198,7 +197,7 @@ func (c *ConfData) GetKeys() []string {
 // Save 保存配置文件
 func (c *ConfData) Save() error {
 	if c.fileFullPath == "" {
-		return fmt.Errorf("No file specified")
+		return fmt.Errorf("no file specified")
 	}
 	var ss = make([]*item, c.items.len())
 	var i int
@@ -223,7 +222,7 @@ func (c *ConfData) Save() error {
 		}
 		buf.WriteString(v.Key + "=" + v.Value + "\r\n\r\n")
 	}
-	return ioutil.WriteFile(c.fileFullPath, buf.Bytes(), 0666)
+	return os.WriteFile(c.fileFullPath, buf.Bytes(), 0666)
 }
 
 // GetAll 获取所有配置项的key，value，以json字符串返回

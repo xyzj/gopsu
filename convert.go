@@ -5,8 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
 	"math"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -293,7 +293,7 @@ func Bytes2Float32(b []byte, bigOrder bool) float32 {
 
 // Imgfile2Base64 图片转base64
 func Imgfile2Base64(s string) (string, error) {
-	f, err := ioutil.ReadFile(s)
+	f, err := os.ReadFile(s)
 	if err != nil {
 		return "", err
 	}
@@ -306,7 +306,7 @@ func Base64Imgfile(b, f string) error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(f, a, 0666)
+	return os.WriteFile(f, a, 0666)
 }
 
 // SplitStringWithLen 按制定长度分割字符串

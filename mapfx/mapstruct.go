@@ -1,3 +1,4 @@
+// Package mapfx 线程安全的字典模块
 package mapfx
 
 import (

@@ -310,7 +310,7 @@ func LoggerWithRolling(logdir, filename string, maxdays int, skippath ...string)
 // 		// 遍历文件夹
 // 		lstfno, ex := ioutil.ReadDir(f.logDir)
 // 		if ex != nil {
-// 			ioutil.WriteFile("ginlogerr.log", gopsu.Bytes(fmt.Sprintf("clear log files error: %s", ex.Error())), 0664)
+// 			os.WriteFile("ginlogerr.log", gopsu.Bytes(fmt.Sprintf("clear log files error: %s", ex.Error())), 0664)
 // 			return
 // 		}
 // 		t := time.Now()
@@ -348,7 +348,7 @@ func LoggerWithRolling(logdir, filename string, maxdays int, skippath ...string)
 // 	// 打开文件
 // 	f.fno, f.err = os.OpenFile(f.pathOld, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0664)
 // 	if f.err != nil {
-// 		ioutil.WriteFile("ginlogerr.log", gopsu.Bytes("Log file open error: "+f.err.Error()), 0664)
+// 		os.WriteFile("ginlogerr.log", gopsu.Bytes("Log file open error: "+f.err.Error()), 0664)
 // 		f.out = io.MultiWriter(os.Stdout)
 // 	} else {
 // 		if gin.Mode() == "debug" {

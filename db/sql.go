@@ -7,7 +7,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -310,13 +309,20 @@ func (p *SQLPool) checkSQL(s string) error {
 
 // 维护缓存文件数量
 func (p *SQLPool) checkCache() {
-	files, err := ioutil.ReadDir(p.CacheDir)
+	files, err := os.ReadDir(p.CacheDir)
 	if err != nil {
 		return
 	}
 	t := time.Now()
-	for _, file := range files {
-		if file.IsDir() || !strings.HasPrefix(file.Name(), p.CacheHead) {
+	for _, d := range files {
+		if d.IsDir() {
+			continue
+		}
+		file, err := d.Info()
+		if err != nil {
+			continue
+		}
+		if !strings.HasPrefix(file.Name(), p.CacheHead) {
 			continue
 		}
 		// 删除文件
@@ -366,7 +372,7 @@ func (p *SQLPool) QueryCachePB2(cacheTag string, startRow, rowsCount int) *Query
 	// 开始读取
 	if src, ok := p.memCache.GetAndExpire(cacheTag, time.Minute*30); ok {
 		if msg := src.(*QueryData); msg != nil {
-			// if src, err := ioutil.ReadFile(filepath.Join(p.CacheDir, cacheTag)); err == nil {
+			// if src, err := os.ReadFile(filepath.Join(p.CacheDir, cacheTag)); err == nil {
 			// if msg := qdUnmarshal(src); msg != nil {
 			query.Total = msg.Total
 			startRow = startRow - 1
@@ -408,7 +414,7 @@ func (p *SQLPool) QueryCacheMultirowPage(cacheTag string, startRow, rowsCount, k
 	query := &QueryData{CacheTag: cacheTag}
 	if src, ok := p.memCache.GetAndExpire(cacheTag, time.Minute*30); ok {
 		if msg := src.(*QueryData); msg != nil {
-			// if src, err := ioutil.ReadFile(filepath.Join(p.CacheDir, cacheTag)); err == nil {
+			// if src, err := os.ReadFile(filepath.Join(p.CacheDir, cacheTag)); err == nil {
 			// if msg := qdUnmarshal(src); msg != nil {
 			startRow = startRow - 1
 			query.Total = msg.Total
@@ -496,7 +502,7 @@ func (p *SQLPool) QueryOnePB2(s string, colNum int, params ...interface{}) (quer
 		return nil, err
 	default:
 		query.Total = 1
-		query.Rows = []*QueryDataRow{&QueryDataRow{Cells: make([]string, colNum)}}
+		query.Rows = []*QueryDataRow{{Cells: make([]string, colNum)}}
 		for i := range scanArgs {
 			v := values[i]
 			b, ok := v.([]byte)
@@ -682,7 +688,7 @@ func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (quer
 	// 		lo.Add(1)
 	// 		p.cacheLocker.Store(qd.CacheTag, lo)
 	// 		if b, err := qdMarshal(qd); err == nil {
-	// 			ioutil.WriteFile(filepath.Join(p.CacheDir, qd.CacheTag), b, 0664)
+	// 			os.WriteFile(filepath.Join(p.CacheDir, qd.CacheTag), b, 0664)
 	// 		}
 	// 		lo.Done()
 	// 		p.cacheLocker.Delete(qd.CacheTag)
@@ -846,7 +852,7 @@ func (p *SQLPool) queryChan(qdc chan *QueryDataChan, s string, rowsCount int, pa
 		// lo.Add(1)
 		// p.cacheLocker.Store(queryCache.CacheTag, lo)
 		// if b, err := qdMarshal(queryCache); err == nil {
-		// 	ioutil.WriteFile(filepath.Join(gopsu.DefaultCacheDir, queryCache.CacheTag), b, 0664)
+		// 	os.WriteFile(filepath.Join(gopsu.DefaultCacheDir, queryCache.CacheTag), b, 0664)
 		// }
 		// lo.Done()
 		// p.cacheLocker.Delete(queryCache.CacheTag)
@@ -961,7 +967,7 @@ func (p *SQLPool) QueryMultirowPage(s string, rowsCount int, keyColumeID int, pa
 			// lo.Add(1)
 			// p.cacheLocker.Store(queryCache.CacheTag, lo)
 			// if b, err := qdMarshal(queryCache); err == nil {
-			// 	ioutil.WriteFile(filepath.Join(p.CacheDir, cacheTag), b, 0664)
+			// 	os.WriteFile(filepath.Join(p.CacheDir, cacheTag), b, 0664)
 			// }
 			// lo.Done()
 			// p.cacheLocker.Delete(queryCache.CacheTag)

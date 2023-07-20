@@ -1,8 +1,8 @@
+// Packeage godaemon 在linux环境中让程序在后台运行
 package godaemon
 
 import (
 	"flag"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -59,7 +59,7 @@ func RunBackground() {
 	}
 	pid := strconv.Itoa(cmd.Process.Pid)
 	if *pname != "" {
-		ioutil.WriteFile(*pname, []byte(pid), 0664)
+		os.WriteFile(*pname, []byte(pid), 0664)
 	}
 	println(os.Args[0] + " [PID] " + pid + " running ...")
 	os.Exit(0)

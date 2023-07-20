@@ -1,7 +1,6 @@
 package yaml
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -92,13 +91,13 @@ func (c *File) WriteFile() error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(c.filename, b, 0664)
+	return os.WriteFile(c.filename, b, 0664)
 }
 
 // ReadFile 读取配置文件
 func (c *File) ReadFile() error {
 	c.items.clean()
-	b, err := ioutil.ReadFile(c.filename)
+	b, err := os.ReadFile(c.filename)
 	if err != nil {
 		return err
 	}

@@ -1,9 +1,10 @@
+// Package txtcode 文本编码转换模块
 package txtcode
 
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"unicode/utf16"
 	"unicode/utf8"
 
@@ -17,7 +18,7 @@ func GbkToUtf8(s []byte) ([]byte, error) {
 		return s, nil
 	}
 	reader := transform.NewReader(bytes.NewReader(s), simplifiedchinese.GBK.NewDecoder())
-	d, e := ioutil.ReadAll(reader)
+	d, e := io.ReadAll(reader)
 	if e != nil {
 		return s, e
 	}
@@ -30,7 +31,7 @@ func Utf8ToGbk(s []byte) ([]byte, error) {
 	// 	return s, nil
 	// }
 	reader := transform.NewReader(bytes.NewReader(s), simplifiedchinese.GBK.NewEncoder())
-	d, e := ioutil.ReadAll(reader)
+	d, e := io.ReadAll(reader)
 	if e != nil {
 		return s, e
 	}

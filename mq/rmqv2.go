@@ -162,25 +162,22 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 		}
 		logg.System(opt.LogHeader + "Success connect to " + opt.Addr)
 		x = true
-		for {
-			select {
-			case d := <-rcvMQ:
-				if d.ContentType == "" && d.DeliveryTag == 0 { // 接收错误，可能服务断开
-					x = false
-					channel.Close()
-					conn.Close()
-					panic(errors.New(opt.LogHeader + "E: Possible service error"))
-				}
-				logg.Debug(opt.LogHeader + "D:" + d.RoutingKey + " | " + FormatMQBody(d.Body))
-				func() {
-					defer func() {
-						if err := recover(); err != nil {
-							logg.Error(fmt.Sprintf(opt.LogHeader+"E: calllback error, %+v", errors.WithStack(err.(error))))
-						}
-					}()
-					recvCallback(d.RoutingKey, d.Body)
-				}()
+		for d := range rcvMQ {
+			if d.ContentType == "" && d.DeliveryTag == 0 { // 接收错误，可能服务断开
+				x = false
+				channel.Close()
+				conn.Close()
+				panic(errors.New(opt.LogHeader + "E: Possible service error"))
 			}
+			logg.Debug(opt.LogHeader + "D:" + d.RoutingKey + " | " + FormatMQBody(d.Body))
+			func() {
+				defer func() {
+					if err := recover(); err != nil {
+						logg.Error(fmt.Sprintf(opt.LogHeader+"E: calllback error, %+v", errors.WithStack(err.(error))))
+					}
+				}()
+				recvCallback(d.RoutingKey, d.Body)
+			}()
 		}
 	}, "[RMQ-C]", logg.DefaultWriter())
 	return &x
@@ -237,35 +234,32 @@ func NewRMQProducer(opt *RabbitMQOpt, logg logger.Logger) *RMQProducer {
 		}
 		logg.System(opt.LogHeader + "Success connect to " + opt.Addr)
 		sender.ready = true
-		for {
-			select {
-			case d := <-sender.sendData:
-				ex := strconv.Itoa(int(d.expire.Milliseconds()))
-				if ex == "0" {
-					ex = "600000"
-				}
-				err := channel.Publish(
-					opt.ExchangeName, // exchange
-					d.topic,          // routing key
-					true,             // mandatory
-					false,            // immediate
-					amqp.Publishing{
-						ContentType:  "text/plain",
-						DeliveryMode: amqp.Persistent,
-						Expiration:   ex,
-						Timestamp:    time.Now(),
-						Body:         d.body,
-					},
-				)
-				if err != nil {
-					logg.Error(opt.LogHeader + "E:" + err.Error())
-					sender.ready = false
-					channel.Close()
-					conn.Close()
-					panic(err)
-				}
-				logg.Debug(opt.LogHeader + "D:" + d.topic + " | " + FormatMQBody(d.body))
+		for d := range sender.sendData {
+			ex := strconv.Itoa(int(d.expire.Milliseconds()))
+			if ex == "0" {
+				ex = "600000"
 			}
+			err := channel.Publish(
+				opt.ExchangeName, // exchange
+				d.topic,          // routing key
+				true,             // mandatory
+				false,            // immediate
+				amqp.Publishing{
+					ContentType:  "text/plain",
+					DeliveryMode: amqp.Persistent,
+					Expiration:   ex,
+					Timestamp:    time.Now(),
+					Body:         d.body,
+				},
+			)
+			if err != nil {
+				logg.Error(opt.LogHeader + "E:" + err.Error())
+				sender.ready = false
+				channel.Close()
+				conn.Close()
+				panic(err)
+			}
+			logg.Debug(opt.LogHeader + "D:" + d.topic + " | " + FormatMQBody(d.body))
 		}
 	}, opt.LogHeader, logg.DefaultWriter())
 	return sender

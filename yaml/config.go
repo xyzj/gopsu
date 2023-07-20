@@ -1,7 +1,8 @@
+// Package yaml yaml格式的配置文件封装
 package yaml
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/goccy/go-yaml"
@@ -29,12 +30,12 @@ func (c *Config) Write(d interface{}) error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(c.name, b, 0664)
+	return os.WriteFile(c.name, b, 0664)
 }
 
 // Read 读配置
 func (c *Config) Read(d interface{}) error {
-	b, err := ioutil.ReadFile(c.name)
+	b, err := os.ReadFile(c.name)
 	if err != nil {
 		return err
 	}
