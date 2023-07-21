@@ -1,3 +1,4 @@
+// Package ginmiddleware 基于gin的web框架封装
 package ginmiddleware
 
 import (
@@ -14,6 +15,7 @@ import (
 	gingzip "github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/xyzj/gopsu"
+	"github.com/xyzj/gopsu/loopfunc"
 
 	// 载入资源
 	_ "embed"
@@ -39,6 +41,7 @@ const (
 // ServiceOption 通用化http框架
 type ServiceOption struct {
 	EngineFunc   func() *gin.Engine
+	Engine       *gin.Engine
 	Hosts        []string
 	CertFile     string
 	KeyFile      string
@@ -126,52 +129,49 @@ func ListenAndServeWithOption(opt *ServiceOption) {
 			c.Writer.Write(favicon)
 		})
 	}
+	opt.Engine = h
 
 	// 启动https服务
 	if opt.HTTPSPort > 0 {
-		go func() {
-			var tc *tls.Config
+		loopfunc.GoFunc(func(params ...interface{}) {
+			if !gopsu.IsExist(opt.CertFile) || !gopsu.IsExist(opt.KeyFile) {
+				fmt.Fprintf(os.Stdout, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "HTTPS server error: no cert or key file found")
+				return
+			}
+			cc, err := tls.LoadX509KeyPair(opt.CertFile, opt.KeyFile)
+			if err != nil {
+				fmt.Fprintf(os.Stdout, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "cert and key file load error:"+err.Error())
+				return
+			}
 			s := &http.Server{
 				Addr:         fmt.Sprintf(":%d", opt.HTTPSPort),
 				ReadTimeout:  opt.ReadTimeout,
 				WriteTimeout: opt.WriteTimeout,
 				IdleTimeout:  opt.IdleTimeout,
 				Handler:      h,
-				TLSConfig:    tc,
+				TLSConfig: &tls.Config{
+					Certificates: []tls.Certificate{cc},
+				},
 			}
-			if len(opt.CertFile) > 0 &&
-				len(opt.KeyFile) > 0 &&
-				gopsu.IsExist(opt.CertFile) &&
-				gopsu.IsExist(opt.KeyFile) {
-				go func() {
-					defer func() {
-						if err := recover(); err != nil {
-							fmt.Fprintf(os.Stdout, "cert update crash: %s\n", err.(error).Error())
+			loopfunc.GoFunc(func(params ...interface{}) {
+				for {
+					time.Sleep(time.Hour * 23)
+					if cc, err := tls.LoadX509KeyPair(opt.CertFile, opt.KeyFile); err == nil {
+						s.TLSConfig = &tls.Config{
+							Certificates: []tls.Certificate{cc},
 						}
-					}()
-					for {
-						if cc, err := tls.LoadX509KeyPair(opt.CertFile, opt.KeyFile); err == nil {
-							s.TLSConfig = &tls.Config{
-								Certificates: []tls.Certificate{cc},
-							}
-						}
-						time.Sleep(time.Hour * 23)
 					}
-				}()
-				time.Sleep(time.Second)
-			} else {
-				fmt.Fprintf(os.Stdout, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "HTTPS server error: no cert or key file found")
-				return
-			}
+				}
+			}, "cert update", os.Stdout)
 			fmt.Fprintf(os.Stdout, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Start HTTPS server at :"+strconv.Itoa(opt.HTTPSPort))
 			if err := s.ListenAndServeTLS("", ""); err != nil {
 				fmt.Fprintf(os.Stdout, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Start HTTPS server error: "+err.Error())
 			}
-		}()
+		}, "https", os.Stdout)
 	}
 	// 启动http服务
 	if opt.HTTPPort > 0 {
-		go func() {
+		loopfunc.GoFunc(func(params ...interface{}) {
 			s := &http.Server{
 				Addr:         fmt.Sprintf(":%d", opt.HTTPPort),
 				ReadTimeout:  opt.ReadTimeout,
@@ -183,11 +183,9 @@ func ListenAndServeWithOption(opt *ServiceOption) {
 			if err := s.ListenAndServe(); err != nil {
 				fmt.Fprintf(os.Stdout, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Start HTTP server error: "+err.Error())
 			}
-		}()
+		}, "http", os.Stdout)
 	}
-	for {
-		time.Sleep(time.Hour)
-	}
+	select {}
 }
 
 // LiteEngine 轻量化基础引擎

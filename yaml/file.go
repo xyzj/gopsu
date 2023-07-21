@@ -7,8 +7,8 @@ import (
 
 	"github.com/goccy/go-yaml"
 	"github.com/mohae/deepcopy"
+	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/json"
-	"github.com/xyzj/gopsu/tools"
 )
 
 type item struct {
@@ -84,7 +84,7 @@ func (c *File) LoadDefault(key, value, tip string) string {
 
 // WriteFile 保存配置到文件
 func (c *File) WriteFile() error {
-	if !tools.IsExist(c.dir) {
+	if !gopsu.IsExist(c.dir) {
 		os.MkdirAll(c.dir, 0775)
 	}
 	b, err := yaml.Marshal(c.items.data)
@@ -114,7 +114,7 @@ func (c *File) Show() string {
 	if err != nil {
 		return ""
 	}
-	return tools.String(b)
+	return gopsu.String(b)
 }
 
 // NewFile 创建一个新配置文件

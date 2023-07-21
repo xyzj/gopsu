@@ -60,7 +60,7 @@ func LoopWithWait(f func(params ...interface{}), name string, logWriter io.Write
 	loopAndRetry(f, name, logWriter, timewait, 0, params...)
 }
 
-// LoopWithMax 执行循环工作，并在指定的等待时间后提供panic恢复，panic次数可设置
+// LoopWithRetry 执行循环工作，并在指定的等待时间后提供panic恢复，panic次数可设置
 //
 // f: 要执行的循环方法，可控制传入参数
 //
@@ -71,7 +71,7 @@ func LoopWithWait(f func(params ...interface{}), name string, logWriter io.Write
 // retry：panic最大次数
 //
 // params： 需要传给f的参数，f内需要进行类型转换
-func LoopWithMax(f func(params ...interface{}), name string, logWriter io.Writer, timewait time.Duration, retry int, params ...interface{}) {
+func LoopWithRetry(f func(params ...interface{}), name string, logWriter io.Writer, timewait time.Duration, retry int, params ...interface{}) {
 	loopAndRetry(f, name, logWriter, timewait, retry, params...)
 }
 

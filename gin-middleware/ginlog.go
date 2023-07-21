@@ -37,25 +37,22 @@ func LogToWriter(w io.Writer, skippath ...string) gin.HandlerFunc {
 		skippath = []string{"/showroutes", "/static"}
 	}
 	go loopfunc.LoopFunc(func(params ...interface{}) {
-		for {
-			select {
-			case a := <-chanlog:
-				if len(a.keys) > 0 {
-					a.jsn, _ = json.Marshal(a.keys)
-				}
-				if a.token != "" {
-					if a.username != "" {
-						a.path = "(" + a.username + "-" + gopsu.CalcCRC32String(gopsu.Bytes(a.token)) + ")" + a.path
-					} else {
-						a.path = "(" + gopsu.CalcCRC32String(gopsu.Bytes(a.token)) + ")" + a.path
-					}
-				}
-				if a.body != "" {
-					a.path += " |" + a.body
-				}
-				b := gopsu.Bytes(fmt.Sprintf("|%3d |%-13s|%-15s|%-4s %s ▸%s", a.statusCode, a.timer, a.clientIP, a.method, a.path, a.jsn))
-				w.Write(b)
+		for a := range chanlog {
+			if len(a.keys) > 0 {
+				a.jsn, _ = json.Marshal(a.keys)
 			}
+			if a.token != "" {
+				if a.username != "" {
+					a.path = "(" + a.username + "-" + gopsu.CalcCRC32String(gopsu.Bytes(a.token)) + ")" + a.path
+				} else {
+					a.path = "(" + gopsu.CalcCRC32String(gopsu.Bytes(a.token)) + ")" + a.path
+				}
+			}
+			if a.body != "" {
+				a.path += " |" + a.body
+			}
+			b := gopsu.Bytes(fmt.Sprintf("|%3d |%-13s|%-15s|%-4s %s ▸%s", a.statusCode, a.timer, a.clientIP, a.method, a.path, a.jsn))
+			w.Write(b)
 		}
 	}, "http log", w)
 	return func(c *gin.Context) {

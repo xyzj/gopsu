@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/loopfunc"
-	"github.com/xyzj/gopsu/tools"
 )
 
 const (
@@ -89,7 +89,7 @@ func NewWriter(opt *OptLog) io.Writer {
 	if opt.Filename != "" && opt.AutoRoll {
 		ymd := t.Format(fileTimeFormat)
 		for i := 1; i < 255; i++ {
-			if !tools.IsExist(filepath.Join(mylog.logDir, fmt.Sprintf("%s.%s.%d.log", mylog.fname, ymd, i))) {
+			if !gopsu.IsExist(filepath.Join(mylog.logDir, fmt.Sprintf("%s.%s.%d.log", mylog.fname, ymd, i))) {
 				mylog.fileIndex = byte(i) - 1
 				break
 			}
@@ -136,7 +136,7 @@ func (w *Writer) startWrite() {
 			select {
 			case p := <-w.chanGoWrite:
 				buf.Reset()
-				buf.Write(tools.Bytes(time.Now().Format(ShortTimeFormat)))
+				buf.Write(gopsu.Bytes(time.Now().Format(ShortTimeFormat)))
 				buf.Write(p)
 				if !bytes.HasSuffix(p, lineEnd) {
 					buf.WriteByte(10)
@@ -196,7 +196,7 @@ func (w *Writer) newFile() {
 	var err error
 	w.fno, err = os.OpenFile(w.pathNow, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0664)
 	if err != nil {
-		os.WriteFile("logerr.log", tools.Bytes("log file open error: "+err.Error()), 0664)
+		os.WriteFile("logerr.log", gopsu.Bytes("log file open error: "+err.Error()), 0664)
 		w.withFile = false
 		return
 	}
@@ -216,7 +216,7 @@ func (w *Writer) newFile() {
 // Write 异步写入日志，返回固定为 0, nil
 func (w *Writer) Write(p []byte) (n int, err error) {
 	// w.buf.Reset()
-	// w.buf.Write(tools.Bytes(time.Now().Format(ShortTimeFormat)))
+	// w.buf.Write(gopsu.Bytes(time.Now().Format(ShortTimeFormat)))
 	// w.buf.Write(p)
 	// if p[len(p)-1] != 10 {
 	// 	w.buf.WriteByte(10)
@@ -265,7 +265,7 @@ func (w *Writer) rollingFileNoLock() bool {
 
 // 压缩旧日志
 func (w *Writer) zipFile(s string) {
-	if !w.enablegz || len(s) == 0 || !tools.IsExist(filepath.Join(w.logDir, s)) {
+	if !w.enablegz || len(s) == 0 || !gopsu.IsExist(filepath.Join(w.logDir, s)) {
 		return
 	}
 	go func(s string) {
