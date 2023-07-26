@@ -16,13 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/loopfunc"
-
-	// 载入资源
-	_ "embed"
 )
-
-//go:embed favicon.webp
-var favicon []byte
 
 /*
 // ServiceProtocol http协议类型

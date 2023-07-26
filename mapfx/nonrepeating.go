@@ -21,23 +21,27 @@ import (
 
 // NewUniqueSlice 利用map构建一个内容不重复的slice
 //
-//	非线程安全，请勿跨线程使用
-func NewUniqueSlice[T byte | int8 | int | int32 | int64 | float32 | float64 | string]() *UniqueSlice[T] {
+//	可设置是否线程安全
+func NewUniqueSlice[T byte | int8 | int | int32 | int64 | float32 | float64 | string](goroutineSafe bool) *UniqueSlice[T] {
 	return &UniqueSlice[T]{
-		// locker: sync.RWMutex{},
-		data: make(map[T]struct{}),
+		locker: sync.RWMutex{},
+		data:   make(map[T]struct{}),
+		safe:   goroutineSafe,
 	}
 }
 
 // UniqueSlice 一个不重复的切片结构
 type UniqueSlice[T byte | int8 | int | int32 | int64 | float32 | float64 | string] struct {
-	// locker sync.RWMutex
-	data map[T]struct{}
+	locker sync.RWMutex
+	data   map[T]struct{}
+	safe   bool
 }
 
 func (u *UniqueSlice[T]) Store(item T) bool {
-	// u.locker.Lock()
-	// defer u.locker.Unlock()
+	if u.safe {
+		u.locker.Lock()
+		defer u.locker.Unlock()
+	}
 	if _, ok := u.data[item]; ok {
 		return false
 	}
@@ -45,8 +49,10 @@ func (u *UniqueSlice[T]) Store(item T) bool {
 	return true
 }
 func (u *UniqueSlice[T]) StoreMany(items ...T) {
-	// u.locker.Lock()
-	// defer u.locker.Unlock()
+	if u.safe {
+		u.locker.Lock()
+		defer u.locker.Unlock()
+	}
 	for _, item := range items {
 		if _, ok := u.data[item]; ok {
 			continue
@@ -55,16 +61,24 @@ func (u *UniqueSlice[T]) StoreMany(items ...T) {
 	}
 }
 func (u *UniqueSlice[T]) Clean() {
+	if u.safe {
+		u.locker.Lock()
+		defer u.locker.Unlock()
+	}
 	u.data = make(map[T]struct{})
 }
 func (u *UniqueSlice[T]) Len() int {
-	// u.locker.RLock()
-	// defer u.locker.RUnlock()
+	if u.safe {
+		u.locker.RLock()
+		defer u.locker.RUnlock()
+	}
 	return len(u.data)
 }
 func (u *UniqueSlice[T]) Slice() []T {
-	// u.locker.RLock()
-	// defer u.locker.RUnlock()
+	if u.safe {
+		u.locker.RLock()
+		defer u.locker.RUnlock()
+	}
 	x := make([]T, 0, len(u.data))
 	for k := range u.data {
 		x = append(x, k)
@@ -72,6 +86,10 @@ func (u *UniqueSlice[T]) Slice() []T {
 	return x
 }
 func (u *UniqueSlice[T]) Has(item T) bool {
+	if u.safe {
+		u.locker.RLock()
+		defer u.locker.RUnlock()
+	}
 	for k := range u.data {
 		if k == item {
 			return true
@@ -80,80 +98,29 @@ func (u *UniqueSlice[T]) Has(item T) bool {
 	return false
 }
 
-// NewUniqueSliceSafe 利用map构建一个内容不重复的slice
+// NewUniqueStructSlice 构建一个内容不重复的struct 类型 slice
 //
 //	线程安全
-func NewUniqueSliceSafe[T byte | int8 | int | int32 | int64 | float32 | float64 | string]() *UniqueSliceSafe[T] {
-	return &UniqueSliceSafe[T]{
+func NewUniqueStructSlice[T StructMapI](goroutineSafe bool) *UniqueStructSlice[T] {
+	return &UniqueStructSlice[T]{
+		safe:   goroutineSafe,
 		locker: sync.RWMutex{},
-		data:   make(map[T]struct{}),
+		data:   make([]T, 0),
 	}
-}
-
-// UniqueSliceSafe 一个不重复的切片结构
-type UniqueSliceSafe[T byte | int8 | int | int32 | int64 | float32 | float64 | string] struct {
-	locker sync.RWMutex
-	data   map[T]struct{}
-}
-
-func (u *UniqueSliceSafe[T]) Store(item T) bool {
-	u.locker.Lock()
-	defer u.locker.Unlock()
-	if _, ok := u.data[item]; ok {
-		return false
-	}
-	u.data[item] = struct{}{}
-	return true
-}
-func (u *UniqueSliceSafe[T]) StoreMany(items ...T) {
-	u.locker.Lock()
-	defer u.locker.Unlock()
-	for _, item := range items {
-		if _, ok := u.data[item]; ok {
-			continue
-		}
-		u.data[item] = struct{}{}
-	}
-}
-func (u *UniqueSliceSafe[T]) Clean() {
-	u.locker.Lock()
-	defer u.locker.Unlock()
-	u.data = make(map[T]struct{})
-}
-func (u *UniqueSliceSafe[T]) Len() int {
-	u.locker.RLock()
-	defer u.locker.RUnlock()
-	return len(u.data)
-}
-func (u *UniqueSliceSafe[T]) Slice() []T {
-	u.locker.RLock()
-	defer u.locker.RUnlock()
-	x := make([]T, 0, len(u.data))
-	for k := range u.data {
-		x = append(x, k)
-	}
-	return x
-}
-func (u *UniqueSliceSafe[T]) Has(item T) bool {
-	u.locker.RLock()
-	defer u.locker.RUnlock()
-	for k := range u.data {
-		if k == item {
-			return true
-		}
-	}
-	return false
 }
 
 // UniqueStructSlice 一个不重复的struct切片结构
 type UniqueStructSlice[T StructMapI] struct {
 	locker sync.RWMutex
 	data   []T
+	safe   bool
 }
 
 func (u *UniqueStructSlice[T]) Store(item T) bool {
-	u.locker.Lock()
-	defer u.locker.Unlock()
+	if u.safe {
+		u.locker.Lock()
+		defer u.locker.Unlock()
+	}
 	for _, v := range u.data {
 		if reflect.DeepEqual(v, item) {
 			return false
@@ -163,8 +130,10 @@ func (u *UniqueStructSlice[T]) Store(item T) bool {
 	return true
 }
 func (u *UniqueStructSlice[T]) StoreMany(items ...T) {
-	u.locker.Lock()
-	defer u.locker.Unlock()
+	if u.safe {
+		u.locker.Lock()
+		defer u.locker.Unlock()
+	}
 	for _, item := range items {
 		found := false
 		for _, v := range u.data {
@@ -180,25 +149,33 @@ func (u *UniqueStructSlice[T]) StoreMany(items ...T) {
 	}
 }
 func (u *UniqueStructSlice[T]) Clean() {
-	u.locker.Lock()
-	defer u.locker.Unlock()
+	if u.safe {
+		u.locker.Lock()
+		defer u.locker.Unlock()
+	}
 	u.data = make([]T, 0)
 }
 func (u *UniqueStructSlice[T]) Len() int {
-	u.locker.RLock()
-	defer u.locker.RUnlock()
+	if u.safe {
+		u.locker.RLock()
+		defer u.locker.RUnlock()
+	}
 	return len(u.data)
 }
 func (u *UniqueStructSlice[T]) Slice() []T {
-	u.locker.RLock()
-	defer u.locker.RUnlock()
+	if u.safe {
+		u.locker.RLock()
+		defer u.locker.RUnlock()
+	}
 	x := make([]T, 0, len(u.data))
 	x = append(x, u.data...)
 	return x
 }
 func (u *UniqueStructSlice[T]) Has(item T) bool {
-	u.locker.RLock()
-	defer u.locker.RUnlock()
+	if u.safe {
+		u.locker.RLock()
+		defer u.locker.RUnlock()
+	}
 	for _, k := range u.data {
 		if reflect.DeepEqual(k, item) {
 			return true
