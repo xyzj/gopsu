@@ -28,9 +28,6 @@ var page500 []byte
 //go:embed pages/403.html
 var page403 []byte
 
-//go:embed pages/403-city.html
-var page403City []byte
-
 //go:embed pages/helloworld.html
 var pageHelloworld []byte
 

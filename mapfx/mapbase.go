@@ -1,10 +1,11 @@
 package mapfx
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
 	"strings"
 	"sync"
-
-	"github.com/pkg/errors"
 )
 
 // 使用示例：
@@ -121,7 +122,7 @@ func (m *BaseMap[T]) ForEach(f func(key string, value T) bool) {
 	x := m.Clone()
 	defer func() {
 		if err := recover(); err != nil {
-			println(errors.WithStack(err.(error)).Error())
+			println(fmt.Sprintf("%+v", err))
 		}
 	}()
 	for k, v := range x {
@@ -129,4 +130,42 @@ func (m *BaseMap[T]) ForEach(f func(key string, value T) bool) {
 			break
 		}
 	}
+}
+
+// ToJSON 返回json字符串
+func (m *BaseMap[T]) ToJSON() []byte {
+	m.locker.RLock()
+	defer m.locker.RUnlock()
+	b, err := json.Marshal(m.data)
+	if err != nil {
+		return []byte{}
+	}
+	return b
+}
+
+// FromJSON 从json字符串初始化数据
+func (m *BaseMap[T]) FromJSON(b []byte) error {
+	m.locker.Lock()
+	defer m.locker.Unlock()
+	return json.Unmarshal(b, &m.data)
+}
+
+// FromFile 从json字符串初始化数据
+func (m *BaseMap[T]) FromFile(f string) error {
+	b, err := os.ReadFile(f)
+	if err != nil {
+		return err
+	}
+	return m.FromJSON(b)
+}
+
+// ToFile 保存到文件
+func (m *BaseMap[T]) ToFile(f string) error {
+	m.locker.Lock()
+	defer m.locker.Unlock()
+	b, err := json.Marshal(m.data)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(f, b, 0664)
 }

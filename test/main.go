@@ -39,15 +39,24 @@ func FormatMQBody(d []byte) string {
 	}, gopsu.String(d))
 	// return base64.StdEncoding.EncodeToString(d)
 }
-func test(a bool) {
+func test(a bool, b ...string) {
+	if len(b) == 0 {
+		println("no b")
+	} else {
+		if b[0] == "" {
+			println("nadadadf")
+		} else {
+			println("123123123")
+		}
+	}
 	if a {
 		defer println("defer")
 	}
 	println("done")
 }
 func main() {
-	test(true)
-	test(false)
+	// test(true)
+	test(false, "bsdf")
 }
 
 var (

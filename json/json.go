@@ -51,7 +51,7 @@ func xMarshal(v interface{}) ([]byte, error) {
 func xMarshalToString(v interface{}) (string, error) {
 	b, err := xMarshal(v)
 	if err == nil {
-		return *(*string)(unsafe.Pointer(&b)), nil
+		return ToString(b), nil
 	}
 	return "", err
 }
@@ -64,15 +64,20 @@ func xUnmarshal(data []byte, v interface{}) error {
 
 // xUnmarshalFromString json.UnmarshalFromString
 func xUnmarshalFromString(data string, v interface{}) error {
-	return xUnmarshal(toBytes(data), v)
+	return xUnmarshal(ToBytes(data), v)
 }
 
-// Bytes 内存地址转换string
-func toBytes(s string) []byte {
+// ToBytes 内存地址转换string
+func ToBytes(s string) []byte {
 	return *(*[]byte)(unsafe.Pointer(
 		&struct {
 			string
 			Cap int
 		}{s, len(s)},
 	))
+}
+
+// ToString 内存地址转换[]byte
+func ToString(b []byte) string {
+	return *(*string)(unsafe.Pointer(&b))
 }

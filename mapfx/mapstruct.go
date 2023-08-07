@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-
-	"github.com/pkg/errors"
 )
 
 // 使用示例：
@@ -140,7 +138,7 @@ func (m *StructMap[KEY, VALUE]) ForEach(f func(key KEY, value *VALUE) bool) {
 	x := m.Clone()
 	defer func() {
 		if err := recover(); err != nil {
-			println(errors.WithStack(err.(error)).Error())
+			println(fmt.Sprintf("%+v", err))
 		}
 	}()
 	for k, v := range x {
