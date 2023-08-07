@@ -92,7 +92,7 @@ func (b *BoltDB) Delete(key string, bucket ...string) error {
 }
 
 // ForEach 遍历所有key,value
-func (b *BoltDB) ForEach(f func(k, v []byte) error, bucket ...string) {
+func (b *BoltDB) ForEach(f func(k, v string) error, bucket ...string) {
 	var buc []byte
 	if len(bucket) == 0 {
 		buc = b.bucket
@@ -108,7 +108,12 @@ func (b *BoltDB) ForEach(f func(k, v []byte) error, bucket ...string) {
 		if t == nil {
 			return nil
 		}
-		return t.ForEach(f)
+		return t.ForEach(func(k, v []byte) error {
+			defer func() {
+				recover()
+			}()
+			return f(json.ToString(k), json.ToString(v))
+		})
 	})
 }
 
