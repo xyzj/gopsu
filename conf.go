@@ -9,9 +9,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 
-	"github.com/mohae/deepcopy"
+	"github.com/xyzj/gopsu/mapfx"
 )
 
 // 配置项结构体
@@ -20,65 +19,10 @@ type item struct {
 	Value string `json:"value"`
 	Tip   string `json:"tip"`
 }
-type mapItem struct {
-	locker sync.RWMutex
-	data   map[string]*item
-}
-
-func (m *mapItem) clean() {
-	m.locker.Lock()
-	m.data = make(map[string]*item)
-	m.locker.Unlock()
-}
-func (m *mapItem) store(key, value, tip string) {
-	m.locker.Lock()
-	m.data[key] = &item{
-		Key:   key,
-		Value: value,
-		Tip:   tip,
-	}
-	m.locker.Unlock()
-}
-func (m *mapItem) update(key, value string) bool {
-	m.locker.Lock()
-	v, ok := m.data[key]
-	m.locker.Unlock()
-	if !ok {
-		return false
-	}
-	m.store(key, value, v.Tip)
-	return true
-}
-func (m *mapItem) delete(key string) {
-	m.locker.Lock()
-	delete(m.data, key)
-	m.locker.Unlock()
-}
-func (m *mapItem) load(key string) (string, bool) {
-	m.locker.RLock()
-	v, ok := m.data[key]
-	m.locker.RUnlock()
-	if !ok || v == nil {
-		return "", false
-	}
-	return v.Value, true
-}
-func (m *mapItem) copy() map[string]*item {
-	m.locker.RLock()
-	v := deepcopy.Copy(m.data).(map[string]*item)
-	m.locker.RUnlock()
-	return v
-}
-func (m *mapItem) len() int {
-	m.locker.RLock()
-	l := len(m.data)
-	m.locker.RUnlock()
-	return l
-}
 
 // ConfData 配置文件结构体
 type ConfData struct {
-	items        *mapItem
+	items        *mapfx.StructMap[string, item]
 	fileFullPath string
 	fileName     string
 }
@@ -98,60 +42,35 @@ func (c *ConfData) Reload() error {
 			continue
 		}
 		if strings.Contains(s, "=") {
-			c.items.store(strings.Split(s, "=")[0], strings.Split(s, "=")[1], tip)
+			c.items.Store(strings.Split(s, "=")[0], &item{Value: strings.Split(s, "=")[1], Tip: tip})
 			tip = ""
 		}
 	}
 	return nil
-
-	// if IsExist(c.fileFullPath) {
-	// 	file, ex := os.Open(c.fileFullPath)
-	// 	if ex != nil {
-	// 		return ex
-	// 	}
-	// 	defer file.Close()
-	// 	c.Clear()
-	// 	var remarkbuf bytes.Buffer
-	// 	buf := bufio.NewReader(file)
-	// 	for {
-	// 		line, ex := buf.ReadString('\n')
-	// 		if ex != nil || io.EOF == ex {
-	// 			break
-	// 		}
-	// 		line = strings.TrimSpace(line)
-	// 		if len(line) == 0 {
-	// 			// remarkbuf.WriteString("\r\n")
-	// 			continue
-	// 		}
-	// 		if strings.Contains(line, "#") && strings.Index(line, "#") < 5 {
-	// 			remarkbuf.WriteString(line)
-	// 			continue
-	// 		} else {
-	// 			s := strings.SplitN(line, "=", 2)
-	// 			if len(s) > 1 {
-	// 				c.SetItem(s[0], s[1], remarkbuf.String())
-	// 			}
-	// 			remarkbuf.Reset()
-	// 		}
-	// 	}
-	// 	return nil
-	// }
-	// return fmt.Errorf("file not found")
 }
 
 // AddOrUpdate 更新配置项
 func (c *ConfData) AddOrUpdate(key, value, tip string) {
-	c.items.store(key, value, tip)
+	c.items.Store(key, &item{
+		Value: value,
+		Tip:   tip,
+	})
 }
 
 // DelItem 删除配置项
 func (c *ConfData) DelItem(key string) {
-	c.items.delete(key)
+	c.items.Delete(key)
 }
 
 // UpdateItem 更新配置项
 func (c *ConfData) UpdateItem(key, value string) bool {
-	return c.items.update(key, value)
+	x, ok := c.items.Load(key)
+	if !ok {
+		x = &item{Value: value}
+	}
+	x.Value = value
+	c.items.Store(key, x)
+	return true
 }
 
 // SetItem 设置配置项
@@ -159,7 +78,7 @@ func (c *ConfData) SetItem(key, value, tip string) bool {
 	if !strings.HasPrefix(tip, "#") {
 		tip = "# " + tip
 	}
-	c.items.store(key, value, tip)
+	c.items.Store(key, &item{Value: value, Tip: tip})
 	return true
 }
 
@@ -176,9 +95,9 @@ func (c *ConfData) GetItemDefault(key, value string, remark ...string) string {
 
 // GetItem 获取配置项的value
 func (c *ConfData) GetItem(key string) (string, error) {
-	v, ok := c.items.load(key)
+	v, ok := c.items.Load(key)
 	if ok {
-		return v, nil
+		return v.Value, nil
 	}
 
 	return "", errors.New("key is not found")
@@ -187,7 +106,7 @@ func (c *ConfData) GetItem(key string) (string, error) {
 // GetKeys 获取所有配置项的key
 func (c *ConfData) GetKeys() []string {
 	var keys = make([]string, 0)
-	x := c.items.copy()
+	x := c.items.Clone()
 	for k := range x {
 		keys = append(keys, k)
 	}
@@ -199,9 +118,9 @@ func (c *ConfData) Save() error {
 	if c.fileFullPath == "" {
 		return fmt.Errorf("no file specified")
 	}
-	var ss = make([]*item, c.items.len())
+	var ss = make([]*item, c.items.Len())
 	var i int
-	x := c.items.copy()
+	x := c.items.Clone()
 	for _, v := range x {
 		ss[i] = v
 		i++
@@ -227,7 +146,7 @@ func (c *ConfData) Save() error {
 
 // GetAll 获取所有配置项的key，value，以json字符串返回
 func (c *ConfData) GetAll() string {
-	x := c.items.copy()
+	x := c.items.Clone()
 	buf := make([]string, 0)
 	for k, v := range x {
 		buf = append(buf, "\""+k+"\":\""+v.Value+"\"")
@@ -237,12 +156,12 @@ func (c *ConfData) GetAll() string {
 
 // Clear 清除所有配置项
 func (c *ConfData) Clear() {
-	c.items.clean()
+	c.items.Clean()
 }
 
 // Len 获取配置数量
 func (c *ConfData) Len() int {
-	return c.items.len()
+	return c.items.Len()
 }
 
 // FullPath 配置文件完整路径
@@ -258,10 +177,7 @@ func (c *ConfData) SetFullPath(p string) {
 // LoadConfig load config file
 func LoadConfig(fullpath string) (*ConfData, error) {
 	c := &ConfData{
-		items: &mapItem{
-			locker: sync.RWMutex{},
-			data:   make(map[string]*item),
-		},
+		items:        mapfx.NewStructMap[string, item](),
 		fileFullPath: fullpath,
 		fileName:     path.Base(fullpath),
 	}

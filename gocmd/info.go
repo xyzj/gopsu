@@ -52,15 +52,16 @@ type version struct {
 // buildDate: build datetime
 // buildOS: platform info
 // auth: auth name
-func VersionInfo(name, ver, gover, buildDate, buildOS, auth string) string {
+func VersionInfo(name, ver, gover, buildDate, buildOS, auth string, deps ...string) string {
 	b, _ := json.MarshalIndent(&version{
-		Name:      name,
-		Version:   ver,
-		GoVersion: gover,
-		BuildDate: buildDate,
-		BuildOS:   buildOS,
-		CodeBy:    auth,
-		StartWith: strings.Join(os.Args[1:], " "),
+		Name:         name,
+		Version:      ver,
+		GoVersion:    gover,
+		BuildDate:    buildDate,
+		BuildOS:      buildOS,
+		CodeBy:       auth,
+		Dependencies: deps,
+		StartWith:    strings.Join(os.Args[1:], " "),
 	}, "", "  ")
 	return string(b)
 }

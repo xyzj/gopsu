@@ -3,6 +3,7 @@ package gocmd
 import (
 	"flag"
 	"os"
+	"strings"
 
 	"github.com/xyzj/gopsu/mapfx"
 	"github.com/xyzj/gopsu/pathtool"
@@ -28,7 +29,9 @@ func NewProgram(info *Info) *Program {
 		}
 	}
 	params := os.Args
-	pinfo := &procInfo{}
+	pinfo := &procInfo{
+		params: make([]string, 0),
+	}
 	// 获取程序信息
 	pinfo.params = params[1:]
 	pinfo.exec = params[0]
@@ -39,8 +42,11 @@ func NewProgram(info *Info) *Program {
 	}
 	// 处理参数
 	flag.StringVar(&pinfo.pfile, "p", "", "set the pid file path")
-	if len(params) > 2 {
-		flag.CommandLine.Parse(params[2:])
+	for k, v := range params {
+		if strings.HasPrefix(v, "-") {
+			flag.CommandLine.Parse(params[k:])
+			break
+		}
 	}
 	// 设置pid文件
 	if pinfo.pfile == "" {

@@ -61,6 +61,7 @@ Flags:`, p.info.Title, p.info.Descript, p.pinfo.name, strings.Join(s, "")))
 	flag.PrintDefaults()
 }
 
+// AddCommand add a command
 func (p *Program) AddCommand(cmd *Command) error {
 	if p.cmds.Has(cmd) {
 		return fmt.Errorf("cmd %s already exists", cmd.Name)
@@ -69,6 +70,8 @@ func (p *Program) AddCommand(cmd *Command) error {
 	p.cmds.Store(cmd)
 	return nil
 }
+
+// Execute Execute the given command, when no command is given, print help
 func (p *Program) Execute() {
 	// 只有1个，打印帮助
 	if len(p.pinfo.params) == 0 {
@@ -95,4 +98,17 @@ func (p *Program) Execute() {
 	if code != -1 {
 		os.Exit(code)
 	}
+}
+
+// ExecuteDefault When no command is given, execute the specified command instead of printing help
+func (p *Program) ExecuteDefault(cmd string) {
+	if len(p.pinfo.params) == 0 {
+		p.pinfo.params = []string{cmd}
+	}
+	if strings.HasPrefix(p.pinfo.params[0], "-") {
+		x := []string{cmd}
+		x = append(x, p.pinfo.params...)
+		p.pinfo.params = x
+	}
+	p.Execute()
 }

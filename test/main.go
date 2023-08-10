@@ -13,6 +13,15 @@ import (
 	"github.com/xyzj/gopsu/pathtool"
 )
 
+var (
+	version     = "0.0.0"
+	goVersion   = ""
+	buildDate   = ""
+	platform    = ""
+	author      = "Xu Yuan"
+	programName = "Asset Data Center"
+)
+
 // 结构定义
 // 设备型号信息
 type devmod struct {
@@ -64,6 +73,7 @@ var (
 )
 
 func main() {
+	println("-------", gocmd.VersionInfo(programName, version, goVersion, buildDate, platform, author))
 	gocmd.DefaultProgram(&gocmd.Info{
 		Title:    "a test program",
 		Descript: "askdfjl1klk3h1k2j3o1jo3",
