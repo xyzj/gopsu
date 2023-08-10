@@ -93,7 +93,7 @@ RUN:
 				msg := ""
 				switch err := err.(type) {
 				case error:
-					msg = fmt.Sprintf("%v", errors.WithStack(err))
+					msg = fmt.Sprintf("%+v", errors.WithStack(err))
 				case string:
 					msg = err
 				}
