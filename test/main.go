@@ -2,11 +2,15 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/xyzj/gopsu"
+	"github.com/xyzj/gopsu/gocmd"
+	"github.com/xyzj/gopsu/pathtool"
 )
 
 // 结构定义
@@ -54,9 +58,22 @@ func test(a bool, b ...string) {
 	}
 	println("done")
 }
+
+var (
+	conf = flag.String("conf", "", "usage")
+)
+
 func main() {
-	// test(true)
-	test(false, "bsdf")
+	gocmd.DefaultProgram(&gocmd.Info{
+		Title:    "a test program",
+		Descript: "askdfjl1klk3h1k2j3o1jo3",
+		Ver:      gocmd.VersionInfo("test", "0.0.1", "1.20", "", "linux", "xy"),
+	}).Execute()
+	println("---- conf is", *conf)
+	for {
+		time.Sleep(time.Second * 5)
+		println(pathtool.GetExecDir())
+	}
 }
 
 var (

@@ -81,3 +81,27 @@ func ToBytes(s string) []byte {
 func ToString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
+
+// PB2Json pb2格式转换为json []byte格式
+func PB2Json(pb interface{}) []byte {
+	jsonBytes, err := xMarshal(pb)
+	if err != nil {
+		return nil
+	}
+	return jsonBytes
+}
+
+// PB2String pb2格式转换为json 字符串格式
+func PB2String(pb interface{}) string {
+	b, err := xMarshalToString(pb)
+	if err != nil {
+		return ""
+	}
+	return b
+}
+
+// JSON2PB json字符串转pb2格式
+func JSON2PB(js string, pb interface{}) error {
+	err := xUnmarshal(ToBytes(js), &pb)
+	return err
+}

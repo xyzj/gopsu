@@ -137,7 +137,7 @@ func LoggerWithRolling(logdir, filename string, maxdays int, skippath ...string)
 	// }
 	// // 搜索最后一个文件名
 	// for i := byte(255); i > 0; i-- {
-	// 	if gopsu.IsExist(filepath.Join(f.logDir, fmt.Sprintf("%s.%v.%d.log", filename, t.Format(gopsu.FileTimeFormat), i))) {
+	// 	if pathtool.IsExist(filepath.Join(f.logDir, fmt.Sprintf("%s.%v.%d.log", filename, t.Format(gopsu.FileTimeFormat), i))) {
 	// 		f.fileIndex = i
 	// 	}
 	// }
@@ -283,7 +283,7 @@ func LoggerWithRolling(logdir, filename string, maxdays int, skippath ...string)
 
 // // 压缩旧日志
 // func (f *ginLogger) zipFile(s string) {
-// 	if f.fname == "" || !f.enablegz || len(s) == 0 || !gopsu.IsExist(filepath.Join(f.logDir, s)) {
+// 	if f.fname == "" || !f.enablegz || len(s) == 0 || !pathtool.IsExist(filepath.Join(f.logDir, s)) {
 // 		return
 // 	}
 // 	go func(s string) {

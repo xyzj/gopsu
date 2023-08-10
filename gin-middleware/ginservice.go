@@ -16,6 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/loopfunc"
+	"github.com/xyzj/gopsu/pathtool"
 )
 
 /*
@@ -128,7 +129,7 @@ func ListenAndServeWithOption(opt *ServiceOption) {
 	// 启动https服务
 	if opt.HTTPSPort > 0 {
 		loopfunc.GoFunc(func(params ...interface{}) {
-			if !gopsu.IsExist(opt.CertFile) || !gopsu.IsExist(opt.KeyFile) {
+			if !pathtool.IsExist(opt.CertFile) || !pathtool.IsExist(opt.KeyFile) {
 				fmt.Fprintf(os.Stdout, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "HTTPS server error: no cert or key file found")
 				return
 			}

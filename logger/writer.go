@@ -15,6 +15,7 @@ import (
 
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/loopfunc"
+	"github.com/xyzj/gopsu/pathtool"
 )
 
 const (
@@ -89,7 +90,7 @@ func NewWriter(opt *OptLog) io.Writer {
 	if opt.Filename != "" && opt.AutoRoll {
 		ymd := t.Format(fileTimeFormat)
 		for i := 1; i < 255; i++ {
-			if !gopsu.IsExist(filepath.Join(mylog.logDir, fmt.Sprintf("%s.%s.%d.log", mylog.fname, ymd, i))) {
+			if !pathtool.IsExist(filepath.Join(mylog.logDir, fmt.Sprintf("%s.%s.%d.log", mylog.fname, ymd, i))) {
 				mylog.fileIndex = byte(i) - 1
 				break
 			}
@@ -265,7 +266,7 @@ func (w *Writer) rollingFileNoLock() bool {
 
 // 压缩旧日志
 func (w *Writer) zipFile(s string) {
-	if !w.enablegz || len(s) == 0 || !gopsu.IsExist(filepath.Join(w.logDir, s)) {
+	if !w.enablegz || len(s) == 0 || !pathtool.IsExist(filepath.Join(w.logDir, s)) {
 		return
 	}
 	go func(s string) {

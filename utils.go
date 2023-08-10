@@ -39,6 +39,7 @@ import (
 
 	"github.com/golang/snappy"
 	json "github.com/xyzj/gopsu/json"
+	"github.com/xyzj/gopsu/pathtool"
 )
 
 const (
@@ -95,11 +96,11 @@ type CryptoWorker struct {
 
 var (
 	// DefaultLogDir 默认日志文件夹
-	DefaultLogDir = filepath.Join(GetExecDir(), "..", "log")
+	DefaultLogDir = filepath.Join(pathtool.GetExecDir(), "..", "log")
 	// DefaultCacheDir 默认缓存文件夹
-	DefaultCacheDir = filepath.Join(GetExecDir(), "..", "cache")
+	DefaultCacheDir = filepath.Join(pathtool.GetExecDir(), "..", "cache")
 	// DefaultConfDir 默认配置文件夹
-	DefaultConfDir = filepath.Join(GetExecDir(), "..", "conf")
+	DefaultConfDir = filepath.Join(pathtool.GetExecDir(), "..", "conf")
 )
 
 var (
@@ -107,7 +108,7 @@ var (
 	httpClient   = &http.Client{
 		Transport: &http.Transport{
 			IdleConnTimeout:     time.Second * 10,
-			MaxConnsPerHost:     7777,
+			MaxConnsPerHost:     777,
 			MaxIdleConns:        1,
 			MaxIdleConnsPerHost: 1,
 			TLSClientConfig: &tls.Config{
@@ -632,9 +633,9 @@ func MakeRuntimeDirs(rootpath string) (string, string, string) {
 	var basepath string
 	switch rootpath {
 	case ".":
-		basepath = GetExecDir()
+		basepath = pathtool.GetExecDir()
 	case "..":
-		basepath = JoinPathFromHere("..")
+		basepath = pathtool.JoinPathFromHere("..")
 	default:
 		basepath = rootpath
 	}
@@ -709,40 +710,6 @@ func CountCrc16VB(data *[]byte) []byte {
 		}
 	}
 	return []byte{crc16lo, crc16hi}
-}
-
-// IsExist file is exist or not
-func IsExist(p string) bool {
-	if p == "" {
-		return false
-	}
-	_, err := os.Stat(p)
-	return err == nil || os.IsExist(err)
-}
-
-// GetExecDir get current file path
-func GetExecDir() string {
-	a, _ := os.Executable()
-	execdir := filepath.Dir(a)
-	if strings.Contains(execdir, "go-build") {
-		execdir, _ = filepath.Abs(".")
-	}
-	return execdir
-}
-
-// GetExecName 获取可执行文件的名称
-func GetExecName() string {
-	exe, _ := os.Executable()
-	if exe == "" {
-		return ""
-	}
-	return filepath.Base(exe)
-}
-
-// GetExecNameWithoutExt 获取可执行文件的名称,去除扩展名
-func GetExecNameWithoutExt() string {
-	name := GetExecName()
-	return strings.ReplaceAll(name, filepath.Ext(name), "")
 }
 
 // SplitDateTime SplitDateTime
@@ -904,23 +871,23 @@ type version struct {
 
 // VersionInfo show something
 //
-// p: program name
-// v: program version
-// gv: golang version
-// bd: build datetime
-// pl: platform info
-// a: auth name
-func VersionInfo(p, v, gv, bd, pl, a string) string {
-	b, _ := json.Marshal(&version{
-		Name:      p,
-		Version:   v,
-		GoVersion: gv,
-		BuildDate: bd,
-		BuildOS:   pl,
-		CodeBy:    a,
+// name: program name
+// ver: program version
+// gover: golang version
+// buildDate: build datetime
+// buildOS: platform info
+// auth: auth name
+func VersionInfo(name, ver, gover, buildDate, buildOS, auth string) string {
+	b, _ := json.MarshalIndent(&version{
+		Name:      name,
+		Version:   ver,
+		GoVersion: gover,
+		BuildDate: buildDate,
+		BuildOS:   buildOS,
+		CodeBy:    auth,
 		StartWith: strings.Join(os.Args[1:], " "),
-	})
-	return String(b)
+	}, "", "  ")
+	return string(b)
 }
 
 // WriteVersionInfo write version info to .ver file
@@ -1322,9 +1289,18 @@ func CopyFile(src, dst string) (int64, error) {
 	return nBytes, err
 }
 
+// IsExist file is exist or not
+func IsExist(p string) bool {
+	if p == "" {
+		return false
+	}
+	_, err := os.Stat(p)
+	return err == nil || os.IsExist(err)
+}
+
 // JoinPathFromHere 从程序执行目录开始拼接路径
 func JoinPathFromHere(path ...string) string {
-	s := []string{GetExecDir()}
+	s := []string{pathtool.GetExecDir()}
 	s = append(s, path...)
 	sp := filepath.Join(s...)
 	p, err := filepath.Abs(sp)

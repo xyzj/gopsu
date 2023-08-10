@@ -20,6 +20,7 @@ import (
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/db"
 	"github.com/xyzj/gopsu/json"
+	"github.com/xyzj/gopsu/pathtool"
 	"github.com/xyzj/gopsu/rate"
 )
 
@@ -360,7 +361,7 @@ func ReadCachePB2(mydb db.SQLInterface) gin.HandlerFunc {
 // Blacklist IP黑名单
 func Blacklist(filename string) gin.HandlerFunc {
 	if filename == "" {
-		filename = gopsu.JoinPathFromHere(".blacklist")
+		filename = pathtool.JoinPathFromHere(".blacklist")
 	}
 	b, err := os.ReadFile(filename)
 	if err != nil {

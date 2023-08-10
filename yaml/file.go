@@ -9,6 +9,7 @@ import (
 	"github.com/mohae/deepcopy"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/json"
+	"github.com/xyzj/gopsu/pathtool"
 )
 
 type item struct {
@@ -84,7 +85,7 @@ func (c *File) LoadDefault(key, value, tip string) string {
 
 // WriteFile 保存配置到文件
 func (c *File) WriteFile() error {
-	if !gopsu.IsExist(c.dir) {
+	if !pathtool.IsExist(c.dir) {
 		os.MkdirAll(c.dir, 0775)
 	}
 	b, err := yaml.Marshal(c.items.data)
