@@ -62,13 +62,13 @@ Flags:`, p.info.Title, p.info.Descript, p.pinfo.name, strings.Join(s, "")))
 }
 
 // AddCommand add a command
-func (p *Program) AddCommand(cmd *Command) error {
-	if p.cmds.Has(cmd) {
-		return fmt.Errorf("cmd %s already exists", cmd.Name)
+func (p *Program) AddCommand(cmd *Command) *Program {
+	if !p.cmds.Has(cmd) {
+		cmd.pinfo = p.pinfo
+		p.cmds.Store(cmd)
+		// return fmt.Errorf("cmd %s already exists", cmd.Name)
 	}
-	cmd.pinfo = p.pinfo
-	p.cmds.Store(cmd)
-	return nil
+	return p
 }
 
 // Execute Execute the given command, when no command is given, print help

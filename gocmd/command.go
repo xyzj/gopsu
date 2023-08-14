@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/signal"
+	"runtime"
 	"strconv"
-	"syscall"
 )
 
 var (
@@ -16,7 +15,7 @@ var (
 // Command a command struct
 type Command struct {
 	// RunWithExitCode When the exitcode != -1, the framework will call the os.Exit(exitcode) method to exit the program
-	RunWithExitCode func(pinfo *procInfo) int
+	RunWithExitCode func(*procInfo) int
 	// Name command name, something like run, start, stop
 	Name string
 	// Descript command description, show in help message
@@ -59,59 +58,84 @@ var (
 		Name:     "run",
 		Descript: "run the program.",
 		RunWithExitCode: func(pinfo *procInfo) int {
-			caughtSignal(pinfo)
+			SignalCapture(pinfo.pfile)
 			return -1
+		},
+	}
+
+	CmdStatus = &Command{
+		Name:     "status",
+		Descript: "chek process status",
+		RunWithExitCode: func(pinfo *procInfo) int {
+			return status(pinfo)
 		},
 	}
 )
 
 func start(pinfo *procInfo) int {
-	if id, _ := readPID(pinfo.pfile, false); id > 1 {
+	if id, _ := pinfo.Load(false); id > 1 {
 		if _, err := os.FindProcess(id); err == nil {
 			println(fmt.Sprintf("%s already start with pid: %d", pinfo.name, id))
 			return 1
 		}
 	}
-	pinfo.args = []string{"run"}
-	pinfo.args = append(pinfo.args, pinfo.params[1:]...)
-	cmd := exec.Command(pinfo.exec, pinfo.args...)
+	xargs := []string{"run"}
+	if len(pinfo.Args) > 0 {
+		xargs = append(xargs, pinfo.Args...)
+	}
+	cmd := exec.Command(pinfo.exec, xargs...)
 	cmd.Dir = pinfo.dir
 	if err := cmd.Start(); err != nil {
 		println("start " + pinfo.name + " failed, error: " + err.Error())
 		return 1
 	}
-	pinfo.pid = strconv.Itoa(cmd.Process.Pid)
-	os.WriteFile(pinfo.pfile, []byte(pinfo.pid), 0664)
-	println(pinfo.name + " [PID] " + pinfo.pid + " running ...")
+	pinfo.Pid = cmd.Process.Pid
+	pinfo.Save()
+	println(pinfo.name + " [PID] " + strconv.Itoa(pinfo.Pid) + " running ...")
 	return 0
 }
 
 func stop(pinfo *procInfo) int {
-	id, err := readPID(pinfo.pfile, true)
+	id, err := pinfo.Load(true)
 	if err != nil {
 		return 1
 	}
 	process, err := os.FindProcess(id)
 	if err != nil {
-		println("failed to find process by pid: %d, reason: %v", id, process)
+		println(fmt.Sprintf("failed to find process by pid: %d, reason: %v", id, process))
 		return 1
 	}
 	err = process.Kill()
 	if err != nil {
-		println("failed to kill process %d: %v", id, err)
+		println(fmt.Sprintf("failed to kill process %d: %v", id, err))
 	} else {
-		println("killed process: ", id)
+		println(fmt.Sprintf("killed process: %d", id))
 	}
 	os.Remove(pinfo.pfile)
 	return 0
 }
 
-func caughtSignal(pinfo *procInfo) {
-	signal.Notify(sigc, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
-	go func(c chan os.Signal) {
-		sig := <-c // 监听关闭
-		println("got the signal " + sig.String() + ": shutting down.")
-		os.Remove(pinfo.pfile)
-		os.Exit(0)
-	}(sigc)
+func status(pinfo *procInfo) int {
+	id, err := pinfo.Load(true)
+	if err != nil {
+		return 1
+	}
+	_, err = os.FindProcess(id)
+	if err != nil {
+		println(fmt.Sprintf("failed to find process by pid: %d, reason: %v", id, err.Error()))
+		return 1
+	}
+	if runtime.GOOS == "windows" {
+		println("process " + pinfo.name + " is running by pid " + strconv.Itoa(id))
+		return 0
+	}
+	s := []string{"-p", strconv.Itoa(id), "-o", "user=", "-o", "pid=", "-o", `%cpu=`, "-o", `%mem=`, "-o", "stat=", "-o", "start=", "-o", "time=", "-o", "cmd="}
+	cmd := exec.Command("ps", s...)
+	b, err := cmd.CombinedOutput()
+	if err != nil {
+		println("process status error: " + err.Error())
+		return 1
+	}
+	print(string(b))
+	return 0
 }

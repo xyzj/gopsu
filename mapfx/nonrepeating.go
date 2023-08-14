@@ -65,7 +65,10 @@ func (u *UniqueSlice[T]) Clean() {
 		u.locker.Lock()
 		defer u.locker.Unlock()
 	}
-	u.data = make(map[T]struct{})
+	for k := range u.data {
+		delete(u.data, k)
+	}
+	// u.data = make(map[T]struct{})
 }
 func (u *UniqueSlice[T]) Len() int {
 	if u.safe {
@@ -116,15 +119,21 @@ type UniqueStructSlice[T StructMapI] struct {
 	safe   bool
 }
 
+func (u *UniqueStructSlice[T]) has(item T) (int, bool) {
+	for idx, v := range u.data {
+		if reflect.DeepEqual(v, item) {
+			return idx, true
+		}
+	}
+	return -1, false
+}
 func (u *UniqueStructSlice[T]) Store(item T) bool {
 	if u.safe {
 		u.locker.Lock()
 		defer u.locker.Unlock()
 	}
-	for _, v := range u.data {
-		if reflect.DeepEqual(v, item) {
-			return false
-		}
+	if _, ok := u.has(item); ok {
+		return false
 	}
 	u.data = append(u.data, item)
 	return true
@@ -135,17 +144,9 @@ func (u *UniqueStructSlice[T]) StoreMany(items ...T) {
 		defer u.locker.Unlock()
 	}
 	for _, item := range items {
-		found := false
-		for _, v := range u.data {
-			if reflect.DeepEqual(v, item) {
-				found = true
-				break
-			}
+		if _, ok := u.has(item); !ok {
+			u.data = append(u.data, item)
 		}
-		if found {
-			continue
-		}
-		u.data = append(u.data, item)
 	}
 }
 func (u *UniqueStructSlice[T]) Clean() {
@@ -176,10 +177,16 @@ func (u *UniqueStructSlice[T]) Has(item T) bool {
 		u.locker.RLock()
 		defer u.locker.RUnlock()
 	}
-	for _, k := range u.data {
-		if reflect.DeepEqual(k, item) {
-			return true
-		}
+	_, ok := u.has(item)
+	return ok
+}
+
+func (u *UniqueStructSlice[T]) Delete(item T) {
+	if u.safe {
+		u.locker.RLock()
+		defer u.locker.RUnlock()
 	}
-	return false
+	if idx, ok := u.has(item); ok {
+		u.data = append(u.data[:idx], u.data[idx+1:]...)
+	}
 }

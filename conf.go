@@ -42,7 +42,7 @@ func (c *ConfData) Reload() error {
 			continue
 		}
 		if strings.Contains(s, "=") {
-			c.items.Store(strings.Split(s, "=")[0], &item{Value: strings.Split(s, "=")[1], Tip: tip})
+			c.items.Store(strings.Split(s, "=")[0], &item{Key: strings.Split(s, "=")[0], Value: strings.Split(s, "=")[1], Tip: tip})
 			tip = ""
 		}
 	}
@@ -52,6 +52,7 @@ func (c *ConfData) Reload() error {
 // AddOrUpdate 更新配置项
 func (c *ConfData) AddOrUpdate(key, value, tip string) {
 	c.items.Store(key, &item{
+		Key:   key,
 		Value: value,
 		Tip:   tip,
 	})
@@ -66,7 +67,7 @@ func (c *ConfData) DelItem(key string) {
 func (c *ConfData) UpdateItem(key, value string) bool {
 	x, ok := c.items.Load(key)
 	if !ok {
-		x = &item{Value: value}
+		x = &item{Key: key, Value: value}
 	}
 	x.Value = value
 	c.items.Store(key, x)
@@ -78,7 +79,7 @@ func (c *ConfData) SetItem(key, value, tip string) bool {
 	if !strings.HasPrefix(tip, "#") {
 		tip = "# " + tip
 	}
-	c.items.Store(key, &item{Value: value, Tip: tip})
+	c.items.Store(key, &item{Key: key, Value: value, Tip: tip})
 	return true
 }
 
@@ -118,12 +119,10 @@ func (c *ConfData) Save() error {
 	if c.fileFullPath == "" {
 		return fmt.Errorf("no file specified")
 	}
-	var ss = make([]*item, c.items.Len())
-	var i int
+	var ss = make([]*item, 0, c.items.Len())
 	x := c.items.Clone()
 	for _, v := range x {
-		ss[i] = v
-		i++
+		ss = append(ss, v)
 	}
 	sort.Slice(ss, func(i, j int) bool {
 		return ss[i].Key < ss[j].Key

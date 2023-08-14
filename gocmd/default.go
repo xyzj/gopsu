@@ -3,20 +3,17 @@ package gocmd
 import (
 	"flag"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/xyzj/gopsu/logger"
 	"github.com/xyzj/gopsu/mapfx"
 	"github.com/xyzj/gopsu/pathtool"
 )
 
-// DefaultProgram Create a default console program, this program contains commands: `start`, `stop`, `restart`, `run`, `version`, `help`
+// DefaultProgram Create a default console program, this program contains commands: `start`, `stop`, `restart`, `run`, `status`, `version`, `help`
 func DefaultProgram(info *Info) *Program {
-	p := NewProgram(info)
-	p.AddCommand(CmdStart)
-	p.AddCommand(CmdStop)
-	p.AddCommand(CmdRestart)
-	p.AddCommand(CmdRun)
-	return p
+	return NewProgram(info).AddCommand(CmdRun).AddCommand(CmdStart).AddCommand(CmdStop).AddCommand(CmdRestart).AddCommand(CmdStatus)
 }
 
 // NewProgram Create a empty console program, this program contains commands: `version`, `help`
@@ -28,13 +25,20 @@ func NewProgram(info *Info) *Program {
 			Ver:      "v0.0.1",
 		}
 	}
+	if info.LogWriter == nil {
+		info.LogWriter = logger.NewWriter(&logger.OptLog{})
+	}
 	params := os.Args
 	pinfo := &procInfo{
 		params: make([]string, 0),
 	}
 	// 获取程序信息
 	pinfo.params = params[1:]
-	pinfo.exec = params[0]
+	if exec, err := filepath.Abs(params[0]); err == nil {
+		pinfo.exec = exec
+	} else {
+		pinfo.exec = params[0]
+	}
 	pinfo.name = pathtool.GetExecName()
 	pinfo.dir = pathtool.GetExecDir()
 	if info.Title == "" {
@@ -45,6 +49,7 @@ func NewProgram(info *Info) *Program {
 	for k, v := range params {
 		if strings.HasPrefix(v, "-") {
 			flag.CommandLine.Parse(params[k:])
+			pinfo.Args = params[k:]
 			break
 		}
 	}

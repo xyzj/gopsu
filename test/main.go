@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -10,7 +12,7 @@ import (
 
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/gocmd"
-	"github.com/xyzj/gopsu/pathtool"
+	"github.com/xyzj/gopsu/logger"
 )
 
 var (
@@ -69,20 +71,18 @@ func test(a bool, b ...string) {
 }
 
 var (
-	conf = flag.String("conf", "", "usage")
+	conf  = flag.String("conf", "", "usage")
+	conf1 = flag.String("conf1", "", "usage")
+	conf2 = flag.String("conf2", "", "usage")
 )
 
 func main() {
-	println("-------", gocmd.VersionInfo(programName, version, goVersion, buildDate, platform, author))
-	gocmd.DefaultProgram(&gocmd.Info{
-		Title:    "a test program",
-		Descript: "askdfjl1klk3h1k2j3o1jo3",
-		Ver:      gocmd.VersionInfo("test", "0.0.1", "1.20", "", "linux", "xy"),
-	}).Execute()
-	println("---- conf is", *conf)
+	gocmd.DefaultProgram(&gocmd.Info{LogWriter: logger.NewWriter(&logger.OptLog{Filename: "aaa.log", SyncToConsole: true})}).ExecuteDefault("run")
 	for {
-		time.Sleep(time.Second * 5)
-		println(pathtool.GetExecDir())
+		time.Sleep(time.Second * 3)
+		println(fmt.Sprintf("%+v", os.Args[1:]))
+		// time.Sleep(time.Second * 5)
+		// gocmd.SignalQuit()
 	}
 }
 

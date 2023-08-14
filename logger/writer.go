@@ -54,7 +54,8 @@ type OptLog struct {
 // opt: 日志写入器配置
 func NewWriter(opt *OptLog) io.Writer {
 	if opt == nil {
-		opt = &OptLog{}
+		opt = &OptLog{
+			SyncToConsole: true}
 	}
 	if opt.Filename == "" {
 		opt.AutoRoll = false
@@ -73,6 +74,7 @@ func NewWriter(opt *OptLog) io.Writer {
 	}
 	t := time.Now()
 	mylog := &Writer{
+		buf:         &bytes.Buffer{},
 		cno:         os.Stdout,
 		expired:     int64(opt.MaxDays)*24*60*60 - 10,
 		fileMaxSize: opt.MaxSize,
@@ -103,6 +105,7 @@ func NewWriter(opt *OptLog) io.Writer {
 
 // Writer 自定义Writer
 type Writer struct {
+	buf          *bytes.Buffer
 	chanGoWrite  chan []byte
 	chanEndWrite chan int
 	cno          io.Writer
@@ -128,7 +131,7 @@ func (w *Writer) startWrite() {
 	go loopfunc.LoopFunc(func(params ...interface{}) {
 		tc := time.NewTicker(time.Minute * 10)
 		tw := time.NewTicker(time.Second)
-		buf := &bytes.Buffer{}
+		// buf := &bytes.Buffer{}
 		buftick := &bytes.Buffer{}
 		if !w.delayWrite {
 			tw.Stop()
@@ -136,22 +139,13 @@ func (w *Writer) startWrite() {
 		for {
 			select {
 			case p := <-w.chanGoWrite:
-				buf.Reset()
-				buf.Write(gopsu.Bytes(time.Now().Format(ShortTimeFormat)))
-				buf.Write(p)
-				if !bytes.HasSuffix(p, lineEnd) {
-					buf.WriteByte(10)
+				// if w.withFile {
+				if w.delayWrite {
+					buftick.Write(p)
+				} else {
+					w.fno.Write(p)
 				}
-				if w.withFile {
-					if w.delayWrite {
-						buftick.Write(buf.Bytes())
-					} else {
-						w.fno.Write(buf.Bytes())
-					}
-				}
-				if w.withConsole {
-					w.cno.Write(buf.Bytes())
-				}
+				// }
 				// w.out.Write(buf.Bytes())
 			case <-tc.C:
 				if w.rollfile {
@@ -216,13 +210,19 @@ func (w *Writer) newFile() {
 
 // Write 异步写入日志，返回固定为 0, nil
 func (w *Writer) Write(p []byte) (n int, err error) {
-	// w.buf.Reset()
-	// w.buf.Write(gopsu.Bytes(time.Now().Format(ShortTimeFormat)))
-	// w.buf.Write(p)
-	// if p[len(p)-1] != 10 {
-	// 	w.buf.WriteByte(10)
-	// }
-	w.chanGoWrite <- p
+	w.buf.Reset()
+	w.buf.Write(gopsu.Bytes(time.Now().Format(ShortTimeFormat)))
+	w.buf.Write(p)
+	if !bytes.HasSuffix(p, lineEnd) {
+		w.buf.WriteByte(10)
+	}
+	p = w.buf.Bytes()
+	if w.withConsole {
+		w.cno.Write(p)
+	}
+	if w.withFile {
+		w.chanGoWrite <- p
+	}
 	return 0, nil
 }
 

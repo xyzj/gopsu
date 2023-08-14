@@ -53,7 +53,10 @@ func (m *StructMap[KEY, VALUE]) Delete(key KEY) {
 // Clean 清空内容
 func (m *StructMap[KEY, VALUE]) Clean() {
 	m.locker.Lock()
-	m.data = make(map[KEY]*VALUE)
+	for k := range m.data {
+		delete(m.data, k)
+	}
+	// m.data = make(map[KEY]*VALUE)
 	m.locker.Unlock()
 }
 
