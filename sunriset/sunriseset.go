@@ -29,15 +29,25 @@ type Result struct {
 // Params The Parameters struct can also be used to manipulate the data and get the sunrise and sunset
 // sunrise/sunset int hh*60+mm
 type Params struct {
-	SunResult *mapfx.StructMap[string, Result]
+	sunResult *mapfx.StructMap[string, Result]
 	Latitude  float64
 	Longitude float64
 	UtcOffset float64
 	Year      int
 }
 
+// ForEach 遍历计算结果集
+func (p *Params) ForEach(f func(month, day, sunrise, sunset int) bool) {
+	p.sunResult.ForEach(func(key string, value *Result) bool {
+		return f(value.Month, value.Day, value.Sunrise, value.Sunset)
+	})
+}
+
 // Calculation 使用当前年份计算全年日出日落时间hh*60+mm，非润年，2月29日采用28日时间
 func (p *Params) Calculation() bool {
+	if p.sunResult == nil {
+		p.sunResult = mapfx.NewStructMap[string, Result]()
+	}
 	if p.Year == 0 {
 		p.Year = time.Now().UTC().Year()
 	}
@@ -59,7 +69,7 @@ func (p *Params) Calculation() bool {
 				atomic.AddInt32(&faultCount, 1)
 				return
 			}
-			p.SunResult.Store(fmt.Sprintf("%02d%02d", tt.Month(), tt.Day()), &Result{
+			p.sunResult.Store(fmt.Sprintf("%02d%02d", tt.Month(), tt.Day()), &Result{
 				Month:   int(tt.Month()),
 				Day:     tt.Day(),
 				Sunrise: rise.Hour()*60 + rise.Minute(),
@@ -71,7 +81,7 @@ func (p *Params) Calculation() bool {
 	if faultCount > 1 {
 		return false
 	}
-	feb, ok := p.SunResult.Load("0228")
+	feb, ok := p.sunResult.Load("0228")
 	if ok {
 		var feb29 = &Result{
 			Month:   2,
@@ -79,7 +89,7 @@ func (p *Params) Calculation() bool {
 			Sunrise: feb.Sunrise,
 			Sunset:  feb.Sunset,
 		}
-		p.SunResult.Store("0229", feb29)
+		p.sunResult.Store("0229", feb29)
 	} else {
 		return false
 	}
@@ -91,7 +101,7 @@ func (p *Params) Get(month, day int) (rise, set int) {
 	if month > 12 || month < 1 || day < 1 || day > 31 {
 		return 0, 0
 	}
-	r, ok := p.SunResult.Load(fmt.Sprintf("%02d%02d", month, day))
+	r, ok := p.sunResult.Load(fmt.Sprintf("%02d%02d", month, day))
 	if ok {
 		return r.Sunrise, r.Sunset
 	}

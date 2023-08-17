@@ -160,7 +160,7 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 			conn.Close()
 			panic(err)
 		}
-		logg.System(opt.LogHeader + "Success connect to " + opt.Addr)
+		logg.System(opt.LogHeader + "Success connect to " + opt.Addr + "; Use Exchange: `" + opt.ExchangeName + "`")
 		x = true
 		for d := range rcvMQ {
 			if d.ContentType == "" && d.DeliveryTag == 0 { // 接收错误，可能服务断开
@@ -232,7 +232,7 @@ func NewRMQProducer(opt *RabbitMQOpt, logg logger.Logger) *RMQProducer {
 		if err != nil {
 			panic(err)
 		}
-		logg.System(opt.LogHeader + "Success connect to " + opt.Addr)
+		logg.System(opt.LogHeader + "Success connect to " + opt.Addr + "; Use Exchange: `" + opt.ExchangeName + "`")
 		sender.ready = true
 		for d := range sender.sendData {
 			ex := strconv.Itoa(int(d.expire.Milliseconds()))
