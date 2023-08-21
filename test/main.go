@@ -3,16 +3,14 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"time"
 	"unicode"
 
 	"github.com/xyzj/gopsu"
-	"github.com/xyzj/gopsu/gocmd"
 	"github.com/xyzj/gopsu/logger"
+	"github.com/xyzj/gopsu/mq"
 )
 
 var (
@@ -76,13 +74,18 @@ var (
 	conf2 = flag.String("conf2", "", "usage")
 )
 
+func mqttcb(topic string, body []byte) {
+	println("---", topic, string(body))
+}
+
 func main() {
-	gocmd.DefaultProgram(&gocmd.Info{LogWriter: logger.NewWriter(&logger.OptLog{Filename: "aaa.log", SyncToConsole: true})}).ExecuteDefault("run")
+	cl := mq.NewMQTTClient(&mq.MqttOpt{
+		Addr:      "180.153.108.82:1883",
+		Subscribe: map[string]byte{"#": 0},
+	}, logger.NewConsoleLogger(), mqttcb)
 	for {
 		time.Sleep(time.Second * 3)
-		println(fmt.Sprintf("%+v", os.Args[1:]))
-		// time.Sleep(time.Second * 5)
-		// gocmd.SignalQuit()
+		cl.Write("123/456", []byte(gopsu.GetRandomString(30, true)))
 	}
 }
 

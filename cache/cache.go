@@ -139,7 +139,7 @@ func NewCacheWithWriter(max int, logw io.Writer) *XCache {
 		logw = os.Stdout
 	}
 	go loopfunc.LoopFunc(func(params ...interface{}) {
-		t := time.NewTicker(time.Minute)
+		t := time.NewTicker(time.Second * 30)
 		for {
 			select {
 			case <-t.C:

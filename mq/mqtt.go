@@ -9,6 +9,7 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/pkg/errors"
 	"github.com/xyzj/gopsu"
+	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/logger"
 	"github.com/xyzj/gopsu/loopfunc"
 )
@@ -17,16 +18,43 @@ import (
 type MqttOpt struct {
 	TLSConf   *tls.Config     // tls配置
 	Subscribe map[string]byte // 订阅消息，map[topic]qos
+	SendTimeo time.Duration   // 发送超时
 	ClientID  string
 	Addr      string
 	Username  string
 	Passwd    string
 }
 
+// MqttClient mqtt客户端
+type MqttClient struct {
+	client mqtt.Client
+}
+
+func (m *MqttClient) Client() mqtt.Client {
+	return m.client
+}
+
+func (m *MqttClient) IsConnectionOpen() bool {
+	return m.client.IsConnectionOpen()
+}
+
+func (m *MqttClient) Write(topic string, body []byte) error {
+	return m.WriteWithQos(topic, body, 0)
+}
+
+func (m *MqttClient) WriteWithQos(topic string, body []byte, qos byte) error {
+	t := m.client.Publish(topic, qos, false, body)
+	t.Wait()
+	return t.Error()
+}
+
 // NewMQTTClient 创建一个mqtt客户端
-func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic string, body []byte)) mqtt.Client {
+func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic string, body []byte)) *MqttClient {
 	if opt == nil {
 		return nil
+	}
+	if opt.SendTimeo == 0 {
+		opt.SendTimeo = time.Second * 5
 	}
 	if recvCallback == nil {
 		recvCallback = func(topic string, body []byte) {}
@@ -41,7 +69,8 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 	xopt.SetClientID(opt.ClientID + "_" + gopsu.GetRandomString(10, true))
 	xopt.SetUsername(opt.Username)
 	xopt.SetPassword(opt.Passwd)
-	xopt.SetWriteTimeout(time.Second * 3) // 发送3秒超时
+	xopt.SetWriteTimeout(opt.SendTimeo) // 发送3秒超时
+	xopt.SetConnectTimeout(time.Second * 10)
 	xopt.SetConnectionLostHandler(func(client mqtt.Client, err error) {
 		logg.Error("[MQTT] connection lost, " + err.Error())
 		doneSub = false
@@ -63,6 +92,7 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 							logg.Error("[MQTT] " + fmt.Sprintf("%+v", errors.WithStack(err.(error))))
 						}
 					}()
+					logg.Debug("[MQTT] R:" + msg.Topic() + "; " + json.ToString(msg.Payload()))
 					recvCallback(msg.Topic(), msg.Payload())
 				})
 				doneSub = true
@@ -70,5 +100,5 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 			<-t.C
 		}
 	}, "[MQTT]", logg.DefaultWriter())
-	return client
+	return &MqttClient{client: client}
 }

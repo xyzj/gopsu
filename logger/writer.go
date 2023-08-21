@@ -86,7 +86,7 @@ func NewWriter(opt *OptLog) io.Writer {
 		chanGoWrite: make(chan []byte, 100),
 		enablegz:    opt.ZipFile,
 		withConsole: opt.SyncToConsole,
-		withFile:    true,
+		withFile:    opt.Filename != "",
 		delayWrite:  opt.DelayWrite,
 	}
 	if opt.Filename != "" && opt.AutoRoll {
@@ -128,6 +128,9 @@ type Writer struct {
 }
 
 func (w *Writer) startWrite() {
+	if !w.withFile {
+		return
+	}
 	go loopfunc.LoopFunc(func(params ...interface{}) {
 		tc := time.NewTicker(time.Minute * 10)
 		tw := time.NewTicker(time.Second)
@@ -139,13 +142,13 @@ func (w *Writer) startWrite() {
 		for {
 			select {
 			case p := <-w.chanGoWrite:
-				// if w.withFile {
-				if w.delayWrite {
-					buftick.Write(p)
-				} else {
-					w.fno.Write(p)
+				if w.withFile {
+					if w.delayWrite {
+						buftick.Write(p)
+					} else {
+						w.fno.Write(p)
+					}
 				}
-				// }
 				// w.out.Write(buf.Bytes())
 			case <-tc.C:
 				if w.rollfile {
@@ -165,8 +168,7 @@ func (w *Writer) startWrite() {
 
 // 创建新日志文件
 func (w *Writer) newFile() {
-	if w.fname == "" {
-		w.withFile = false
+	if !w.withFile {
 		return
 	}
 	if w.rollfile {

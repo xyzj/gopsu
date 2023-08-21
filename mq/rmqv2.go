@@ -42,6 +42,7 @@ func rmqConnect(opt *RabbitMQOpt, isConsumer bool) (*amqp.Connection, *amqp.Chan
 	var connstr string
 	var conn *amqp.Connection
 	var err error
+RECONN:
 	if opt.TLSConf != nil {
 		connstr = fmt.Sprintf("amqps://%s:%s@%s/%s", opt.Username, opt.Passwd, opt.Addr, opt.VHost)
 		conn, err = amqp.DialTLS(connstr, opt.TLSConf)
@@ -50,6 +51,14 @@ func rmqConnect(opt *RabbitMQOpt, isConsumer bool) (*amqp.Connection, *amqp.Chan
 		conn, err = amqp.Dial(connstr)
 	}
 	if err != nil {
+		if strings.Contains(err.Error(), "not look like a TLS handshake") {
+			opt.TLSConf = nil
+			goto RECONN
+		}
+		if strings.Contains(err.Error(), "Exception (501) Reason") {
+			opt.TLSConf = &tls.Config{InsecureSkipVerify: true}
+			goto RECONN
+		}
 		return nil, nil, err
 	}
 	channel, err := conn.Channel()
@@ -145,6 +154,7 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 	go loopfunc.LoopFunc(func(params ...interface{}) {
 		conn, channel, err := rmqConnect(opt, true)
 		if err != nil {
+			logg.Error(opt.LogHeader + "connect error: " + err.Error())
 			panic(err)
 		}
 		rcvMQ, err := channel.Consume(
@@ -160,7 +170,7 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 			conn.Close()
 			panic(err)
 		}
-		logg.System(opt.LogHeader + "Success connect to " + opt.Addr + "; Use Exchange: `" + opt.ExchangeName + "`")
+		logg.System(opt.LogHeader + "Success connect to " + opt.Addr + "; exchange: `" + opt.ExchangeName + "`")
 		x = true
 		for d := range rcvMQ {
 			if d.ContentType == "" && d.DeliveryTag == 0 { // 接收错误，可能服务断开
@@ -179,7 +189,7 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 				recvCallback(d.RoutingKey, d.Body)
 			}()
 		}
-	}, "[RMQ-C]", logg.DefaultWriter())
+	}, opt.LogHeader, logg.DefaultWriter())
 	return &x
 }
 
@@ -230,9 +240,10 @@ func NewRMQProducer(opt *RabbitMQOpt, logg logger.Logger) *RMQProducer {
 	go loopfunc.LoopFunc(func(params ...interface{}) {
 		conn, channel, err := rmqConnect(opt, false)
 		if err != nil {
+			logg.Error(opt.LogHeader + "connect error: " + err.Error())
 			panic(err)
 		}
-		logg.System(opt.LogHeader + "Success connect to " + opt.Addr + "; Use Exchange: `" + opt.ExchangeName + "`")
+		logg.System(opt.LogHeader + "Success connect to " + opt.Addr + "; exchange: `" + opt.ExchangeName + "`")
 		sender.ready = true
 		for d := range sender.sendData {
 			ex := strconv.Itoa(int(d.expire.Milliseconds()))

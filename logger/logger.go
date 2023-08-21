@@ -2,8 +2,6 @@ package logger
 
 import (
 	"io"
-	"os"
-	"time"
 	"unsafe"
 )
 
@@ -124,9 +122,9 @@ func (l *StdLogger) writeLog(msg string, level byte) {
 	if level >= l.logLevel {
 		l.out.Write(toBytes(msg))
 	}
-	if _, ok := l.clevel[level]; ok {
-		l.cout.Write(toBytes(time.Now().Format(ShortTimeFormat) + msg + "\n"))
-	}
+	// if _, ok := l.clevel[level]; ok {
+	// 	l.cout.Write(toBytes(time.Now().Format(ShortTimeFormat) + msg + "\n"))
+	// }
 }
 
 // Debug writelog with level 10
@@ -212,24 +210,24 @@ func NewLogger(d, f string, logLevel, logDays int, delayWrite bool, consoleLevel
 	return &StdLogger{
 		logLevel: ll,
 		out:      NewWriter(opt),
-		cout:     os.Stdout,
-		clevel:   cl,
+		// cout:     os.Stdout,
+		// clevel:   cl,
 	}
 }
 
 // NewConsoleLogger 返回一个纯控制台日志输出器
 func NewConsoleLogger() Logger {
 	return &StdLogger{
-		// out:      NewWriter(nil),
+		out:      NewWriter(nil),
 		logLevel: 10,
-		cout:     os.Stdout,
-		clevel: map[byte]struct{}{
-			10: {},
-			20: {},
-			30: {},
-			40: {},
-			90: {},
-		},
+		// cout:     os.Stdout,
+		// clevel: map[byte]struct{}{
+		// 	10: {},
+		// 	20: {},
+		// 	30: {},
+		// 	40: {},
+		// 	90: {},
+		// },
 	}
 }
 func toBytes(s string) []byte {
