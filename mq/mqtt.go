@@ -35,6 +35,9 @@ func (m *MqttClient) Client() mqtt.Client {
 }
 
 func (m *MqttClient) IsConnectionOpen() bool {
+	if m.client == nil {
+		return false
+	}
 	return m.client.IsConnectionOpen()
 }
 
@@ -43,6 +46,9 @@ func (m *MqttClient) Write(topic string, body []byte) error {
 }
 
 func (m *MqttClient) WriteWithQos(topic string, body []byte, qos byte) error {
+	if m.client == nil {
+		return fmt.Errorf("not connect to the server")
+	}
 	t := m.client.Publish(topic, qos, false, body)
 	t.Wait()
 	return t.Error()
@@ -92,7 +98,7 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 							logg.Error("[MQTT] " + fmt.Sprintf("%+v", errors.WithStack(err.(error))))
 						}
 					}()
-					logg.Debug("[MQTT] R:" + msg.Topic() + "; " + json.ToString(msg.Payload()))
+					logg.Debug("[MQTT] DR:" + msg.Topic() + "; " + json.ToString(msg.Payload()))
 					recvCallback(msg.Topic(), msg.Payload())
 				})
 				doneSub = true

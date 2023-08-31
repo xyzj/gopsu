@@ -189,7 +189,7 @@ func LiteEngine(logfile string, logDays int, hosts ...string) *gin.Engine {
 	// 特殊路由处理
 	r.HandleMethodNotAllowed = true
 	r.NoMethod(Page405)
-	r.NoRoute(Page404)
+	r.NoRoute(Page404Big)
 	// 允许跨域
 	r.Use(cors.New(cors.Config{
 		MaxAge:           time.Hour * 24,

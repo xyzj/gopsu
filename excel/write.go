@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tealeg/xlsx"
+	"github.com/tealeg/xlsx/v3"
 )
 
 // FileData Excel文件结构
@@ -51,10 +51,10 @@ func (fd *FileData) AddRow(cells ...interface{}) {
 	}
 	row := fd.writeSheet.AddRow()
 	row.SetHeight(15)
-	// row.WriteSlice(cells, -1)
-	for _, v := range cells {
-		row.AddCell().SetValue(v)
-	}
+	row.WriteSlice(cells, -1)
+	// for _, v := range cells {
+	// 	row.AddCell().SetValue(v)
+	// }
 }
 
 // SetColume 设置列头

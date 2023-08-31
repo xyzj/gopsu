@@ -3,6 +3,7 @@ package ginmiddleware
 import (
 	_ "embed"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,6 +19,12 @@ var favicon []byte
 
 //go:embed pages/404-big.html
 var page404big []byte
+
+//go:embed pages/404-cat.html
+var page404cat []byte
+
+//go:embed pages/404-code.html
+var page404code []byte
 
 //go:embed pages/404.html
 var page404 []byte
@@ -64,6 +71,16 @@ func Page404(c *gin.Context) {
 		c.Header("Content-Type", "text/html")
 		c.Writer.WriteHeader(http.StatusNotFound)
 		c.Writer.Write(page404)
+		return
+	}
+	c.String(http.StatusNotFound, "404 nothing here")
+}
+func Page404Rand(c *gin.Context) {
+	s := pic404[rand.Intn(len(pic404))]
+	if c.Request.Method == "GET" {
+		c.Header("Content-Type", "text/html")
+		c.Writer.WriteHeader(http.StatusNotFound)
+		c.Writer.Write(s)
 		return
 	}
 	c.String(http.StatusNotFound, "404 nothing here")

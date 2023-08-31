@@ -70,6 +70,10 @@ func (p *Program) AddCommand(cmd *Command) *Program {
 	}
 	return p
 }
+func (p *Program) OnSignalQuit(f func()) *Program {
+	p.pinfo.onSignalQuit = f
+	return p
+}
 
 // Execute Execute the given command, when no command is given, print help
 func (p *Program) Execute() {

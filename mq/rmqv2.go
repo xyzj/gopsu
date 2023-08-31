@@ -41,6 +41,7 @@ type RabbitMQOpt struct {
 func rmqConnect(opt *RabbitMQOpt, isConsumer bool) (*amqp.Connection, *amqp.Channel, error) {
 	var connstr string
 	var conn *amqp.Connection
+	var channel *amqp.Channel
 	var err error
 RECONN:
 	if opt.TLSConf != nil {
@@ -61,12 +62,12 @@ RECONN:
 		}
 		return nil, nil, err
 	}
-	channel, err := conn.Channel()
+	channel, err = conn.Channel()
 	if err != nil {
 		conn.Close()
 		return nil, nil, err
 	}
-REEXCHANGE:
+	// REEXCHANGE:
 	err = channel.ExchangeDeclare(
 		opt.ExchangeName,       // name
 		"topic",                // type
@@ -77,21 +78,20 @@ REEXCHANGE:
 		nil,                    // arguments
 	)
 	if err != nil {
+		conn.Close()
 		if strings.Contains(err.Error(), "durable") {
 			opt.ExchangeDurable = !opt.ExchangeDurable
-			time.Sleep(time.Second)
-			goto REEXCHANGE
+			time.Sleep(time.Millisecond * 500)
+			goto RECONN
 		}
 		if strings.Contains(err.Error(), "auto_delete") {
 			opt.ExchangeAutoDelete = !opt.ExchangeAutoDelete
-			time.Sleep(time.Second)
-			goto REEXCHANGE
+			time.Sleep(time.Millisecond * 500)
+			goto RECONN
 		}
-		conn.Close()
 		return nil, nil, err
 	}
 	if isConsumer {
-	REQUEUE:
 		_, err = channel.QueueDeclare(
 			opt.QueueName,       // name
 			opt.QueueDurable,    // durable
@@ -104,18 +104,18 @@ REEXCHANGE:
 			}, // arguments
 		)
 		if err != nil {
+			channel.Close()
+			conn.Close()
 			if strings.Contains(err.Error(), "durable") {
 				opt.QueueDurable = !opt.QueueDurable
-				time.Sleep(time.Second)
-				goto REQUEUE
+				time.Sleep(time.Millisecond * 500)
+				goto RECONN
 			}
 			if strings.Contains(err.Error(), "auto_delete") {
 				opt.QueueAutoDelete = !opt.QueueAutoDelete
-				time.Sleep(time.Second)
-				goto REQUEUE
+				time.Sleep(time.Millisecond * 500)
+				goto RECONN
 			}
-			channel.Close()
-			conn.Close()
 			return nil, nil, err
 		}
 		for _, v := range opt.Subscribe {
@@ -154,7 +154,7 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 	go loopfunc.LoopFunc(func(params ...interface{}) {
 		conn, channel, err := rmqConnect(opt, true)
 		if err != nil {
-			logg.Error(opt.LogHeader + "connect error: " + err.Error())
+			logg.Error(opt.LogHeader + "connect to " + opt.Addr + " error: " + err.Error())
 			panic(err)
 		}
 		rcvMQ, err := channel.Consume(

@@ -33,7 +33,8 @@ type procInfo struct {
 	// the file save the pid
 	pfile string `json:"-"`
 	// Pid value
-	Pid int `json:"pid"`
+	Pid          int `json:"pid"`
+	onSignalQuit func()
 }
 
 // Save 保存pid信息

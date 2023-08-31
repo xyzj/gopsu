@@ -44,22 +44,24 @@ type OptLog struct {
 	// ZipFile 是否压缩旧日志文件，AutoRoll==true时有效
 	ZipFile bool
 	// SyncToConsole 同步输出到控制台
-	SyncToConsole bool
+	// SyncToConsole bool
 	// DelayWrite 延迟写入，每秒检查写入缓存，并写入文件，非实时写入
 	DelayWrite bool
+}
+
+func NewConsoleWriter() io.Writer {
+	return &Writer{
+		buf: &bytes.Buffer{},
+		out: os.Stdout,
+	}
 }
 
 // NewWriter 一个新的log写入器
 //
 // opt: 日志写入器配置
 func NewWriter(opt *OptLog) io.Writer {
-	if opt == nil {
-		opt = &OptLog{
-			SyncToConsole: true}
-	}
-	if opt.Filename == "" {
-		opt.AutoRoll = false
-		opt.SyncToConsole = true
+	if opt == nil || opt.Filename == "" {
+		return NewConsoleWriter()
 	}
 	if opt.AutoRoll { // 检查关联参数
 		if opt.MaxDays < 1 {
@@ -75,7 +77,7 @@ func NewWriter(opt *OptLog) io.Writer {
 	t := time.Now()
 	mylog := &Writer{
 		buf:         &bytes.Buffer{},
-		cno:         os.Stdout,
+		out:         os.Stdout,
 		expired:     int64(opt.MaxDays)*24*60*60 - 10,
 		fileMaxSize: opt.MaxSize,
 		fname:       opt.Filename,
@@ -83,9 +85,8 @@ func NewWriter(opt *OptLog) io.Writer {
 		fileDay:     t.Day(),
 		fileHour:    t.Hour(),
 		logDir:      opt.FileDir,
-		chanGoWrite: make(chan []byte, 100),
+		chanGoWrite: make(chan []byte, 3000),
 		enablegz:    opt.ZipFile,
-		withConsole: opt.SyncToConsole,
 		withFile:    opt.Filename != "",
 		delayWrite:  opt.DelayWrite,
 	}
@@ -105,26 +106,41 @@ func NewWriter(opt *OptLog) io.Writer {
 
 // Writer 自定义Writer
 type Writer struct {
-	buf          *bytes.Buffer
-	chanGoWrite  chan []byte
-	chanEndWrite chan int
-	cno          io.Writer
-	fno          *os.File
-	pathNow      string
-	fname        string
-	nameNow      string
-	nameOld      string
-	logDir       string
-	expired      int64
-	fileMaxSize  int64
-	fileDay      int
-	fileHour     int
-	fileIndex    byte
-	enablegz     bool
-	rollfile     bool
-	withConsole  bool
-	withFile     bool
-	delayWrite   bool
+	buf         *bytes.Buffer
+	chanGoWrite chan []byte
+	out         io.Writer
+	fno         *os.File
+	pathNow     string
+	fname       string
+	nameNow     string
+	nameOld     string
+	logDir      string
+	expired     int64
+	fileMaxSize int64
+	fileDay     int
+	fileHour    int
+	fileIndex   byte
+	enablegz    bool
+	rollfile    bool
+	withFile    bool
+	delayWrite  bool
+}
+
+// Write 异步写入日志，返回固定为 0, nil
+func (w *Writer) Write(p []byte) (n int, err error) {
+	w.buf.Reset()
+	w.buf.Write(gopsu.Bytes(time.Now().Format(ShortTimeFormat)))
+	w.buf.Write(p)
+	if !bytes.HasSuffix(p, lineEnd) {
+		w.buf.Write(lineEnd)
+	}
+	p = w.buf.Bytes()
+	if w.withFile {
+		w.chanGoWrite <- p
+	} else {
+		w.out.Write(p)
+	}
+	return 0, nil
 }
 
 func (w *Writer) startWrite() {
@@ -198,6 +214,7 @@ func (w *Writer) newFile() {
 		return
 	}
 	w.withFile = true
+	// w.out = w.fno
 	// if w.withConsole {
 	// 	w.out = io.MultiWriter(os.Stdout, w.fno)
 	// } else {
@@ -208,24 +225,6 @@ func (w *Writer) newFile() {
 		w.zipFile(w.nameOld)
 	}
 	w.fno.Write(lineEnd)
-}
-
-// Write 异步写入日志，返回固定为 0, nil
-func (w *Writer) Write(p []byte) (n int, err error) {
-	w.buf.Reset()
-	w.buf.Write(gopsu.Bytes(time.Now().Format(ShortTimeFormat)))
-	w.buf.Write(p)
-	if !bytes.HasSuffix(p, lineEnd) {
-		w.buf.WriteByte(10)
-	}
-	p = w.buf.Bytes()
-	if w.withConsole {
-		w.cno.Write(p)
-	}
-	if w.withFile {
-		w.chanGoWrite <- p
-	}
-	return 0, nil
 }
 
 // 检查文件大小,返回是否需要切分文件

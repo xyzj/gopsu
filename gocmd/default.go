@@ -22,7 +22,7 @@ func NewProgram(info *Info) *Program {
 		info = &Info{
 			Title:    "A general program startup framework",
 			Descript: "can run program in the background",
-			Ver:      "v0.0.1",
+			Ver:      "0.0.1",
 		}
 	}
 	if info.LogWriter == nil {

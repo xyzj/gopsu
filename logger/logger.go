@@ -2,6 +2,8 @@ package logger
 
 import (
 	"io"
+	"os"
+	"strings"
 	"unsafe"
 )
 
@@ -119,12 +121,15 @@ func (l *StdLogger) DefaultWriter() io.Writer {
 // WriteLog 写日志
 func (l *StdLogger) writeLog(msg string, level byte) {
 	// 写日志
-	if level >= l.logLevel {
+	if level >= l.logLevel && l.out != nil {
 		l.out.Write(toBytes(msg))
 	}
-	// if _, ok := l.clevel[level]; ok {
-	// 	l.cout.Write(toBytes(time.Now().Format(ShortTimeFormat) + msg + "\n"))
-	// }
+	if !strings.HasSuffix(msg, "\n") {
+		msg += "\n"
+	}
+	if _, ok := l.clevel[level]; ok && l.cout != nil {
+		l.cout.Write(toBytes(msg))
+	}
 }
 
 // Debug writelog with level 10
@@ -193,41 +198,38 @@ func NewLogger(d, f string, logLevel, logDays int, delayWrite bool, consoleLevel
 		return NewConsoleLogger()
 	}
 	opt := &OptLog{
-		FileDir:       d,
-		Filename:      f,
-		AutoRoll:      ll >= 10,
-		MaxDays:       logDays,
-		ZipFile:       logDays > 7,
-		SyncToConsole: ll <= 10,
-		DelayWrite:    delayWrite,
+		FileDir:    d,
+		Filename:   f,
+		AutoRoll:   ll >= 10,
+		MaxDays:    logDays,
+		ZipFile:    logDays > 7,
+		DelayWrite: delayWrite,
 	}
 	cl := make(map[byte]struct{})
-	if !opt.SyncToConsole {
-		for _, v := range consoleLevels {
-			cl[v] = struct{}{}
-		}
+	for _, v := range consoleLevels {
+		cl[v] = struct{}{}
 	}
 	return &StdLogger{
 		logLevel: ll,
 		out:      NewWriter(opt),
-		// cout:     os.Stdout,
-		// clevel:   cl,
+		cout:     NewConsoleWriter(),
+		clevel:   cl,
 	}
 }
 
 // NewConsoleLogger 返回一个纯控制台日志输出器
 func NewConsoleLogger() Logger {
 	return &StdLogger{
-		out:      NewWriter(nil),
-		logLevel: 10,
-		// cout:     os.Stdout,
-		// clevel: map[byte]struct{}{
-		// 	10: {},
-		// 	20: {},
-		// 	30: {},
-		// 	40: {},
-		// 	90: {},
-		// },
+		// out:      NewWriter(nil),
+		// logLevel: 10,
+		cout: os.Stdout,
+		clevel: map[byte]struct{}{
+			10: {},
+			20: {},
+			30: {},
+			40: {},
+			90: {},
+		},
 	}
 }
 func toBytes(s string) []byte {

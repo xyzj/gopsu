@@ -58,7 +58,7 @@ var (
 		Name:     "run",
 		Descript: "run the program.",
 		RunWithExitCode: func(pinfo *procInfo) int {
-			SignalCapture(pinfo.pfile)
+			SignalCapture(pinfo.pfile, pinfo.onSignalQuit)
 			return -1
 		},
 	}

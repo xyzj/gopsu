@@ -155,20 +155,6 @@ func DoRequestWithTimeout(req *http.Request, timeo time.Duration) (int, []byte, 
 	return sc, b, h, nil
 }
 
-// SliceFlag 切片型参数，仅支持字符串格式
-type SliceFlag []string
-
-// String 返回参数
-func (f *SliceFlag) String() string {
-	return fmt.Sprintf("%v", []string(*f))
-}
-
-// Set 设置值
-func (f *SliceFlag) Set(value string) error {
-	*f = append(*f, value)
-	return nil
-}
-
 // GetNewCryptoWorker 获取新的序列化或加密管理器
 // md5,sha256,sha512初始化后直接调用hash
 // hmacsha1初始化后需调用SetSignKey设置签名key后调用hash

@@ -51,7 +51,7 @@ func LogToWriter(w io.Writer, skippath ...string) gin.HandlerFunc {
 			if a.body != "" {
 				a.path += " |" + a.body
 			}
-			b := gopsu.Bytes(fmt.Sprintf("|%3d |%-13s|%-15s|%-4s %s ▸%s", a.statusCode, a.timer, a.clientIP, a.method, a.path, a.jsn))
+			b := gopsu.Bytes(fmt.Sprintf("|%3d |%-13s|%-15s|%-4s %s |%s", a.statusCode, a.timer, a.clientIP, a.method, a.path, a.jsn))
 			w.Write(b)
 		}
 	}, "http log", w)
@@ -107,13 +107,12 @@ func LogToWriter(w io.Writer, skippath ...string) gin.HandlerFunc {
 // maxdays：日志文件最大保存天数。
 func LoggerWithRolling(logdir, filename string, maxdays int, skippath ...string) gin.HandlerFunc {
 	lo := logger.NewWriter(&logger.OptLog{
-		AutoRoll:      true,
-		FileDir:       logdir,
-		Filename:      filename,
-		MaxDays:       maxdays,
-		ZipFile:       false,
-		SyncToConsole: gin.IsDebugging(),
-		DelayWrite:    true,
+		AutoRoll:   true,
+		FileDir:    logdir,
+		Filename:   filename,
+		MaxDays:    maxdays,
+		ZipFile:    false,
+		DelayWrite: true,
 	})
 	return LogToWriter(lo, skippath...)
 	// return LoggerWithRollingSkip(logdir, filename, maxdays, []string{"/static"})

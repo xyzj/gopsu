@@ -3,14 +3,13 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"strings"
 	"sync"
-	"time"
 	"unicode"
 
 	"github.com/xyzj/gopsu"
-	"github.com/xyzj/gopsu/logger"
-	"github.com/xyzj/gopsu/mq"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -78,15 +77,28 @@ func mqttcb(topic string, body []byte) {
 	println("---", topic, string(body))
 }
 
+type aaa struct {
+	Username string          `json:"username" yaml:"username"`
+	Password gopsu.PwdString `yaml:"pwd"`
+}
+
 func main() {
-	cl := mq.NewMQTTClient(&mq.MqttOpt{
-		Addr:      "180.153.108.82:1883",
-		Subscribe: map[string]byte{"#": 0},
-	}, logger.NewConsoleLogger(), mqttcb)
-	for {
-		time.Sleep(time.Second * 3)
-		cl.Write("123/456", []byte(gopsu.GetRandomString(30, true)))
+	ss := `{"username":"lostjudgment","pwd":"FZX43DTiD/11w/UD"}`
+	// a := &aaa{
+	// 	Username: "lostjudgment",
+	// 	Password: "yagami",
+	// }
+	aa := &aaa{
+		Username: "lostjudgment",
+		Password: "yagami",
 	}
+	b, err := yaml.Marshal(aa)
+	if err != nil {
+		println(err.Error())
+	}
+	println(string(b))
+	yaml.Unmarshal([]byte(ss), aa)
+	println(fmt.Sprintf("%+v", aa))
 }
 
 var (
