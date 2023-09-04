@@ -16,22 +16,33 @@ import (
 // VString value string, can parse to bool int64 float64
 type VString string
 
+// String reutrn string
 func (rs VString) String() string {
 	return string(rs)
 }
+
+// Bytes reutrn []byte
 func (rs VString) Bytes() []byte {
 	return []byte(rs)
 }
+
+// TryBool reutrn bool
 func (rs VString) TryBool() bool {
 	v, _ := strconv.ParseBool(string(rs))
 	return v
 }
+
+// TryInt64 reutrn int64
 func (rs VString) TryInt64() int64 {
 	return gopsu.String2Int64(string(rs), 10)
 }
+
+// TryFloat64 reutrn fl
 func (rs VString) TryFloat64() float64 {
 	return gopsu.String2Float64(string(rs))
 }
+
+// TryDecode try decode the value, if failed, return the origin
 func (rs VString) TryDecode() string {
 	if s := gopsu.DecodeString(string(rs)); s != "" {
 		return s
@@ -73,6 +84,16 @@ type File struct {
 	items    *mapfx.StructMap[string, Item]
 	data     *bytes.Buffer
 	filepath string
+}
+
+// Keys 获取所有Key
+func (f *File) Keys() []string {
+	ss := make([]string, 0, f.items.Len())
+	f.items.ForEach(func(key string, value *Item) bool {
+		ss = append(ss, key)
+		return true
+	})
+	return ss
 }
 
 // DelItem 删除配置项
