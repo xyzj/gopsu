@@ -4,6 +4,7 @@ package excel
 import (
 	"errors"
 	"io"
+	"mime/multipart"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -18,6 +19,24 @@ type FileData struct {
 	colStyle   *xlsx.Style
 	writeFile  *xlsx.File
 	writeSheet *xlsx.Sheet
+}
+
+func (fd *FileData) GetRows(sheetname string) [][]string {
+	sheet := fd.writeFile.Sheet[sheetname]
+	var ss = make([][]string, 0, sheet.MaxRow)
+	l := sheet.MaxCol
+	sheet.ForEachRow(func(r *xlsx.Row) error {
+		rs := make([]string, 0, l)
+		r.ForEachCell(func(c *xlsx.Cell) error {
+			rs = append(rs, c.Value)
+			return nil
+		})
+		if len(rs) > 0 {
+			ss = append(ss, rs)
+		}
+		return nil
+	})
+	return ss
 }
 
 // AddSheet 添加sheet
@@ -143,6 +162,14 @@ func NewExcelFromBinary(bs []byte, filename string) (*FileData, error) {
 	// }
 	fd.fileName = filename
 	return fd, err
+}
+
+func NewExcelFromUpload(file multipart.File, filename string) (*FileData, error) {
+	fb, err := io.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+	return NewExcelFromBinary(fb, filename)
 }
 func isExist(p string) bool {
 	if p == "" {

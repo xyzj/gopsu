@@ -79,26 +79,19 @@ func mqttcb(topic string, body []byte) {
 
 type aaa struct {
 	Username string          `json:"username" yaml:"username"`
-	Password gopsu.PwdString `yaml:"pwd"`
+	Password gopsu.PwdString `json:"pwd" yaml:"pwd"`
 }
 
 func main() {
 	ss := `{"username":"lostjudgment","pwd":"FZX43DTiD/11w/UD"}`
-	// a := &aaa{
-	// 	Username: "lostjudgment",
-	// 	Password: "yagami",
-	// }
-	aa := &aaa{
-		Username: "lostjudgment",
-		Password: "yagami",
-	}
+	aa := &aaa{}
+	yaml.Unmarshal([]byte(ss), aa)
+	println(fmt.Sprintf("%+v", aa))
 	b, err := yaml.Marshal(aa)
 	if err != nil {
 		println(err.Error())
 	}
 	println(string(b))
-	yaml.Unmarshal([]byte(ss), aa)
-	println(fmt.Sprintf("%+v", aa))
 }
 
 var (
