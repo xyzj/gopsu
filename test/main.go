@@ -3,13 +3,12 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"strings"
 	"sync"
 	"unicode"
 
 	"github.com/xyzj/gopsu"
-	"gopkg.in/yaml.v3"
+	config "github.com/xyzj/gopsu/confile"
 )
 
 var (
@@ -83,15 +82,17 @@ type aaa struct {
 }
 
 func main() {
-	ss := `{"username":"lostjudgment","pwd":"FZX43DTiD/11w/UD"}`
-	aa := &aaa{}
-	yaml.Unmarshal([]byte(ss), aa)
-	println(fmt.Sprintf("%+v", aa))
-	b, err := yaml.Marshal(aa)
-	if err != nil {
-		println(err.Error())
-	}
-	println(string(b))
+	conf := config.NewConfig("test.conf") // 创建/读取配置文件
+	println(conf.Print())                 //  查看所有配置项
+	println(conf.GetItem("root_path"))    // 读取一个配置项的值
+	conf.GetDefault(&config.Item{         // 尝试读取一个配置项的值，当配置项不存在时，添加当前配置项
+		Key:          "zzzzzz_path",
+		Value:        "asdfaldjlasjfd",
+		EncryptValue: true, // 保存时需要将value加密
+		Comment:      "1234ksdfkjhasdfh",
+	})
+	println(conf.GetItem("zzzzzz_path").TryDecode()) // 读取配置项，并解密值
+	conf.ToFile()                                    // 保存到文件
 }
 
 var (

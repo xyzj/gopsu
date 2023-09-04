@@ -24,7 +24,6 @@ require (
 	github.com/xyzj/bolt v0.0.0-20230727063130-55230685011f
 	golang.org/x/text v0.12.0
 	gopkg.in/mail.v2 v2.3.1
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -69,4 +68,5 @@ require (
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
