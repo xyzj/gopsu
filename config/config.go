@@ -76,6 +76,8 @@ func (i *Item) String() string {
 }
 
 // NewConfig 创建一个key:value格式的配置文件
+//
+//	依据文件的扩展名，支持yaml和json格式的文件
 func NewConfig(filepath string) *File {
 	f := &File{}
 	f.FromFile(filepath)
@@ -134,6 +136,13 @@ func (f *File) GetItem(key string) VString {
 	return ""
 }
 
+// ForEach 遍历所有值
+func (f *File) ForEach(do func(key string, value VString) bool) {
+	f.items.ForEach(func(key string, value *Item) bool {
+		return do(key, value.Value)
+	})
+}
+
 // Len 获取配置数量
 func (f *File) Len() int {
 	return f.items.Len()
@@ -161,8 +170,16 @@ func (f *File) FromFile(configfile string) error {
 	if configfile != "" {
 		f.filepath = configfile
 	}
-	f.data = &bytes.Buffer{}
-	f.items = mapfx.NewStructMap[string, Item]()
+	if f.data == nil {
+		f.data = &bytes.Buffer{}
+	} else {
+		f.data.Reset()
+	}
+	if f.items == nil {
+		f.items = mapfx.NewStructMap[string, Item]()
+	} else {
+		f.items.Clean()
+	}
 	b, err := os.ReadFile(f.filepath)
 	if err != nil {
 		return err
@@ -194,7 +211,7 @@ func (f *File) FromFile(configfile string) error {
 	return nil
 }
 
-// ToFile 将配置写入文件
+// ToFile 将配置写入文件，依据文件扩展名判断写入格式
 func (f *File) ToFile() error {
 	f.Print()
 	switch strings.ToLower(filepath.Ext(f.filepath)) {

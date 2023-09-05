@@ -18,6 +18,7 @@ const (
 // Formatted yaml/json 格式化配置文件
 type Formatted[ITEM any] struct {
 	items      *mapfx.StructMap[string, ITEM]
+	data       []byte
 	filepath   string
 	formatType FormatType
 }
@@ -39,9 +40,37 @@ func (f *Formatted[ITEM]) GetItem(key string) (*ITEM, bool) {
 	return f.items.Load(key)
 }
 
+// DelItem 删除一个配置项
+func (f *Formatted[ITEM]) DelItem(key string) {
+	f.items.Delete(key)
+}
+
 // Clone 获取所有配置
 func (f *Formatted[ITEM]) Clone() map[string]*ITEM {
 	return f.items.Clone()
+}
+
+// ForEach 遍历所有值
+func (f *Formatted[ITEM]) ForEach(do func(key string, value *ITEM) bool) {
+	f.items.ForEach(func(key string, value *ITEM) bool {
+		return do(key, value)
+	})
+}
+
+// Len 获取配置数量
+func (f *Formatted[ITEM]) Len() int {
+	return f.items.Len()
+}
+
+// Print 返回所有配置项
+func (f *Formatted[ITEM]) Print() string {
+	switch f.formatType {
+	case YAML:
+		f.toYAML()
+	case JSON:
+		f.toJSON()
+	}
+	return string(f.data)
 }
 
 // FromFile 从文件读取配置
@@ -49,7 +78,11 @@ func (f *Formatted[ITEM]) FromFile(configfile string) error {
 	if configfile != "" {
 		f.filepath = configfile
 	}
-	f.items = mapfx.NewStructMap[string, ITEM]()
+	if f.items == nil {
+		f.items = mapfx.NewStructMap[string, ITEM]()
+	} else {
+		f.items.Clean()
+	}
 	b, err := os.ReadFile(f.filepath)
 	if err != nil {
 		return err
@@ -67,11 +100,11 @@ func (f *Formatted[ITEM]) FromFile(configfile string) error {
 func (f *Formatted[ITEM]) ToFile() error {
 	switch f.formatType {
 	case YAML:
-		return f.toYAML()
+		f.toYAML()
 	case JSON:
-		return f.toJSON()
+		f.toJSON()
 	}
-	return nil
+	return os.WriteFile(f.filepath, f.data, 0644)
 }
 
 // fromYAML 从yaml文件读取
@@ -106,7 +139,8 @@ func (f *Formatted[ITEM]) toYAML() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(f.filepath, b, 0644)
+	f.data = b
+	return nil
 }
 
 // toJSON 写入json文件
@@ -115,5 +149,6 @@ func (f *Formatted[ITEM]) toJSON() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(f.filepath, b, 0644)
+	f.data = b
+	return nil
 }
