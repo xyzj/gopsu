@@ -104,7 +104,7 @@ func (u *UniqueSlice[T]) Has(item T) bool {
 // NewUniqueStructSlice 构建一个内容不重复的struct 类型 slice
 //
 //	线程安全
-func NewUniqueStructSlice[T StructMapI](goroutineSafe bool) *UniqueStructSlice[T] {
+func NewUniqueStructSlice[T any](goroutineSafe bool) *UniqueStructSlice[T] {
 	return &UniqueStructSlice[T]{
 		safe:   goroutineSafe,
 		locker: sync.RWMutex{},
@@ -113,7 +113,7 @@ func NewUniqueStructSlice[T StructMapI](goroutineSafe bool) *UniqueStructSlice[T
 }
 
 // UniqueStructSlice 一个不重复的struct切片结构
-type UniqueStructSlice[T StructMapI] struct {
+type UniqueStructSlice[T any] struct {
 	locker sync.RWMutex
 	data   []T
 	safe   bool

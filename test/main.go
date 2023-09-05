@@ -81,18 +81,44 @@ type aaa struct {
 	Password gopsu.PwdString `json:"pwd" yaml:"pwd"`
 }
 
+type serviceParams struct {
+	Params     []string `yaml:"params"`
+	Exec       string   `yaml:"exec"`
+	Enable     bool     `yaml:"enable"`
+	manualStop bool     `yaml:"-"`
+}
+
 func main() {
-	conf := config.NewConfig("test.conf") // 创建/读取配置文件
-	println(conf.Print())                 //  查看所有配置项
-	println(conf.GetItem("root_path"))    // 读取一个配置项的值
-	conf.GetDefault(&config.Item{         // 尝试读取一个配置项的值，当配置项不存在时，添加当前配置项
+	// conf := config.NewYAML[serviceParams]("test.yaml")
+	// conf.PutItem("ttyd", &serviceParams{
+	// 	Enable: true,
+	// 	Exec:   "/opt/bin/ttyd",
+	// 	Params: []string{"-p 7681", "-m 3", "login"},
+	// })
+	// conf.PutItem("ecms", &serviceParams{
+	// 	Enable: true,
+	// 	Exec:   "/opt/bin/ecms-mod",
+	// 	Params: []string{"-portable", "-conf=ecms.conf", "-http=6821", "-tcp=6828", "-tcpmodule=wlst", "-forcehttp=false"},
+	// })
+	// x, _ := conf.GetItem("ecms")
+	// println(fmt.Sprintf("--- %+v", x))
+	// y, _ := conf.GetItem("dpwlst")
+	// println(fmt.Sprintf("--- %+v", y))
+	// conf.ToYAML()
+	conf := config.NewConfig("test.yaml") // 创建/读取配置文件
+	// println(conf.Print())                 //  查看所有配置项
+	println(conf.GetItem("root_path")) // 读取一个配置项的值
+	conf.GetDefault(&config.Item{      // 尝试读取一个配置项的值，当配置项不存在时，添加当前配置项
 		Key:          "zzzzzz_path",
 		Value:        "asdfaldjlasjfd",
 		EncryptValue: true, // 保存时需要将value加密
 		Comment:      "1234ksdfkjhasdfh",
 	})
-	println(conf.GetItem("zzzzzz_path").TryDecode()) // 读取配置项，并解密值
-	conf.ToFile()                                    // 保存到文件
+	println(conf.GetItem("db_enable").TryBool())  // 读取配置项，并解密值
+	println(conf.GetItem("redis_db").TryInt64())  // 读取配置项，并解密值
+	println(conf.GetItem("daemon_name").String()) // 读取配置项，并解密值
+	// conf.ToYAML()
+	conf.ToFile()
 }
 
 var (

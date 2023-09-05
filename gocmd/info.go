@@ -1,10 +1,11 @@
 package gocmd
 
 import (
-	"encoding/json"
 	"io"
 	"os"
 	"strings"
+
+	"github.com/xyzj/gopsu/json"
 )
 
 // Info program information

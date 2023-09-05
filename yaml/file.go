@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/goccy/go-yaml"
 	"github.com/mohae/deepcopy"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/pathtool"
+	"gopkg.in/yaml.v3"
 )
 
 type item struct {

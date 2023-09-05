@@ -1,11 +1,12 @@
 package mapfx
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 	"sync"
+
+	"github.com/xyzj/gopsu/json"
 )
 
 // 使用示例：

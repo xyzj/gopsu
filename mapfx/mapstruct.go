@@ -17,13 +17,8 @@ import (
 // 	a: "132313",
 // })
 
-// StructMapI 结构体接口
-//
-//	这里不用any,因为any需要在代码中指定类型，使用泛型，在编译时会检查类型
-type StructMapI interface{}
-
 // NewStructMap 返回一个线程安全的基于基本数据类型的map,key为string,value为StructMapI 类型的struct
-func NewStructMap[KEY int | int64 | uint64 | string, VALUE StructMapI]() *StructMap[KEY, VALUE] {
+func NewStructMap[KEY int | int64 | uint64 | string, VALUE any]() *StructMap[KEY, VALUE] {
 	return &StructMap[KEY, VALUE]{
 		locker: sync.RWMutex{},
 		data:   make(map[KEY]*VALUE),
@@ -31,7 +26,7 @@ func NewStructMap[KEY int | int64 | uint64 | string, VALUE StructMapI]() *Struct
 }
 
 // StructMap 泛型map 对应各种slice类型
-type StructMap[KEY int | int64 | uint64 | string, VALUE StructMapI] struct {
+type StructMap[KEY int | int64 | uint64 | string, VALUE any] struct {
 	locker sync.RWMutex
 	data   map[KEY]*VALUE
 }

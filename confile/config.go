@@ -5,12 +5,15 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/xyzj/gopsu"
+	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/mapfx"
+	"gopkg.in/yaml.v3"
 )
 
 // VString value string, can parse to bool int64 float64
@@ -52,9 +55,9 @@ func (rs VString) TryDecode() string {
 
 // Item 配置内容，包含注释，key,value,是否加密value
 type Item struct {
-	Key          string  `json:"key,omitempty" yaml:"key,omitempty"`
-	Value        VString `json:"value,omitempty" yaml:"value,omitempty"`
-	Comment      string  `json:"comment,omitempty" yaml:"comment,omitempty"`
+	Key          string  `json:"-" yaml:"-"`
+	Value        VString `json:"value" yaml:"value"`
+	Comment      string  `json:"comment" yaml:"comment"`
 	EncryptValue bool    `json:"-" yaml:"-"`
 }
 
@@ -72,7 +75,7 @@ func (i *Item) String() string {
 	return fmt.Sprintf("\n%s%s=%s\n", xcom, i.Key, i.Value)
 }
 
-// NewConfig 创建一个新的配置文件
+// NewConfig 创建一个key:value格式的配置文件
 func NewConfig(filepath string) *File {
 	f := &File{}
 	f.FromFile(filepath)
@@ -165,20 +168,28 @@ func (f *File) FromFile(configfile string) error {
 		return err
 	}
 	f.data.Write(b)
+	if b[0] == '{' {
+		if f.fromJSON(b) == nil {
+			return nil
+		}
+	}
+	if f.fromYAML(b) == nil {
+		return nil
+	}
 	ss := strings.Split(f.data.String(), "\n")
-	tip := ""
+	tip := make([]string, 0)
 	for _, v := range ss {
 		s := strings.TrimSpace(v)
 		if strings.HasPrefix(s, "#") {
-			tip += s
+			tip = append(tip, strings.TrimSpace(s[1:]))
 			continue
 		}
 		it := strings.Split(s, "=")
 		if len(it) != 2 {
 			continue
 		}
-		f.items.Store(it[0], &Item{Key: it[0], Value: VString(it[1]), Comment: tip})
-		tip = ""
+		f.items.Store(it[0], &Item{Key: it[0], Value: VString(it[1]), Comment: strings.Join(tip, "\n")})
+		tip = []string{}
 	}
 	return nil
 }
@@ -186,5 +197,53 @@ func (f *File) FromFile(configfile string) error {
 // ToFile 将配置写入文件
 func (f *File) ToFile() error {
 	f.Print()
+	switch strings.ToLower(filepath.Ext(f.filepath)) {
+	case ".yaml":
+		return f.ToYAML()
+	case ".json":
+		return f.ToJSON()
+	}
 	return os.WriteFile(f.filepath, f.data.Bytes(), 0644)
+}
+
+// ToYAML 保存为yaml格式文件
+func (f *File) ToYAML() error {
+	b, err := yaml.Marshal(f.items.Clone())
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(f.filepath, b, 0644)
+}
+
+// ToJSON 保存为json格式文件
+func (f *File) ToJSON() error {
+	b, err := json.MarshalIndent(f.items.Clone(), "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(f.filepath, b, 0644)
+}
+
+func (f *File) fromYAML(b []byte) error {
+	x := make(map[string]*Item)
+	err := yaml.Unmarshal(b, &x)
+	if err != nil {
+		return err
+	}
+	for k, v := range x {
+		f.items.Store(k, &Item{Key: k, Value: v.Value, Comment: v.Comment})
+	}
+	return nil
+}
+
+func (f *File) fromJSON(b []byte) error {
+	x := make(map[string]*Item)
+	err := json.Unmarshal(b, &x)
+	if err != nil {
+		return err
+	}
+	for k, v := range x {
+		f.items.Store(k, &Item{Key: k, Value: v.Value, Comment: v.Comment})
+	}
+	return nil
 }

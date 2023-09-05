@@ -2,7 +2,6 @@ package mq
 
 import (
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 	"github.com/xyzj/gopsu"
+	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/logger"
 	"github.com/xyzj/gopsu/loopfunc"
 )
