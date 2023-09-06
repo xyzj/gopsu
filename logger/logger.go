@@ -2,7 +2,6 @@ package logger
 
 import (
 	"io"
-	"os"
 	"strings"
 	"unsafe"
 )
@@ -222,7 +221,7 @@ func NewConsoleLogger() Logger {
 	return &StdLogger{
 		// out:      NewWriter(nil),
 		// logLevel: 10,
-		cout: os.Stdout,
+		cout: NewConsoleWriter(),
 		clevel: map[byte]struct{}{
 			10: {},
 			20: {},

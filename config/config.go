@@ -198,7 +198,9 @@ func (f *File) FromFile(configfile string) error {
 	for _, v := range ss {
 		s := strings.TrimSpace(v)
 		if strings.HasPrefix(s, "#") {
-			tip = append(tip, strings.TrimSpace(s[1:]))
+			if xt := strings.TrimSpace(s[1:]); xt != "" {
+				tip = append(tip, xt)
+			}
 			continue
 		}
 		it := strings.Split(s, "=")

@@ -23,6 +23,7 @@ type MqttOpt struct {
 	Addr      string
 	Username  string
 	Passwd    string
+	Name      string
 }
 
 // MqttClient mqtt客户端
@@ -68,21 +69,31 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 	if logg == nil {
 		logg = &logger.NilLogger{}
 	}
+	if opt.Name == "" {
+		opt.Name = "[MQTT]"
+	}
+
+	if opt.ClientID == "" {
+		opt.ClientID += "_" + gopsu.GetRandomString(7, true)
+	}
+	if len(opt.ClientID) > 22 {
+		opt.ClientID = opt.ClientID[:22]
+	}
 	var needSub = len(opt.Subscribe) > 0
 	var doneSub = false
 	xopt := mqtt.NewClientOptions()
 	xopt.AddBroker("tcp://" + opt.Addr)
-	xopt.SetClientID(opt.ClientID + "_" + gopsu.GetRandomString(10, true))
+	xopt.SetClientID(opt.ClientID)
 	xopt.SetUsername(opt.Username)
 	xopt.SetPassword(opt.Passwd)
 	xopt.SetWriteTimeout(opt.SendTimeo) // 发送3秒超时
 	xopt.SetConnectTimeout(time.Second * 10)
 	xopt.SetConnectionLostHandler(func(client mqtt.Client, err error) {
-		logg.Error("[MQTT] connection lost, " + err.Error())
+		logg.Error(opt.Name + " connection lost, " + err.Error())
 		doneSub = false
 	})
 	xopt.SetOnConnectHandler(func(client mqtt.Client) {
-		logg.System("[MQTT] Success connect to " + opt.Addr)
+		logg.System(opt.Name + " Success connect to " + opt.Addr)
 	})
 	client := mqtt.NewClient(xopt)
 	go loopfunc.LoopFunc(func(params ...interface{}) {
@@ -95,16 +106,16 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 				client.SubscribeMultiple(opt.Subscribe, func(client mqtt.Client, msg mqtt.Message) {
 					defer func() {
 						if err := recover(); err != nil {
-							logg.Error("[MQTT] " + fmt.Sprintf("%+v", errors.WithStack(err.(error))))
+							logg.Error(opt.Name + fmt.Sprintf(" %+v", errors.WithStack(err.(error))))
 						}
 					}()
-					logg.Debug("[MQTT] DR:" + msg.Topic() + "; " + json.ToString(msg.Payload()))
+					logg.Debug(opt.Name + " DR:" + msg.Topic() + "; " + json.ToString(msg.Payload()))
 					recvCallback(msg.Topic(), msg.Payload())
 				})
 				doneSub = true
 			}
 			<-t.C
 		}
-	}, "[MQTT]", logg.DefaultWriter())
+	}, opt.Name, logg.DefaultWriter())
 	return &MqttClient{client: client}
 }

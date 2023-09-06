@@ -8,7 +8,6 @@ import (
 	"unicode"
 
 	"github.com/xyzj/gopsu"
-	config "github.com/xyzj/gopsu/confile"
 )
 
 var (
@@ -89,6 +88,10 @@ type serviceParams struct {
 }
 
 func main() {
+	s := "123456789123456789123456789"
+	println(len(s))
+	x := s[:22]
+	println(len(x))
 	// conf := config.NewYAML[serviceParams]("test.yaml")
 	// conf.PutItem("ttyd", &serviceParams{
 	// 	Enable: true,
@@ -105,20 +108,20 @@ func main() {
 	// y, _ := conf.GetItem("dpwlst")
 	// println(fmt.Sprintf("--- %+v", y))
 	// conf.ToYAML()
-	conf := config.NewConfig("test.yaml") // 创建/读取配置文件
-	// println(conf.Print())                 //  查看所有配置项
-	println(conf.GetItem("root_path")) // 读取一个配置项的值
-	conf.GetDefault(&config.Item{      // 尝试读取一个配置项的值，当配置项不存在时，添加当前配置项
-		Key:          "zzzzzz_path",
-		Value:        "asdfaldjlasjfd",
-		EncryptValue: true, // 保存时需要将value加密
-		Comment:      "1234ksdfkjhasdfh",
-	})
-	println(conf.GetItem("db_enable").TryBool())  // 读取配置项，并解密值
-	println(conf.GetItem("redis_db").TryInt64())  // 读取配置项，并解密值
-	println(conf.GetItem("daemon_name").String()) // 读取配置项，并解密值
-	// conf.ToYAML()
-	conf.ToFile()
+	// conf := config.NewConfig("test.yaml") // 创建/读取配置文件
+	// // println(conf.Print())                 //  查看所有配置项
+	// println(conf.GetItem("root_path")) // 读取一个配置项的值
+	// conf.GetDefault(&config.Item{      // 尝试读取一个配置项的值，当配置项不存在时，添加当前配置项
+	// 	Key:          "zzzzzz_path",
+	// 	Value:        "asdfaldjlasjfd",
+	// 	EncryptValue: true, // 保存时需要将value加密
+	// 	Comment:      "1234ksdfkjhasdfh",
+	// })
+	// println(conf.GetItem("db_enable").TryBool())  // 读取配置项，并解密值
+	// println(conf.GetItem("redis_db").TryInt64())  // 读取配置项，并解密值
+	// println(conf.GetItem("daemon_name").String()) // 读取配置项，并解密值
+	// // conf.ToYAML()
+	// conf.ToFile()
 }
 
 var (
