@@ -213,6 +213,11 @@ func (f *File) FromFile(configfile string) error {
 	return nil
 }
 
+// Save 将配置写入文件，依据文件扩展名判断写入格式
+func (f *File) Save() error {
+	return f.ToFile()
+}
+
 // ToFile 将配置写入文件，依据文件扩展名判断写入格式
 func (f *File) ToFile() error {
 	f.Print()

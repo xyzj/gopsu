@@ -17,7 +17,7 @@ import (
 // 	a: "132313",
 // })
 
-// NewStructMap 返回一个线程安全的基于基本数据类型的map,key为string,value为StructMapI 类型的struct
+// NewStructMap 返回一个线程安全的基于基本数据类型的map,key为string,value为struct
 func NewStructMap[KEY int | int64 | uint64 | string, VALUE any]() *StructMap[KEY, VALUE] {
 	return &StructMap[KEY, VALUE]{
 		locker: sync.RWMutex{},

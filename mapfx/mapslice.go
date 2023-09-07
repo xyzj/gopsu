@@ -2,6 +2,7 @@ package mapfx
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 )
@@ -18,7 +19,7 @@ import (
 // NewSliceMap 返回一个线程安全的基于基本数据类型的map,key为string,value为slice
 //
 // value类型支持 byte | int8 | int | int32 | int64 | float32 | float64 | string
-func NewSliceMap[T byte | int8 | int | int32 | int64 | float32 | float64 | string]() *SliceMap[T] {
+func NewSliceMap[T any]() *SliceMap[T] {
 	return &SliceMap[T]{
 		locker: sync.RWMutex{},
 		data:   make(map[string][]T),
@@ -26,7 +27,7 @@ func NewSliceMap[T byte | int8 | int | int32 | int64 | float32 | float64 | strin
 }
 
 // SliceMap 泛型map 对应各种slice类型
-type SliceMap[T byte | int8 | int | int32 | int64 | float32 | float64 | string] struct {
+type SliceMap[T any] struct {
 	locker sync.RWMutex
 	data   map[string][]T
 }
@@ -50,7 +51,7 @@ func (m *SliceMap[T]) StoreItem(key string, item T) {
 	defer m.locker.Unlock()
 	if v, ok := m.data[key]; ok {
 		for _, vv := range v {
-			if vv == item { // 已有，不处理
+			if reflect.DeepEqual(vv, item) {
 				return
 			}
 		}
@@ -68,6 +69,23 @@ func (m *SliceMap[T]) Delete(key string) {
 	m.locker.Lock()
 	delete(m.data, key)
 	m.locker.Unlock()
+}
+
+// DeleteItem 删除一个值
+func (m *SliceMap[T]) DeleteItem(key string, item T) {
+	if key == "" {
+		return
+	}
+	m.locker.Lock()
+	defer m.locker.RLock()
+	if v, ok := m.data[key]; ok {
+		for k, vv := range v {
+			if reflect.DeepEqual(vv, item) {
+				m.data[key] = append(v[:k], v[k+1:]...)
+				return
+			}
+		}
+	}
 }
 
 // Clean 清空内容
@@ -138,7 +156,7 @@ func (m *SliceMap[T]) HasItem(key string, item any) bool {
 	defer m.locker.RUnlock()
 	if v, ok := m.data[key]; ok {
 		for _, vv := range v {
-			if vv == item {
+			if reflect.DeepEqual(vv, item) {
 				return true
 			}
 		}

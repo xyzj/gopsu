@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"strings"
 	"sync"
 	"unicode"
@@ -89,9 +90,10 @@ type serviceParams struct {
 
 func main() {
 	s := "123456789123456789123456789"
-	println(len(s))
-	x := s[:22]
-	println(len(x))
+	ss := gopsu.SplitStringWithLen(s, 2)
+	println(fmt.Sprintf("%+v", ss))
+	xs := append(ss[:13], ss[14:]...)
+	println(fmt.Sprintf("%+v", xs))
 	// conf := config.NewYAML[serviceParams]("test.yaml")
 	// conf.PutItem("ttyd", &serviceParams{
 	// 	Enable: true,
