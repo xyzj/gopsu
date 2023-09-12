@@ -17,8 +17,6 @@ import (
 // -- a["a"]=[]int64{1,2,3}
 
 // NewSliceMap 返回一个线程安全的基于基本数据类型的map,key为string,value为slice
-//
-// value类型支持 byte | int8 | int | int32 | int64 | float32 | float64 | string
 func NewSliceMap[T any]() *SliceMap[T] {
 	return &SliceMap[T]{
 		locker: sync.RWMutex{},
@@ -188,4 +186,11 @@ func (m *SliceMap[T]) ForEach(f func(key string, value []T) bool) {
 			break
 		}
 	}
+}
+
+// Keys 返回所有Key
+func (m *SliceMap[T]) Keys() []string {
+	m.locker.RLock()
+	defer m.locker.RUnlock()
+	return Keys[string](m.data)
 }

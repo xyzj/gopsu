@@ -38,6 +38,7 @@ import (
 	"unsafe"
 
 	"github.com/golang/snappy"
+	"github.com/xyzj/gopsu/gocmd"
 	json "github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/pathtool"
 )
@@ -84,6 +85,20 @@ const (
 	// CryptoAES256CFB aes256cfb算法
 	CryptoAES256CFB
 )
+
+// SliceFlag 切片型参数，仅支持字符串格式
+type SliceFlag []string
+
+// String 返回参数
+func (f *SliceFlag) String() string {
+	return fmt.Sprintf("%v", []string(*f))
+}
+
+// Set 设置值
+func (f *SliceFlag) Set(value string) error {
+	*f = append(*f, value)
+	return nil
+}
 
 // CryptoWorker 序列化或加密管理器
 type CryptoWorker struct {
@@ -844,17 +859,6 @@ func SwapCase(s string) string {
 	return ns.String()
 }
 
-type version struct {
-	Dependencies []string `json:"deps,omitempty"`
-	Name         string   `json:"name,omitempty"`
-	Version      string   `json:"version,omitempty"`
-	GoVersion    string   `json:"go_version,omitempty"`
-	BuildDate    string   `json:"build_date,omitempty"`
-	BuildOS      string   `json:"build_os,omitempty"`
-	CodeBy       string   `json:"code_by,omitempty"`
-	StartWith    string   `json:"start_with,omitempty"`
-}
-
 // VersionInfo show something
 //
 // name: program name
@@ -864,16 +868,14 @@ type version struct {
 // buildOS: platform info
 // auth: auth name
 func VersionInfo(name, ver, gover, buildDate, buildOS, auth string) string {
-	b, _ := json.MarshalIndent(&version{
+	return gocmd.PrintVersion(&gocmd.VersionInfo{
 		Name:      name,
 		Version:   ver,
 		GoVersion: gover,
 		BuildDate: buildDate,
 		BuildOS:   buildOS,
 		CodeBy:    auth,
-		StartWith: strings.Join(os.Args[1:], " "),
-	}, "", "  ")
-	return string(b)
+	})
 }
 
 // WriteVersionInfo write version info to .ver file

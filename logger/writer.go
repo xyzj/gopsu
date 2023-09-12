@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/xyzj/gopsu"
+	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/loopfunc"
 	"github.com/xyzj/gopsu/pathtool"
 )
@@ -129,7 +129,7 @@ type Writer struct {
 // Write 异步写入日志，返回固定为 0, nil
 func (w *Writer) Write(p []byte) (n int, err error) {
 	w.buf.Reset()
-	w.buf.Write(gopsu.Bytes(time.Now().Format(ShortTimeFormat)))
+	w.buf.Write(json.ToBytes(time.Now().Format(ShortTimeFormat)))
 	w.buf.Write(p)
 	if !bytes.HasSuffix(p, lineEnd) {
 		w.buf.Write(lineEnd)
@@ -209,7 +209,7 @@ func (w *Writer) newFile() {
 	var err error
 	w.fno, err = os.OpenFile(w.pathNow, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0664)
 	if err != nil {
-		os.WriteFile("logerr.log", gopsu.Bytes("log file open error: "+err.Error()), 0664)
+		os.WriteFile("logerr.log", json.ToBytes("log file open error: "+err.Error()), 0664)
 		w.withFile = false
 		return
 	}

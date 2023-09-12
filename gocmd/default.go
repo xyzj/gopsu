@@ -59,7 +59,7 @@ func NewProgram(info *Info) *Program {
 	}
 	return &Program{
 		info:  info,
-		cmds:  mapfx.NewUniqueStructSlice[*Command](true),
+		cmds:  mapfx.NewUniqueSlice[*Command](),
 		pinfo: pinfo,
 	}
 }

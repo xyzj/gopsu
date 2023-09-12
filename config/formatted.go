@@ -62,6 +62,11 @@ func (f *Formatted[ITEM]) Len() int {
 	return f.items.Len()
 }
 
+// Has 判断key是否存在
+func (f *Formatted[ITEM]) Has(key string) bool {
+	return f.items.Has(key)
+}
+
 // Print 返回所有配置项
 func (f *Formatted[ITEM]) Print() string {
 	switch f.formatType {

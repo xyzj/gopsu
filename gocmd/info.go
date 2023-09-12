@@ -68,17 +68,6 @@ func (p *procInfo) Load(printErr bool) (int, error) {
 	return p.Pid, nil
 }
 
-type version struct {
-	Dependencies []string `json:"deps,omitempty"`
-	Name         string   `json:"name,omitempty"`
-	Version      string   `json:"version,omitempty"`
-	GoVersion    string   `json:"go_version,omitempty"`
-	BuildDate    string   `json:"build_date,omitempty"`
-	BuildOS      string   `json:"build_os,omitempty"`
-	CodeBy       string   `json:"code_by,omitempty"`
-	StartWith    string   `json:"start_with,omitempty"`
-}
-
 // VersionInfo show something
 //
 // name: program name
@@ -87,16 +76,29 @@ type version struct {
 // buildDate: build datetime
 // buildOS: platform info
 // auth: auth name
-func VersionInfo(name, ver, gover, buildDate, buildOS, auth string, deps ...string) string {
-	b, _ := json.MarshalIndent(&version{
-		Name:         name,
-		Version:      ver,
-		GoVersion:    gover,
-		BuildDate:    buildDate,
-		BuildOS:      buildOS,
-		CodeBy:       auth,
-		Dependencies: deps,
-		StartWith:    strings.Join(os.Args[1:], " "),
-	}, "", "  ")
-	return string(b)
+type VersionInfo struct {
+	Name         string   `json:"name,omitempty"`
+	Version      string   `json:"version,omitempty"`
+	GoVersion    string   `json:"go_version,omitempty"`
+	BuildDate    string   `json:"build_date,omitempty"`
+	BuildOS      string   `json:"build_os,omitempty"`
+	CodeBy       string   `json:"code_by,omitempty"`
+	StartWith    string   `json:"start_with,omitempty"`
+	Dependencies []string `json:"deps,omitempty"`
+}
+
+// PrintVersion show something
+//
+// name: program name
+// ver: program version
+// gover: golang version
+// buildDate: build datetime
+// buildOS: platform info
+// auth: auth name
+func PrintVersion(v *VersionInfo) string {
+	if v.StartWith == "" {
+		v.StartWith = strings.Join(os.Args[1:], " ")
+	}
+	b, _ := json.MarshalIndent(v, "", "  ")
+	return json.ToString(b)
 }

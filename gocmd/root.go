@@ -33,7 +33,7 @@ import (
 type Program struct {
 	info  *Info
 	pinfo *procInfo
-	cmds  *mapfx.UniqueStructSlice[*Command]
+	cmds  *mapfx.UniqueSlice[*Command]
 }
 
 func (p *Program) printHelp() {
@@ -102,6 +102,11 @@ func (p *Program) Execute() {
 	if code != -1 {
 		os.Exit(code)
 	}
+}
+
+// ExecuteRun When no command is given, execute the run command instead of printing help
+func (p *Program) ExecuteRun() {
+	p.ExecuteDefault("run")
 }
 
 // ExecuteDefault When no command is given, execute the specified command instead of printing help

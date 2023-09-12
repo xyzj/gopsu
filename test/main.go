@@ -3,12 +3,13 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 	"unicode"
 
 	"github.com/xyzj/gopsu"
+	"github.com/xyzj/gopsu/config"
 )
 
 var (
@@ -77,8 +78,8 @@ func mqttcb(topic string, body []byte) {
 }
 
 type aaa struct {
-	Username string          `json:"username" yaml:"username"`
-	Password gopsu.PwdString `json:"pwd" yaml:"pwd"`
+	Username string           `json:"username" yaml:"username"`
+	Password config.PwdString `json:"pwd" yaml:"pwd"`
 }
 
 type serviceParams struct {
@@ -89,11 +90,9 @@ type serviceParams struct {
 }
 
 func main() {
-	s := "123456789123456789123456789"
-	ss := gopsu.SplitStringWithLen(s, 2)
-	println(fmt.Sprintf("%+v", ss))
-	xs := append(ss[:13], ss[14:]...)
-	println(fmt.Sprintf("%+v", xs))
+	s := `http://192.168.50.80:5996/lanhu/2023%E5%B9%B4%E9%A1%B9%E7%9B%AE%E8%AE%BE%E8%AE%A1%E6%96%87%E4%BB%B6/03%E6%9C%88UI%E8%AE%BE%E8%AE%A1%E6%96%87%E4%BB%B6/%E8%BF%90%E8%A1%8C%E6%8A%A5%E8%A1%A8%EF%80%A2%E5%BC%80%E7%81%AF%E5%8A%A8%E6%80%81UI%E7%95%8C%E9%9D%A2/index.html#s0`
+	xs, _ := url.PathUnescape(s)
+	println(xs)
 	// conf := config.NewYAML[serviceParams]("test.yaml")
 	// conf.PutItem("ttyd", &serviceParams{
 	// 	Enable: true,

@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/xyzj/gopsu"
@@ -15,43 +14,6 @@ import (
 	"github.com/xyzj/gopsu/mapfx"
 	"gopkg.in/yaml.v3"
 )
-
-// VString value string, can parse to bool int64 float64
-type VString string
-
-// String reutrn string
-func (rs VString) String() string {
-	return string(rs)
-}
-
-// Bytes reutrn []byte
-func (rs VString) Bytes() []byte {
-	return []byte(rs)
-}
-
-// TryBool reutrn bool
-func (rs VString) TryBool() bool {
-	v, _ := strconv.ParseBool(string(rs))
-	return v
-}
-
-// TryInt64 reutrn int64
-func (rs VString) TryInt64() int64 {
-	return gopsu.String2Int64(string(rs), 10)
-}
-
-// TryFloat64 reutrn fl
-func (rs VString) TryFloat64() float64 {
-	return gopsu.String2Float64(string(rs))
-}
-
-// TryDecode try decode the value, if failed, return the origin
-func (rs VString) TryDecode() string {
-	if s := gopsu.DecodeString(string(rs)); s != "" {
-		return s
-	}
-	return string(rs)
-}
 
 // Item 配置内容，包含注释，key,value,是否加密value
 type Item struct {
@@ -93,12 +55,13 @@ type File struct {
 
 // Keys 获取所有Key
 func (f *File) Keys() []string {
-	ss := make([]string, 0, f.items.Len())
-	f.items.ForEach(func(key string, value *Item) bool {
-		ss = append(ss, key)
-		return true
-	})
-	return ss
+	return f.items.Keys()
+	// ss := make([]string, 0, f.items.Len())
+	// f.items.ForEach(func(key string, value *Item) bool {
+	// 	ss = append(ss, key)
+	// 	return true
+	// })
+	// return ss
 }
 
 // DelItem 删除配置项
@@ -146,6 +109,11 @@ func (f *File) ForEach(do func(key string, value VString) bool) {
 // Len 获取配置数量
 func (f *File) Len() int {
 	return f.items.Len()
+}
+
+// Has 判断key是否存在
+func (f *File) Has(key string) bool {
+	return f.items.Has(key)
 }
 
 // Print 返回所有配置项
@@ -220,13 +188,13 @@ func (f *File) Save() error {
 
 // ToFile 将配置写入文件，依据文件扩展名判断写入格式
 func (f *File) ToFile() error {
-	f.Print()
 	switch strings.ToLower(filepath.Ext(f.filepath)) {
 	case ".yaml":
 		return f.ToYAML()
 	case ".json":
 		return f.ToJSON()
 	}
+	f.Print()
 	return os.WriteFile(f.filepath, f.data.Bytes(), 0644)
 }
 

@@ -17,8 +17,8 @@ import (
 // 	a: "132313",
 // })
 
-// NewStructMap 返回一个线程安全的基于基本数据类型的map,key为string,value为struct
-func NewStructMap[KEY int | int64 | uint64 | string, VALUE any]() *StructMap[KEY, VALUE] {
+// NewStructMap 返回一个线程安全的基于基本数据类型的map,key为int,int64,uint64,string,value为struct
+func NewStructMap[KEY comparable, VALUE any]() *StructMap[KEY, VALUE] {
 	return &StructMap[KEY, VALUE]{
 		locker: sync.RWMutex{},
 		data:   make(map[KEY]*VALUE),
@@ -26,7 +26,7 @@ func NewStructMap[KEY int | int64 | uint64 | string, VALUE any]() *StructMap[KEY
 }
 
 // StructMap 泛型map 对应各种slice类型
-type StructMap[KEY int | int64 | uint64 | string, VALUE any] struct {
+type StructMap[KEY comparable, VALUE any] struct {
 	locker sync.RWMutex
 	data   map[KEY]*VALUE
 }
@@ -144,4 +144,11 @@ func (m *StructMap[KEY, VALUE]) ForEach(f func(key KEY, value *VALUE) bool) {
 			break
 		}
 	}
+}
+
+// Keys 返回所有Key
+func (m *StructMap[KEY, VALUE]) Keys() []KEY {
+	m.locker.RLock()
+	defer m.locker.RUnlock()
+	return Keys[KEY](m.data)
 }

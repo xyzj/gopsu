@@ -3,7 +3,6 @@ package ginmiddleware
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"time"
 
@@ -30,7 +29,7 @@ type logParam struct {
 // LogToWriter LogToWriter
 func LogToWriter(w io.Writer, skippath ...string) gin.HandlerFunc {
 	// 设置io
-	gin.DefaultWriter = os.Stdout
+	gin.DefaultWriter = w
 	gin.DefaultErrorWriter = w
 	chanlog := make(chan *logParam, 200)
 	if len(skippath) == 0 {
@@ -51,8 +50,11 @@ func LogToWriter(w io.Writer, skippath ...string) gin.HandlerFunc {
 			if a.body != "" {
 				a.path += " |" + a.body
 			}
-			b := gopsu.Bytes(fmt.Sprintf("|%3d |%-13s|%-15s|%-4s %s |%s", a.statusCode, a.timer, a.clientIP, a.method, a.path, a.jsn))
-			w.Write(b)
+			s := fmt.Sprintf("|%3d |%-13s|%-15s|%-4s %s |%s", a.statusCode, a.timer, a.clientIP, a.method, a.path, a.jsn)
+			w.Write(json.ToBytes(s))
+			if gin.IsDebugging() {
+				println(time.Now().Format(logger.ShortTimeFormat) + s)
+			}
 		}
 	}, "http log", w)
 	return func(c *gin.Context) {
