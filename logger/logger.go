@@ -185,6 +185,8 @@ func (l *StdLogger) System(msg string) {
 // logLevel 日志等级，1-输出到控制台，10-debug（输出到控制台和文件）,20-info（输出到文件）,30-warning（输出到文件）,40-error（输出到控制台和文件）,90-system（输出到控制台和文件）
 //
 // logDays 日志文件保留天数
+//
+// delayWrite 是否延迟写入，在日志密集时，可减少磁盘io，但可能导致日志丢失
 func NewLogger(d, f string, logLevel, logDays int, delayWrite bool, consoleLevels ...byte) Logger {
 	var ll byte
 	switch logLevel {

@@ -909,6 +909,7 @@ func (p *SQLPool) QueryMultirowPage(s string, rowsCount int, keyColumeID int, pa
 	queryCache.Rows = make([]*QueryDataRow, 0)
 	var rowIdx = 0
 	var limit = 0
+	var realIdx = 0
 	var keyItem string
 	for rows.Next() {
 		err := rows.Scan(scanArgs...)
@@ -933,7 +934,7 @@ func (p *SQLPool) QueryMultirowPage(s string, rowsCount int, keyColumeID int, pa
 		queryCache.Rows = append(queryCache.Rows, row)
 		if keyItem == "" {
 			keyItem = row.Cells[keyColumeID]
-			// rowIdx++
+			rowIdx++
 		}
 		if keyItem != row.Cells[keyColumeID] {
 			keyItem = row.Cells[keyColumeID]
@@ -942,10 +943,11 @@ func (p *SQLPool) QueryMultirowPage(s string, rowsCount int, keyColumeID int, pa
 		if rowIdx == rowsCount-1 {
 			limit = len(queryCache.Rows)
 		}
+		realIdx++
 	}
-	rowIdx++
-	if limit == 0 || limit > rowIdx {
-		limit = rowIdx
+	// rowIdx++
+	if limit == 0 {
+		limit = realIdx
 	}
 	queryCache.Total = int32(rowIdx)
 	query.Total = queryCache.Total

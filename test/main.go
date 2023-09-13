@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"net/url"
 	"strings"
 	"sync"
 	"unicode"
@@ -90,25 +89,14 @@ type serviceParams struct {
 }
 
 func main() {
-	s := `http://192.168.50.80:5996/lanhu/2023%E5%B9%B4%E9%A1%B9%E7%9B%AE%E8%AE%BE%E8%AE%A1%E6%96%87%E4%BB%B6/03%E6%9C%88UI%E8%AE%BE%E8%AE%A1%E6%96%87%E4%BB%B6/%E8%BF%90%E8%A1%8C%E6%8A%A5%E8%A1%A8%EF%80%A2%E5%BC%80%E7%81%AF%E5%8A%A8%E6%80%81UI%E7%95%8C%E9%9D%A2/index.html#s0`
-	xs, _ := url.PathUnescape(s)
-	println(xs)
-	// conf := config.NewYAML[serviceParams]("test.yaml")
-	// conf.PutItem("ttyd", &serviceParams{
-	// 	Enable: true,
-	// 	Exec:   "/opt/bin/ttyd",
-	// 	Params: []string{"-p 7681", "-m 3", "login"},
-	// })
-	// conf.PutItem("ecms", &serviceParams{
-	// 	Enable: true,
-	// 	Exec:   "/opt/bin/ecms-mod",
-	// 	Params: []string{"-portable", "-conf=ecms.conf", "-http=6821", "-tcp=6828", "-tcpmodule=wlst", "-forcehttp=false"},
-	// })
-	// x, _ := conf.GetItem("ecms")
-	// println(fmt.Sprintf("--- %+v", x))
-	// y, _ := conf.GetItem("dpwlst")
-	// println(fmt.Sprintf("--- %+v", y))
-	// conf.ToYAML()
+	conf := config.NewFormatFile[aaa]("test.yaml", config.YAML)
+	conf.PutItem("123", &aaa{
+		Username: "123",
+		Password: "adfff",
+	})
+	conf.ToFile()
+	z, _ := conf.GetItem("123")
+	println(z.Password)
 	// conf := config.NewConfig("test.yaml") // 创建/读取配置文件
 	// // println(conf.Print())                 //  查看所有配置项
 	// println(conf.GetItem("root_path")) // 读取一个配置项的值
