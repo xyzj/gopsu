@@ -3,13 +3,13 @@ package db
 import (
 	"time"
 
-	"github.com/xyzj/bolt"
 	"github.com/xyzj/gopsu/json"
+	"go.etcd.io/bbolt"
 )
 
 // BoltDB bolt数据文件实例
 type BoltDB struct {
-	db       *bolt.DB
+	db       *bbolt.DB
 	bucket   []byte
 	filename string
 }
@@ -32,7 +32,7 @@ func (b *BoltDB) Read(key string, bucket ...string) string {
 		}
 	}
 	var value string
-	b.db.View(func(tx *bolt.Tx) error {
+	b.db.View(func(tx *bbolt.Tx) error {
 		t := tx.Bucket(buc)
 		if t == nil {
 			value = ""
@@ -61,7 +61,7 @@ func (b *BoltDB) Write(key, value string, bucket ...string) error {
 			buc = json.ToBytes(bucket[0])
 		}
 	}
-	return b.db.Update(func(tx *bolt.Tx) error {
+	return b.db.Update(func(tx *bbolt.Tx) error {
 		t, err := tx.CreateBucketIfNotExists(buc)
 		if err != nil {
 			return err
@@ -82,7 +82,7 @@ func (b *BoltDB) Delete(key string, bucket ...string) error {
 			buc = json.ToBytes(bucket[0])
 		}
 	}
-	return b.db.Update(func(tx *bolt.Tx) error {
+	return b.db.Update(func(tx *bbolt.Tx) error {
 		t := tx.Bucket(buc)
 		if t == nil {
 			return nil
@@ -103,23 +103,32 @@ func (b *BoltDB) ForEach(f func(k, v string) error, bucket ...string) {
 			buc = json.ToBytes(bucket[0])
 		}
 	}
-	b.db.View(func(tx *bolt.Tx) error {
+	var data = make(map[string]string)
+	b.db.View(func(tx *bbolt.Tx) error {
 		t := tx.Bucket(buc)
 		if t == nil {
 			return nil
 		}
 		return t.ForEach(func(k, v []byte) error {
-			defer func() {
-				recover()
-			}()
-			return f(json.ToString(k), json.ToString(v))
+			data[json.ToString(k)] = json.ToString(v)
+			return nil
+			// defer func() {
+			// 	recover()
+			// }()
+			// return f(json.ToString(k), json.ToString(v))
 		})
 	})
+	defer func() {
+		recover()
+	}()
+	for k, v := range data {
+		f(k, v)
+	}
 }
 
 // NewBolt 创建一个新的bolt数据文件
 func NewBolt(f string) (*BoltDB, error) {
-	db, err := bolt.Open(f, 0664, &bolt.Options{Timeout: time.Second * 2})
+	db, err := bbolt.Open(f, 0664, &bbolt.Options{Timeout: time.Second * 2})
 	if err != nil {
 		return nil, err
 	}

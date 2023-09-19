@@ -89,14 +89,21 @@ type serviceParams struct {
 }
 
 func main() {
-	conf := config.NewFormatFile[aaa]("test.yaml", config.YAML)
-	conf.PutItem("123", &aaa{
-		Username: "123",
-		Password: "adfff",
-	})
-	conf.ToFile()
-	z, _ := conf.GetItem("123")
-	println(z.Password)
+	var aaa []string
+	println(len(aaa))
+	// js, _ := sjson.Set("", "user_name", "lixiu")
+	// js, _ = sjson.Set(js, "key", "user_layer_setting")
+	// js, _ = sjson.Set(js, "value", []string{`030111`, "030112", "030113", "030114"})
+	// // js, _ = sjson.Set(js, "value", []string{`010111`, "010112", "010113", "010114"})
+	// req, _ := http.NewRequest("POST", "http://192.168.50.83:10004/setting/put", strings.NewReader(js))
+	// gopsu.DoRequestWithTimeout(req, time.Second*3)
+
+	// js, _ = sjson.Set("", "user_name", "lixiu")
+	// js, _ = sjson.Set(js, "key", "user_layer_setting")
+	// req, _ = http.NewRequest("GET", "http://192.168.50.83:10004/setting/get", strings.NewReader(js))
+	// _, body, _, _ := gopsu.DoRequestWithTimeout(req, time.Second*3)
+	// println(string(body))
+
 	// conf := config.NewConfig("test.yaml") // 创建/读取配置文件
 	// // println(conf.Print())                 //  查看所有配置项
 	// println(conf.GetItem("root_path")) // 读取一个配置项的值
