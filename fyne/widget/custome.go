@@ -3,6 +3,7 @@ package widgetx
 
 import (
 	"strconv"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/data/validation"
@@ -41,5 +42,24 @@ func StrEntry(text string) *widget.Entry {
 // RightAlignLabel StrLabel
 func RightAlignLabel(text string) *widget.Label {
 	w := widget.NewLabelWithStyle(text, fyne.TextAlignTrailing, fyne.TextStyle{})
+	return w
+}
+
+// MultiLineEntry MultiLineEntry
+func MultiLineEntry(visibleRows, maxRows int, wrap fyne.TextWrap) *widget.Entry {
+	w := widget.NewMultiLineEntry()
+	w.SetMinRowsVisible(visibleRows)
+	w.Wrapping = wrap
+	w.OnChanged = func(s string) {
+		if maxRows == 0 {
+			return
+		}
+		ss := strings.Split(s, "\n")
+		l := len(ss)
+		if l > maxRows {
+			w.SetText(strings.Join(ss[l-maxRows:], "\n"))
+		}
+		w.CursorRow = l + 1
+	}
 	return w
 }
