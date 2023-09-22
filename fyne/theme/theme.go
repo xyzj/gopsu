@@ -13,12 +13,20 @@ import (
 //go:embed favicon.png
 var favicon []byte
 
+//go:embed favicon2.png
+var favicon2 []byte
+
 //go:embed DroidSansFallbackFull.ttf
 var cnfonts []byte
 
 // Favicon 图标
 func Favicon() *fyne.StaticResource {
 	return fyne.NewStaticResource("favicon.png", favicon)
+}
+
+// Favicon2 图标
+func Favicon2() *fyne.StaticResource {
+	return fyne.NewStaticResource("favicon.png", favicon2)
 }
 
 // ZhHans 中文主题
@@ -29,7 +37,7 @@ var _ fyne.Theme = (*ZhHans)(nil)
 // Color Color
 func (m ZhHans) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
 	if n == "disabled" {
-		return color.RGBA{R: 77, G: 77, B: 77, A: 200}
+		return color.RGBA{R: 77, G: 77, B: 77, A: 177}
 	}
 	return theme.DefaultTheme().Color(n, v)
 }

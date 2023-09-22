@@ -24,18 +24,29 @@ func ComboxSelect(idx int, option ...string) *widget.Select {
 	return w
 }
 
-// NumberEntryPI NumberEntry
-func NumberEntryPI(text int) *widget.Entry {
+// NumberEntry NumberEntry
+func NumberEntry(text int, placeholder ...string) *widget.Entry {
 	w := widget.NewEntry()
 	w.SetText(strconv.Itoa(text))
+	w.SetPlaceHolder(strings.Join(placeholder, "\n"))
+	w.Validator = validation.NewRegexp(`^[0-9]*$`, "must be an unsigned integer")
+	return w
+}
+
+// NumberEntryPI NumberEntry
+func NumberEntryPI(text int, placeholder ...string) *widget.Entry {
+	w := widget.NewEntry()
+	w.SetText(strconv.Itoa(text))
+	w.SetPlaceHolder(strings.Join(placeholder, "\n"))
 	w.Validator = validation.NewRegexp(`^\+?[1-9][0-9]*$`, "must be a positive integer")
 	return w
 }
 
 // StrEntry StrEntry
-func StrEntry(text string) *widget.Entry {
+func StrEntry(text string, placeholder ...string) *widget.Entry {
 	w := widget.NewEntry()
 	w.SetText(text)
+	w.SetPlaceHolder(strings.Join(placeholder, "\n"))
 	return w
 }
 
@@ -61,5 +72,12 @@ func MultiLineEntry(visibleRows, maxRows int, wrap fyne.TextWrap) *widget.Entry 
 		}
 		w.CursorRow = l + 1
 	}
+	return w
+}
+
+// Checkbox Checkbox
+func Checkbox(text string, checked bool) *widget.Check {
+	w := widget.NewCheck(text, func(b bool) {})
+	w.SetChecked(checked)
 	return w
 }

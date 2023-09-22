@@ -69,6 +69,9 @@ func NewDesktopApp(opt *DesktopAppOptions) *DesktopApp {
 	}
 }
 
+func (d *DesktopApp) MainWindow() fyne.Window {
+	return d.w
+}
 func (d *DesktopApp) ShowAndRun(obj fyne.CanvasObject) {
 	d.w.SetContent(obj)
 	d.w.ShowAndRun()
