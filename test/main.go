@@ -7,6 +7,7 @@ import (
 	"sync"
 	"unicode"
 
+	"github.com/tidwall/gjson"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/config"
 )
@@ -89,35 +90,23 @@ type serviceParams struct {
 }
 
 func main() {
-	var aaa []string
-	println(len(aaa))
-	// js, _ := sjson.Set("", "user_name", "lixiu")
-	// js, _ = sjson.Set(js, "key", "user_layer_setting")
-	// js, _ = sjson.Set(js, "value", []string{`030111`, "030112", "030113", "030114"})
-	// // js, _ = sjson.Set(js, "value", []string{`010111`, "010112", "010113", "010114"})
-	// req, _ := http.NewRequest("POST", "http://192.168.50.83:10004/setting/put", strings.NewReader(js))
-	// gopsu.DoRequestWithTimeout(req, time.Second*3)
-
-	// js, _ = sjson.Set("", "user_name", "lixiu")
-	// js, _ = sjson.Set(js, "key", "user_layer_setting")
-	// req, _ = http.NewRequest("GET", "http://192.168.50.83:10004/setting/get", strings.NewReader(js))
-	// _, body, _, _ := gopsu.DoRequestWithTimeout(req, time.Second*3)
-	// println(string(body))
-
-	// conf := config.NewConfig("test.yaml") // 创建/读取配置文件
-	// // println(conf.Print())                 //  查看所有配置项
-	// println(conf.GetItem("root_path")) // 读取一个配置项的值
-	// conf.GetDefault(&config.Item{      // 尝试读取一个配置项的值，当配置项不存在时，添加当前配置项
-	// 	Key:          "zzzzzz_path",
-	// 	Value:        "asdfaldjlasjfd",
-	// 	EncryptValue: true, // 保存时需要将value加密
-	// 	Comment:      "1234ksdfkjhasdfh",
-	// })
-	// println(conf.GetItem("db_enable").TryBool())  // 读取配置项，并解密值
-	// println(conf.GetItem("redis_db").TryInt64())  // 读取配置项，并解密值
-	// println(conf.GetItem("daemon_name").String()) // 读取配置项，并解密值
-	// // conf.ToYAML()
-	// conf.ToFile()
+	s := `{
+		"routing": {
+		"rules": [
+			{
+					"domain": [
+				"domain:mikanani.me",
+						"domain:githubusercontent.com"
+					,"domain:bandwagonhost.com","domain:openai.com"],
+					"ip": [],
+					"outboundTag": "proxy",
+					"type": "field"
+				}
+		]
+		}
+	}`
+	b, _ := json.MarshalIndent(gjson.Parse(s).Value(), "", "  ")
+	println(string(b))
 }
 
 var (
