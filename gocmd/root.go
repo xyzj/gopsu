@@ -24,6 +24,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -32,30 +33,36 @@ import (
 
 type Program struct {
 	info  *Info
-	pinfo *procInfo
+	pinfo *ProcInfo
 	cmds  *mapfx.UniqueSlice[*Command]
 }
 
 func (p *Program) printHelp() {
 	s := make([]string, 0)
 	maxname := 7
-	for _, v := range p.cmds.Slice() {
+	x := p.cmds.Slice()
+	sort.Slice(x, func(i, j int) bool {
+		return x[i].Name < x[j].Name
+	})
+	for _, v := range x {
 		if len(v.Name) > 7 {
 			maxname = len(v.Name)
 		}
 	}
-	for _, v := range p.cmds.Slice() {
+
+	for _, v := range x {
 		s = append(s, fmt.Sprintf("  %-"+strconv.Itoa(maxname)+"s\t%s\n", v.Name, v.Descript))
 	}
 	println(fmt.Sprintf(`%s
+
 %s
 
-Useage:
+Usage:
   %s command [flags]
 
 Available commands:
 %s  version	show version info and exit.
-  help		print this message.
+  help		print this message. Or try use 'help <command>' to see more.
 
 Flags:`, p.info.Title, p.info.Descript, p.pinfo.name, strings.Join(s, "")))
 	flag.PrintDefaults()
@@ -64,27 +71,38 @@ Flags:`, p.info.Title, p.info.Descript, p.pinfo.name, strings.Join(s, "")))
 // AddCommand add a command
 func (p *Program) AddCommand(cmd *Command) *Program {
 	if !p.cmds.Has(cmd) {
-		cmd.pinfo = p.pinfo
 		p.cmds.Store(cmd)
-		// return fmt.Errorf("cmd %s already exists", cmd.Name)
 	}
 	return p
 }
 func (p *Program) OnSignalQuit(f func()) *Program {
-	p.pinfo.onSignalQuit = f
+	if f != nil {
+		p.pinfo.onSignalQuit = f
+	}
 	return p
 }
 
 // Execute Execute the given command, when no command is given, print help
 func (p *Program) Execute() {
-	// 只有1个，打印帮助
-	if len(p.pinfo.params) == 0 {
+	if len(p.pinfo.params) == 0 { // no command, print help
 		p.printHelp()
 		os.Exit(0)
 	}
 	cmd := p.pinfo.params[0]
-	if cmd == "version" {
+	if cmd == "version" { // print version message
 		println(p.info.Ver)
+		os.Exit(0)
+	}
+	if cmd == "help" { // print help message
+		if len(p.pinfo.params) > 1 {
+			for _, v := range p.cmds.Slice() {
+				if v.Name == p.pinfo.params[1] {
+					v.printHelp()
+					os.Exit(0)
+				}
+			}
+		}
+		p.printHelp()
 		os.Exit(0)
 	}
 	found := false
@@ -92,11 +110,15 @@ func (p *Program) Execute() {
 	for _, v := range p.cmds.Slice() {
 		if v.Name == cmd { // 匹配到命令，开始执行
 			found = true
+			if len(p.pinfo.params) > 1 && p.pinfo.params[1] == "--help" {
+				v.printHelp()
+				os.Exit(0)
+			}
 			code = v.RunWithExitCode(p.pinfo)
 			break
 		}
 	}
-	if !found {
+	if !found { // found nothing, print help
 		p.printHelp()
 	}
 	if code != -1 {

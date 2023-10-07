@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"os"
 
 	"github.com/xyzj/gopsu/json"
@@ -114,6 +115,7 @@ func (f *Formatted[ITEM]) ToFile() error {
 
 // fromYAML 从yaml文件读取
 func (f *Formatted[ITEM]) fromYAML(b []byte) error {
+	b = bytes.ReplaceAll(b, []byte("\t"), []byte("        "))
 	x := make(map[string]*ITEM)
 	err := yaml.Unmarshal(b, &x)
 	if err != nil {

@@ -2,11 +2,12 @@ package gocmd
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
-	"github.com/xyzj/gopsu/logger"
 	"github.com/xyzj/gopsu/mapfx"
 	"github.com/xyzj/gopsu/pathtool"
 )
@@ -19,18 +20,21 @@ func DefaultProgram(info *Info) *Program {
 // NewProgram Create a empty console program, this program contains commands: `version`, `help`
 func NewProgram(info *Info) *Program {
 	if info == nil {
-		info = &Info{
-			Title:    "A general program startup framework",
-			Descript: "can run program in the background",
-			Ver:      "0.0.1",
-		}
+		info = &Info{}
 	}
-	if info.LogWriter == nil {
-		info.LogWriter = logger.NewWriter(&logger.OptLog{})
+	if info.Title == "" {
+		info.Title = "A general program startup framework"
+	}
+	if info.Descript == "" {
+		info.Descript = "can run program in the background"
+	}
+	if info.Ver == "" {
+		info.Ver = "0.0.1"
 	}
 	params := os.Args
-	pinfo := &procInfo{
+	pinfo := &ProcInfo{
 		params: make([]string, 0),
+		Args:   make([]string, 0),
 	}
 	// 获取程序信息
 	pinfo.params = params[1:]
@@ -44,18 +48,24 @@ func NewProgram(info *Info) *Program {
 	if info.Title == "" {
 		info.Title = pinfo.name
 	}
-	// 处理参数
-	flag.StringVar(&pinfo.pfile, "p", "", "set the pid file path")
-	for k, v := range params {
-		if strings.HasPrefix(v, "-") {
-			flag.CommandLine.Parse(params[k:])
-			pinfo.Args = params[k:]
-			break
-		}
-	}
 	// 设置pid文件
+	pinfo.pfile = os.Getenv(fmt.Sprintf("%s_PID_FILE", strings.ToUpper(pathtool.GetExecNameWithoutExt())))
 	if pinfo.pfile == "" {
 		pinfo.pfile = pathtool.JoinPathFromHere(pinfo.name + ".pid")
+	}
+	notparseflag, _ := strconv.ParseBool(os.Getenv(fmt.Sprintf("%s_NOT_PARSE_FLAG", strings.ToUpper(pathtool.GetExecNameWithoutExt()))))
+	// 处理参数
+	idx := 0
+	for k, v := range params {
+		if !strings.HasPrefix(v, "-") || v == "--help" {
+			continue
+		}
+		idx = k
+		break
+	}
+	pinfo.Args = params[idx:]
+	if !notparseflag {
+		flag.CommandLine.Parse(params[idx:])
 	}
 	return &Program{
 		info:  info,

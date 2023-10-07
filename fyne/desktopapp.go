@@ -8,11 +8,13 @@ import (
 	themex "github.com/xyzj/gopsu/fyne/theme"
 )
 
+// DesktopApp DesktopApp
 type DesktopApp struct {
 	a fyne.App
 	w fyne.Window
 }
 
+// DesktopAppOptions DesktopAppOptions
 type DesktopAppOptions struct {
 	AppID         string
 	WindowTitle   string
@@ -25,8 +27,10 @@ type DesktopAppOptions struct {
 // NewDesktopApp 创建一个新的桌面app,需要在main()函数的最开始就调用，否则，创建页面控件的时候会报错
 func NewDesktopApp(opt *DesktopAppOptions) *DesktopApp {
 	a := app.NewWithID(opt.AppID)
-	a.SetIcon(opt.Icon)
 	a.Settings().SetTheme(&themex.ZhHans{})
+	if opt.Icon != nil {
+		a.SetIcon(opt.Icon)
+	}
 	w := a.NewWindow(opt.WindowTitle)
 	if opt.EnableTray {
 		trayMenu := fyne.NewMenu("Tray Menu")
@@ -69,12 +73,17 @@ func NewDesktopApp(opt *DesktopAppOptions) *DesktopApp {
 	}
 }
 
+// MainWindow MainWindow
 func (d *DesktopApp) MainWindow() fyne.Window {
 	return d.w
 }
+
+// MainApp MainApp
 func (d *DesktopApp) MainApp() fyne.App {
 	return d.a
 }
+
+// ShowAndRun ShowAndRun
 func (d *DesktopApp) ShowAndRun(obj fyne.CanvasObject) {
 	d.w.SetContent(obj)
 	d.w.ShowAndRun()

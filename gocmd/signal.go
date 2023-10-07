@@ -6,6 +6,10 @@ import (
 	"syscall"
 )
 
+var (
+	sigc = make(chan os.Signal, 1)
+)
+
 // SignalCapture 创建一个退出信号捕捉器
 func SignalCapture(pfile string, onSignalQuit func()) {
 	signal.Notify(sigc, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)

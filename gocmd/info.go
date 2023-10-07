@@ -1,7 +1,6 @@
 package gocmd
 
 import (
-	"io"
 	"os"
 	"strings"
 
@@ -10,8 +9,6 @@ import (
 
 // Info program information
 type Info struct {
-	// LogWriter 日志写入器
-	LogWriter io.Writer
 	// Ver program version
 	Ver string
 	// Title program title
@@ -20,7 +17,7 @@ type Info struct {
 	Descript string
 }
 
-type procInfo struct {
+type ProcInfo struct {
 	// os.Args[1:]
 	params []string `json:"-"`
 	// Args "run"+os.Args[2:]
@@ -34,30 +31,31 @@ type procInfo struct {
 	// the file save the pid
 	pfile string `json:"-"`
 	// Pid value
-	Pid          int `json:"pid"`
-	onSignalQuit func()
+	Pid int `json:"pid"`
+	// onSignalQuit todo before exit
+	onSignalQuit func() `json:"-"`
 }
 
 // Save 保存pid信息
-func (p *procInfo) Save() {
+func (p *ProcInfo) Save() {
 	b, _ := json.Marshal(p)
 	os.WriteFile(p.pfile, b, 0664)
 }
 
 // Load 读取pid信息和启动参数
-func (p *procInfo) Load(printErr bool) (int, error) {
+func (p *ProcInfo) Load(printErr bool) (int, error) {
 	b, err := os.ReadFile(p.pfile)
 	if err != nil {
 		if printErr {
-			println("failed to load pid file", err.Error())
+			println("failed to load pid file " + err.Error())
 		}
 		return -1, err
 	}
-	pi := &procInfo{}
+	pi := &ProcInfo{}
 	err = json.Unmarshal(b, pi)
 	if err != nil {
 		if printErr {
-			println("failed to parse pid data", err.Error())
+			println("failed to parse pid data " + err.Error())
 		}
 		return -1, err
 	}

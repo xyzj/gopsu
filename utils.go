@@ -213,40 +213,40 @@ func (h *CryptoWorker) SetKey(key, iv string) error {
 		h.cryptoHash = hmac.New(sha256.New, Bytes(key))
 	case CryptoAES128CBC:
 		if len(key) < 16 || len(iv) < 16 {
-			return fmt.Errorf("key and iv must be longer than 16")
+			return fmt.Errorf("key length must be longer than 16, and the length of iv must be 16")
 		}
 		h.cryptoBlock, _ = aes.NewCipher(Bytes(key)[:16])
 		h.cryptoIV = Bytes(iv)[:16]
 	case CryptoAES192CBC:
-		if len(key) < 24 || len(iv) < 24 {
-			return fmt.Errorf("key and iv must be longer than 24")
+		if len(key) < 24 || len(iv) < 16 {
+			return fmt.Errorf("key length must be longer than 24, and the length of iv must be 16")
 		}
 		h.cryptoBlock, _ = aes.NewCipher(Bytes(key)[:24])
-		h.cryptoIV = Bytes(iv)[:24]
+		h.cryptoIV = Bytes(iv)[:16]
 	case CryptoAES256CBC:
-		if len(key) < 32 || len(iv) < 32 {
-			return fmt.Errorf("key and iv must be longer than 32")
+		if len(key) < 32 || len(iv) < 16 {
+			return fmt.Errorf("key length must be longer than 32, and the length of iv must be 16")
 		}
 		h.cryptoBlock, _ = aes.NewCipher(Bytes(key)[:32])
-		h.cryptoIV = Bytes(iv)[:32]
+		h.cryptoIV = Bytes(iv)[:16]
 	case CryptoAES128CFB:
 		if len(key) < 16 || len(iv) < 16 {
-			return fmt.Errorf("key and iv must be longer than 16")
+			return fmt.Errorf("key length must be longer than 16, and the length of iv must be 16")
 		}
 		h.cryptoBlock, _ = aes.NewCipher(Bytes(key)[:16])
 		h.cryptoIV = Bytes(iv)[:16]
 	case CryptoAES192CFB:
-		if len(key) < 24 || len(iv) < 24 {
-			return fmt.Errorf("key and iv must be longer than 24")
+		if len(key) < 24 || len(iv) < 16 {
+			return fmt.Errorf("key length must be longer than 24, and the length of iv must be 16")
 		}
 		h.cryptoBlock, _ = aes.NewCipher(Bytes(key)[:24])
-		h.cryptoIV = Bytes(iv)[:24]
+		h.cryptoIV = Bytes(iv)[:16]
 	case CryptoAES256CFB:
-		if len(key) < 32 || len(iv) < 32 {
-			return fmt.Errorf("key and iv must be longer than 32")
+		if len(key) < 32 || len(iv) < 16 {
+			return fmt.Errorf("key length must be longer than 32, and the length of iv must be 16")
 		}
 		h.cryptoBlock, _ = aes.NewCipher(Bytes(key)[:32])
-		h.cryptoIV = Bytes(iv)[:32]
+		h.cryptoIV = Bytes(iv)[:16]
 	default:
 		return fmt.Errorf("not yet supported")
 	}
