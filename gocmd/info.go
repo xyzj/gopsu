@@ -29,7 +29,7 @@ type ProcInfo struct {
 	// filepath.Dir(exec)
 	dir string `json:"-"`
 	// the file save the pid
-	pfile string `json:"-"`
+	Pfile string `json:"-"`
 	// Pid value
 	Pid int `json:"pid"`
 	// onSignalQuit todo before exit
@@ -39,12 +39,12 @@ type ProcInfo struct {
 // Save 保存pid信息
 func (p *ProcInfo) Save() {
 	b, _ := json.Marshal(p)
-	os.WriteFile(p.pfile, b, 0664)
+	os.WriteFile(p.Pfile, b, 0664)
 }
 
 // Load 读取pid信息和启动参数
 func (p *ProcInfo) Load(printErr bool) (int, error) {
-	b, err := os.ReadFile(p.pfile)
+	b, err := os.ReadFile(p.Pfile)
 	if err != nil {
 		if printErr {
 			println("failed to load pid file " + err.Error())

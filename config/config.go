@@ -152,6 +152,9 @@ func (f *File) FromFile(configfile string) error {
 	if err != nil {
 		return err
 	}
+	if len(b) == 0 {
+		return nil
+	}
 	f.data.Write(b)
 	if b[0] == '{' {
 		if f.fromJSON(b) == nil {

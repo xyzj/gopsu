@@ -49,9 +49,9 @@ func NewProgram(info *Info) *Program {
 		info.Title = pinfo.name
 	}
 	// 设置pid文件
-	pinfo.pfile = os.Getenv(fmt.Sprintf("%s_PID_FILE", strings.ToUpper(pathtool.GetExecNameWithoutExt())))
-	if pinfo.pfile == "" {
-		pinfo.pfile = pathtool.JoinPathFromHere(pinfo.name + ".pid")
+	pinfo.Pfile = os.Getenv(fmt.Sprintf("%s_PID_FILE", strings.ToUpper(pathtool.GetExecNameWithoutExt())))
+	if pinfo.Pfile == "" {
+		pinfo.Pfile = pathtool.JoinPathFromHere(pinfo.name + ".pid")
 	}
 	notparseflag, _ := strconv.ParseBool(os.Getenv(fmt.Sprintf("%s_NOT_PARSE_FLAG", strings.ToUpper(pathtool.GetExecNameWithoutExt()))))
 	// 处理参数

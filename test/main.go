@@ -7,7 +7,6 @@ import (
 	"sync"
 	"unicode"
 
-	"github.com/tidwall/gjson"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/config"
 )
@@ -90,23 +89,11 @@ type serviceParams struct {
 }
 
 func main() {
-	s := `{
-		"routing": {
-		"rules": [
-			{
-					"domain": [
-				"domain:mikanani.me",
-						"domain:githubusercontent.com"
-					,"domain:bandwagonhost.com","domain:openai.com"],
-					"ip": [],
-					"outboundTag": "proxy",
-					"type": "field"
-				}
-		]
-		}
-	}`
-	b, _ := json.MarshalIndent(gjson.Parse(s).Value(), "", "  ")
-	println(string(b))
+	s := make([]*serviceParams, 0)
+	for i := 0; i < 1000; i++ {
+		s = append(s, &serviceParams{Exec: gopsu.GetRandomString(7, true)})
+		println(s)
+	}
 }
 
 var (

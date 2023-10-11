@@ -74,7 +74,7 @@ var (
 		RunWithExitCode: func(pinfo *ProcInfo) int {
 			pinfo.Pid = os.Getpid()
 			pinfo.Save()
-			SignalCapture(pinfo.pfile, pinfo.onSignalQuit)
+			SignalCapture(pinfo.Pfile, false, pinfo.onSignalQuit)
 			return -1
 		},
 	}
@@ -131,7 +131,7 @@ func stop(pinfo *ProcInfo) int {
 	} else {
 		println(fmt.Sprintf("killed process: %d", id))
 	}
-	os.Remove(pinfo.pfile)
+	os.Remove(pinfo.Pfile)
 	pinfo.onSignalQuit()
 	return 0
 }
