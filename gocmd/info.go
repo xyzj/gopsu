@@ -33,7 +33,14 @@ type ProcInfo struct {
 	// Pid value
 	Pid int `json:"pid"`
 	// onSignalQuit todo before exit
-	onSignalQuit func() `json:"-"`
+	onSignalQuit func()      `json:"-"`
+	sigc         *SignalQuit `json:"-"` // = make(chan os.Signal, 1)
+}
+
+// Clean 删除pfile
+func (p *ProcInfo) Clean() {
+	os.Remove(p.Pfile)
+	p.onSignalQuit()
 }
 
 // Save 保存pid信息
@@ -83,6 +90,14 @@ type VersionInfo struct {
 	CodeBy       string   `json:"code_by,omitempty"`
 	StartWith    string   `json:"start_with,omitempty"`
 	Dependencies []string `json:"deps,omitempty"`
+}
+
+func (v *VersionInfo) String() string {
+	if v.StartWith == "" {
+		v.StartWith = strings.Join(os.Args[1:], " ")
+	}
+	b, _ := json.MarshalIndent(v, "", "  ")
+	return json.ToString(b)
 }
 
 // PrintVersion show something

@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -44,8 +43,8 @@ type ServiceOption struct {
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 	IdleTimeout  time.Duration
-	HTTPPort     int
-	HTTPSPort    int
+	HTTPPort     string
+	HTTPSPort    string
 	LogDays      int
 	Debug        bool
 }
@@ -55,7 +54,7 @@ type ServiceOption struct {
 // h： http.hander, like gin.New()
 func ListenAndServe(port int, h *gin.Engine) error {
 	ListenAndServeWithOption(&ServiceOption{
-		HTTPPort:   port,
+		HTTPPort:   fmt.Sprintf(":%d", port),
 		EngineFunc: func() *gin.Engine { return h },
 	})
 	return nil
@@ -70,7 +69,7 @@ func ListenAndServe(port int, h *gin.Engine) error {
 func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, clientca ...string) error {
 	ListenAndServeWithOption(&ServiceOption{
 		EngineFunc: func() *gin.Engine { return h },
-		HTTPSPort:  port,
+		HTTPSPort:  fmt.Sprintf(":%d", port),
 		CertFile:   certfile,
 		KeyFile:    keyfile,
 	})
@@ -79,7 +78,7 @@ func ListenAndServeTLS(port int, h *gin.Engine, certfile, keyfile string, client
 
 // ListenAndServeWithOption 启动服务
 func ListenAndServeWithOption(opt *ServiceOption) {
-	if opt.HTTPPort == 0 && opt.HTTPSPort == 0 {
+	if opt.HTTPPort == "" && opt.HTTPSPort == "" {
 		println("no server start")
 		os.Exit(1)
 	}
@@ -127,19 +126,19 @@ func ListenAndServeWithOption(opt *ServiceOption) {
 	opt.Engine = h
 
 	// 启动https服务
-	if opt.HTTPSPort > 0 {
+	if opt.HTTPSPort != "" {
 		loopfunc.GoFunc(func(params ...interface{}) {
 			if !pathtool.IsExist(opt.CertFile) || !pathtool.IsExist(opt.KeyFile) {
-				fmt.Fprintf(os.Stdout, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "HTTPS server error: no cert or key file found")
+				fmt.Fprintf(os.Stdout, "%s [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "HTTPS server error: no cert or key file found")
 				return
 			}
 			cc, err := tls.LoadX509KeyPair(opt.CertFile, opt.KeyFile)
 			if err != nil {
-				fmt.Fprintf(os.Stdout, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "cert and key file load error:"+err.Error())
+				fmt.Fprintf(os.Stdout, "%s [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "cert and key file load error:"+err.Error())
 				return
 			}
 			s := &http.Server{
-				Addr:         fmt.Sprintf(":%d", opt.HTTPSPort),
+				Addr:         opt.HTTPSPort,
 				ReadTimeout:  opt.ReadTimeout,
 				WriteTimeout: opt.WriteTimeout,
 				IdleTimeout:  opt.IdleTimeout,
@@ -158,25 +157,26 @@ func ListenAndServeWithOption(opt *ServiceOption) {
 					}
 				}
 			}, "cert update", os.Stdout)
-			fmt.Fprintf(os.Stdout, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Start HTTPS server at :"+strconv.Itoa(opt.HTTPSPort))
+			fmt.Fprintf(os.Stdout, "%s [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Start HTTPS server at :"+opt.HTTPSPort)
 			if err := s.ListenAndServeTLS("", ""); err != nil {
-				fmt.Fprintf(os.Stdout, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Start HTTPS server error: "+err.Error())
+				fmt.Fprintf(os.Stdout, "%s [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Start HTTPS server error: "+err.Error())
 			}
 		}, "https", os.Stdout)
 	}
 	// 启动http服务
-	if opt.HTTPPort > 0 {
+	if opt.HTTPPort != "" {
 		loopfunc.GoFunc(func(params ...interface{}) {
+
 			s := &http.Server{
-				Addr:         fmt.Sprintf(":%d", opt.HTTPPort),
+				Addr:         opt.HTTPPort,
 				ReadTimeout:  opt.ReadTimeout,
 				WriteTimeout: opt.WriteTimeout,
 				IdleTimeout:  opt.IdleTimeout,
 				Handler:      h,
 			}
-			fmt.Fprintf(os.Stdout, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Start HTTP server at :"+strconv.Itoa(opt.HTTPPort))
+			fmt.Fprintf(os.Stdout, "%s [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Start HTTP server at :"+opt.HTTPPort)
 			if err := s.ListenAndServe(); err != nil {
-				fmt.Fprintf(os.Stdout, "%s [90] [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Start HTTP server error: "+err.Error())
+				fmt.Fprintf(os.Stdout, "%s [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Start HTTP server error: "+err.Error())
 			}
 		}, "http", os.Stdout)
 	}

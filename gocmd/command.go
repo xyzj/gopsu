@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/xyzj/gopsu/pathtool"
 )
@@ -63,6 +64,7 @@ var (
 		Descript: "stop the program with the given pid, then start the program in the background.",
 		RunWithExitCode: func(pinfo *ProcInfo) int {
 			stop(pinfo)
+
 			return start(pinfo)
 		},
 	}
@@ -74,7 +76,7 @@ var (
 		RunWithExitCode: func(pinfo *ProcInfo) int {
 			pinfo.Pid = os.Getpid()
 			pinfo.Save()
-			SignalCapture(pinfo.Pfile, false, pinfo.onSignalQuit)
+			pinfo.sigc.SignalCapture(pinfo.Clean)
 			return -1
 		},
 	}
@@ -125,14 +127,20 @@ func stop(pinfo *ProcInfo) int {
 		println(fmt.Sprintf("failed to find process by pid: %d, reason: %v", id, process))
 		return 1
 	}
-	err = process.Kill()
+	err = process.Signal(syscall.SIGINT)
 	if err != nil {
-		println(fmt.Sprintf("failed to kill process %d: %v", id, err))
-	} else {
-		println(fmt.Sprintf("killed process: %d", id))
+		println(fmt.Sprintf("failed to stop process %d: %v", id, err))
+		return 1
 	}
-	os.Remove(pinfo.Pfile)
-	pinfo.onSignalQuit()
+	println(fmt.Sprintf("stop process: %d", id))
+	for i := 0; i < 10; i++ { // 等进程退出，最大3秒
+		time.Sleep(time.Millisecond * 300)
+		err = process.Signal(syscall.Signal(0))
+		if err != nil {
+			break
+		}
+	}
+	// pinfo.Clean()
 	return 0
 }
 

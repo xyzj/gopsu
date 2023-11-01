@@ -1424,20 +1424,21 @@ func Bytes(s string) []byte {
 }
 
 // FormatFileSize 字节的单位转换
-func FormatFileSize(fileSize int64) (size string) {
+func FormatFileSize(byteSize uint64) (size string) {
+	fileSize := float64(byteSize)
 	if fileSize < 1024 {
 		//return strconv.FormatInt(fileSize, 10) + "B"
-		return fmt.Sprintf("%d B", fileSize/1)
+		return fmt.Sprintf("%.2f B", fileSize/1)
 	} else if fileSize < (1024 * 1024) {
-		return fmt.Sprintf("%d KB", fileSize/1024)
+		return fmt.Sprintf("%.2f KB", fileSize/1024)
 	} else if fileSize < (1024 * 1024 * 1024) {
-		return fmt.Sprintf("%d MB", fileSize/(1024*1024))
+		return fmt.Sprintf("%.2f MB", fileSize/(1024*1024))
 	} else if fileSize < (1024 * 1024 * 1024 * 1024) {
-		return fmt.Sprintf("%d GB", fileSize/(1024*1024*1024))
+		return fmt.Sprintf("%.2f GB", fileSize/(1024*1024*1024))
 	} else if fileSize < (1024 * 1024 * 1024 * 1024 * 1024) {
-		return fmt.Sprintf("%d TB", fileSize/(1024*1024*1024*1024))
+		return fmt.Sprintf("%.2f TB", fileSize/(1024*1024*1024*1024))
 	} else { //if fileSize < (1024 * 1024 * 1024 * 1024 * 1024 * 1024)
-		return fmt.Sprintf("%d EB", fileSize/(1024*1024*1024*1024*1024))
+		return fmt.Sprintf("%.2f EB", fileSize/(1024*1024*1024*1024*1024))
 	}
 }
 

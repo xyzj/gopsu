@@ -89,10 +89,8 @@ type serviceParams struct {
 }
 
 func main() {
-	s := make([]*serviceParams, 0)
-	for i := 0; i < 1000; i++ {
-		s = append(s, &serviceParams{Exec: gopsu.GetRandomString(7, true)})
-		println(s)
+	for i := 0; i < 19; i++ {
+		println(gopsu.GetRandomString(19, false))
 	}
 }
 

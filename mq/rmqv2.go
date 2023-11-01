@@ -172,18 +172,20 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 		}
 		logg.System(opt.LogHeader + "Success connect to " + opt.Addr + "; exchange: `" + opt.ExchangeName + "`")
 		x = true
-		for d := range rcvMQ {
+		for {
+			d := <-rcvMQ
 			if d.ContentType == "" && d.DeliveryTag == 0 { // 接收错误，可能服务断开
 				x = false
 				channel.Close()
 				conn.Close()
-				panic(errors.New(opt.LogHeader + "E: Possible service error"))
+				logg.Error(opt.LogHeader + "E:Possible service error")
+				panic(errors.New(opt.LogHeader + "E:Possible service error"))
 			}
 			logg.Debug(opt.LogHeader + "D:" + d.RoutingKey + " | " + FormatMQBody(d.Body))
 			func() {
 				defer func() {
 					if err := recover(); err != nil {
-						logg.Error(fmt.Sprintf(opt.LogHeader+"E: calllback error, %+v", errors.WithStack(err.(error))))
+						logg.Error(fmt.Sprintf(opt.LogHeader+"E:calllback error, %+v", errors.WithStack(err.(error))))
 					}
 				}()
 				recvCallback(d.RoutingKey, d.Body)
@@ -281,11 +283,11 @@ func FormatMQBody(d []byte) string {
 	if json.Valid(d) {
 		return gopsu.String(d)
 	}
-	return strings.Map(func(r rune) rune {
+	return strings.TrimSpace(strings.Map(func(r rune) rune {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {
 			return r
 		}
 		return -1
-	}, gopsu.String(d))
+	}, string(d)))
 	// return base64.StdEncoding.EncodeToString(d)
 }

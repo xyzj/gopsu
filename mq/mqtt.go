@@ -98,9 +98,9 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 	client := mqtt.NewClient(xopt)
 	go loopfunc.LoopFunc(func(params ...interface{}) {
 		if token := client.Connect(); token.Wait() && token.Error() != nil {
+			logg.Error(opt.Name + " " + token.Error().Error())
 			panic(token.Error())
 		}
-		t := time.NewTicker(time.Second * 20)
 		for {
 			if needSub && !doneSub && client.IsConnectionOpen() {
 				client.SubscribeMultiple(opt.Subscribe, func(client mqtt.Client, msg mqtt.Message) {
@@ -114,7 +114,7 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 				})
 				doneSub = true
 			}
-			<-t.C
+			time.Sleep(time.Second * 20)
 		}
 	}, opt.Name, logg.DefaultWriter())
 	return &MqttClient{client: client}

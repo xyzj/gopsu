@@ -2,7 +2,6 @@ package gocmd
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -10,6 +9,10 @@ import (
 
 	"github.com/xyzj/gopsu/mapfx"
 	"github.com/xyzj/gopsu/pathtool"
+)
+
+var (
+	pidfile = flag.String("pid-file", "", "set the pid file path")
 )
 
 // DefaultProgram Create a default console program, this program contains commands: `start`, `stop`, `restart`, `run`, `status`, `version`, `help`
@@ -35,6 +38,7 @@ func NewProgram(info *Info) *Program {
 	pinfo := &ProcInfo{
 		params: make([]string, 0),
 		Args:   make([]string, 0),
+		sigc:   NewSignalQuit(),
 	}
 	// 获取程序信息
 	pinfo.params = params[1:]
@@ -48,12 +52,7 @@ func NewProgram(info *Info) *Program {
 	if info.Title == "" {
 		info.Title = pinfo.name
 	}
-	// 设置pid文件
-	pinfo.Pfile = os.Getenv(fmt.Sprintf("%s_PID_FILE", strings.ToUpper(pathtool.GetExecNameWithoutExt())))
-	if pinfo.Pfile == "" {
-		pinfo.Pfile = pathtool.JoinPathFromHere(pinfo.name + ".pid")
-	}
-	notparseflag, _ := strconv.ParseBool(os.Getenv(fmt.Sprintf("%s_NOT_PARSE_FLAG", strings.ToUpper(pathtool.GetExecNameWithoutExt()))))
+	notparseflag, _ := strconv.ParseBool(os.Getenv(strings.ToUpper(pathtool.GetExecNameWithoutExt()) + "_NOT_PARSE_FLAG"))
 	// 处理参数
 	idx := 0
 	for k, v := range params {
@@ -63,9 +62,19 @@ func NewProgram(info *Info) *Program {
 		idx = k
 		break
 	}
+	if idx == 0 {
+		idx = len(params)
+	}
 	pinfo.Args = params[idx:]
 	if !notparseflag {
-		flag.CommandLine.Parse(params[idx:])
+		if !flag.CommandLine.Parsed() {
+			flag.CommandLine.Parse(params[idx:])
+		}
+	}
+	// 设置pid文件
+	pinfo.Pfile = *pidfile // os.Getenv(fmt.Sprintf("%s_PID_FILE", strings.ToUpper(pathtool.GetExecNameWithoutExt())))
+	if pinfo.Pfile == "" {
+		pinfo.Pfile = pathtool.JoinPathFromHere(pinfo.name + ".pid")
 	}
 	return &Program{
 		info:  info,

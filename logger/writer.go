@@ -51,7 +51,6 @@ type OptLog struct {
 
 func NewConsoleWriter() io.Writer {
 	return &Writer{
-		buf: &bytes.Buffer{},
 		out: os.Stdout,
 	}
 }
@@ -76,7 +75,6 @@ func NewWriter(opt *OptLog) io.Writer {
 	}
 	t := time.Now()
 	mylog := &Writer{
-		buf:         &bytes.Buffer{},
 		out:         os.Stdout,
 		expired:     int64(opt.MaxDays)*24*60*60 - 10,
 		fileMaxSize: opt.MaxSize,
@@ -85,7 +83,7 @@ func NewWriter(opt *OptLog) io.Writer {
 		fileDay:     t.Day(),
 		fileHour:    t.Hour(),
 		logDir:      opt.FileDir,
-		chanGoWrite: make(chan []byte, 3000),
+		chanGoWrite: make(chan []byte, 2000),
 		enablegz:    opt.ZipFile,
 		withFile:    opt.Filename != "",
 		delayWrite:  opt.DelayWrite,
@@ -106,7 +104,6 @@ func NewWriter(opt *OptLog) io.Writer {
 
 // Writer 自定义Writer
 type Writer struct {
-	buf         *bytes.Buffer
 	chanGoWrite chan []byte
 	out         io.Writer
 	fno         *os.File
@@ -128,17 +125,15 @@ type Writer struct {
 
 // Write 异步写入日志，返回固定为 0, nil
 func (w *Writer) Write(p []byte) (n int, err error) {
-	w.buf.Reset()
-	w.buf.Write(json.ToBytes(time.Now().Format(ShortTimeFormat)))
-	w.buf.Write(p)
-	if !bytes.HasSuffix(p, lineEnd) {
-		w.buf.Write(lineEnd)
+	xp := json.ToBytes(time.Now().Format(ShortTimeFormat))
+	xp = append(xp, p...)
+	if !bytes.HasSuffix(xp, lineEnd) {
+		xp = append(xp, lineEnd...)
 	}
-	p = w.buf.Bytes()
 	if w.withFile {
-		w.chanGoWrite <- p
+		w.chanGoWrite <- xp
 	} else {
-		w.out.Write(p)
+		w.out.Write(xp)
 	}
 	return 0, nil
 }
@@ -150,7 +145,6 @@ func (w *Writer) startWrite() {
 	go loopfunc.LoopFunc(func(params ...interface{}) {
 		tc := time.NewTicker(time.Minute * 10)
 		tw := time.NewTicker(time.Second)
-		// buf := &bytes.Buffer{}
 		buftick := &bytes.Buffer{}
 		if !w.delayWrite {
 			tw.Stop()
@@ -204,6 +198,9 @@ func (w *Writer) newFile() {
 	if w.fno != nil {
 		w.fno.Close()
 	}
+	if !pathtool.IsExist(w.logDir) {
+		os.MkdirAll(w.logDir, 0755)
+	}
 	w.pathNow = filepath.Join(w.logDir, w.nameNow)
 	// 直接写入当日日志
 	var err error
@@ -214,12 +211,6 @@ func (w *Writer) newFile() {
 		return
 	}
 	w.withFile = true
-	// w.out = w.fno
-	// if w.withConsole {
-	// 	w.out = io.MultiWriter(os.Stdout, w.fno)
-	// } else {
-	// w.out = w.fno
-	// }
 	// 判断是否压缩旧日志
 	if w.enablegz {
 		w.zipFile(w.nameOld)

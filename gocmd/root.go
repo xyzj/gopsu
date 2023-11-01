@@ -105,6 +105,9 @@ func (p *Program) Execute() {
 		p.printHelp()
 		os.Exit(0)
 	}
+	if p.pinfo.onSignalQuit == nil {
+		p.pinfo.onSignalQuit = func() {}
+	}
 	found := false
 	code := 0
 	for _, v := range p.cmds.Slice() {

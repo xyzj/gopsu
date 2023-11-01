@@ -31,16 +31,16 @@ func (q *HLQueue) store(v interface{}, high bool) {
 	}
 	q.locker.Unlock()
 }
-func (q *HLQueue) load() interface{} {
+func (q *HLQueue) load() (interface{}, bool) {
 	q.locker.Lock()
 	defer q.locker.Unlock()
 	if q.high.Len() > 0 {
-		return q.high.Remove(q.high.Front())
+		return q.high.Remove(q.high.Front()), true
 	}
 	if q.low.Len() > 0 {
-		return q.low.Remove(q.low.Front())
+		return q.low.Remove(q.low.Front()), true
 	}
-	return nil
+	return nil, false
 }
 
 // Clear 清空所有队列
@@ -77,7 +77,7 @@ func (q *HLQueue) PutFront(v interface{}) {
 }
 
 // Get 获取数据
-func (q *HLQueue) Get() interface{} {
+func (q *HLQueue) Get() (interface{}, bool) {
 	return q.load()
 }
 
