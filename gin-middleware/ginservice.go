@@ -126,7 +126,7 @@ func ListenAndServeWithOption(opt *ServiceOption) {
 	opt.Engine = h
 
 	// 启动https服务
-	if opt.HTTPSPort != "" {
+	if opt.HTTPSPort != ":0" && opt.HTTPSPort != "" {
 		loopfunc.GoFunc(func(params ...interface{}) {
 			if !pathtool.IsExist(opt.CertFile) || !pathtool.IsExist(opt.KeyFile) {
 				fmt.Fprintf(os.Stdout, "%s [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "HTTPS server error: no cert or key file found")
@@ -157,16 +157,15 @@ func ListenAndServeWithOption(opt *ServiceOption) {
 					}
 				}
 			}, "cert update", os.Stdout)
-			fmt.Fprintf(os.Stdout, "%s [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Start HTTPS server at :"+opt.HTTPSPort)
+			fmt.Fprintf(os.Stdout, "%s [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Start HTTPS server at "+opt.HTTPSPort)
 			if err := s.ListenAndServeTLS("", ""); err != nil {
 				fmt.Fprintf(os.Stdout, "%s [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Start HTTPS server error: "+err.Error())
 			}
 		}, "https", os.Stdout)
 	}
 	// 启动http服务
-	if opt.HTTPPort != "" {
+	if opt.HTTPPort != ":0" && opt.HTTPPort != "" {
 		loopfunc.GoFunc(func(params ...interface{}) {
-
 			s := &http.Server{
 				Addr:         opt.HTTPPort,
 				ReadTimeout:  opt.ReadTimeout,
@@ -174,7 +173,7 @@ func ListenAndServeWithOption(opt *ServiceOption) {
 				IdleTimeout:  opt.IdleTimeout,
 				Handler:      h,
 			}
-			fmt.Fprintf(os.Stdout, "%s [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Start HTTP server at :"+opt.HTTPPort)
+			fmt.Fprintf(os.Stdout, "%s [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Start HTTP server at "+opt.HTTPPort)
 			if err := s.ListenAndServe(); err != nil {
 				fmt.Fprintf(os.Stdout, "%s [%s] %s\n", time.Now().Format(gopsu.ShortTimeFormat), "HTTP", "Start HTTP server error: "+err.Error())
 			}

@@ -79,6 +79,17 @@ func (f *Formatted[ITEM]) Print() string {
 	return string(f.data)
 }
 
+// PrintFormat 返回所有配置项
+func (f *Formatted[ITEM]) PrintFormat(fmt FormatType) string {
+	switch fmt {
+	case YAML:
+		f.toYAML()
+	case JSON:
+		f.toJSON()
+	}
+	return string(f.data)
+}
+
 // FromFile 从文件读取配置
 func (f *Formatted[ITEM]) FromFile(configfile string) error {
 	if configfile != "" {

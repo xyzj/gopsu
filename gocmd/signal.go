@@ -26,7 +26,7 @@ func logMessage(s string) []byte {
 
 // SignalCapture 创建一个退出信号捕捉器
 func (s *SignalQuit) SignalCapture(onSignalQuit func()) {
-	signal.Notify(s.sigc, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT)
+	signal.Notify(s.sigc, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT, syscall.SIGHUP)
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
