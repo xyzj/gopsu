@@ -36,6 +36,7 @@ func (s *SignalQuit) SignalCapture(onSignalQuit func()) {
 		}()
 		sig := <-s.sigc // 监听关闭
 		w := os.Stdout
+		w.WriteString("\n")
 		var err error
 		if os.Getenv("GOCMD_LOG_SIGNAL_TO_FILE") == "1" {
 			w, err = os.OpenFile(pathtool.JoinPathFromHere(pathtool.GetExecName()+".signal.log"), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0664)
@@ -46,6 +47,7 @@ func (s *SignalQuit) SignalCapture(onSignalQuit func()) {
 		}
 		w.Write(logMessage("got the signal `" + sig.String() + "`, shutting down.\n"))
 		if onSignalQuit != nil {
+			w.Write(logMessage("doing clean up jobs\n"))
 			onSignalQuit()
 		}
 		os.Exit(0)

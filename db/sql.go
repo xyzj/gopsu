@@ -154,11 +154,11 @@ func (p *SQLPool) New(tls ...string) error {
 	if p.Timeout > 6000 || p.Timeout < 5 {
 		p.Timeout = 120
 	}
-	if p.MaxOpenConns < 20 {
-		p.MaxOpenConns = 20
+	if p.MaxOpenConns < 10 {
+		p.MaxOpenConns = 10
 	}
-	if p.MaxOpenConns > 500 {
-		p.MaxOpenConns = 500
+	if p.MaxOpenConns > 50 {
+		p.MaxOpenConns = 50
 	}
 	if p.CacheDir == "" {
 		p.CacheDir = gopsu.DefaultCacheDir

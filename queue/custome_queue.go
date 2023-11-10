@@ -8,10 +8,12 @@ package queue
 import (
 	"container/list"
 	"sync"
+	"sync/atomic"
 )
 
 // HLQueue 高低优先级队列，高优先级队列有数据时优先提取高优先级数据
 type HLQueue struct {
+	c      atomic.Int64
 	locker sync.RWMutex
 	high   *list.List
 	low    *list.List
@@ -29,11 +31,15 @@ func (q *HLQueue) store(v interface{}, high bool) {
 	} else {
 		q.low.PushBack(v)
 	}
+	q.c.Add(1)
 	q.locker.Unlock()
 }
 func (q *HLQueue) load() (interface{}, bool) {
 	q.locker.Lock()
-	defer q.locker.Unlock()
+	defer func() {
+		q.locker.Unlock()
+		q.c.Add(-1)
+	}()
 	if q.high.Len() > 0 {
 		return q.high.Remove(q.high.Front()), true
 	}
@@ -48,22 +54,24 @@ func (q *HLQueue) Clear() {
 	q.locker.Lock()
 	q.high.Init()
 	q.low.Init()
+	q.c.Store(0)
 	q.locker.Unlock()
 }
 
 // Len 返回队列长度，2个队列的总和
 func (q *HLQueue) Len() int64 {
-	var l int64
-	q.locker.RLock()
-	l += int64(q.high.Len())
-	l += int64(q.low.Len())
-	q.locker.RUnlock()
-	return l
+	return q.c.Load()
+	// var l int64
+	// q.locker.RLock()
+	// l += int64(q.high.Len())
+	// l += int64(q.low.Len())
+	// q.locker.RUnlock()
+	// return l
 }
 
 // Empty 队列是否为空
 func (q *HLQueue) Empty() bool {
-	return q.Len() == 0
+	return q.c.Load() == 0
 }
 
 // Put 添加低优先级数据
@@ -86,6 +94,7 @@ func (q *HLQueue) Get() (interface{}, bool) {
 //	fifo: 指定高优先级队列的进出方式，true-先进先出，false-先进后出
 func NewHLQueue(fifo bool) *HLQueue {
 	return &HLQueue{
+		c:      atomic.Int64{},
 		locker: sync.RWMutex{},
 		high:   list.New(),
 		low:    list.New(),

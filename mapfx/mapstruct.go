@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 // 使用示例：
@@ -22,11 +23,13 @@ func NewStructMap[KEY comparable, VALUE any]() *StructMap[KEY, VALUE] {
 	return &StructMap[KEY, VALUE]{
 		locker: sync.RWMutex{},
 		data:   make(map[KEY]*VALUE),
+		count:  atomic.Int64{},
 	}
 }
 
 // StructMap 泛型map 对应各种slice类型
 type StructMap[KEY comparable, VALUE any] struct {
+	count  atomic.Int64
 	locker sync.RWMutex
 	data   map[KEY]*VALUE
 }
@@ -35,6 +38,7 @@ type StructMap[KEY comparable, VALUE any] struct {
 func (m *StructMap[KEY, VALUE]) Store(key KEY, value *VALUE) {
 	m.locker.Lock()
 	m.data[key] = value
+	m.count.Add(1)
 	m.locker.Unlock()
 }
 
@@ -42,6 +46,7 @@ func (m *StructMap[KEY, VALUE]) Store(key KEY, value *VALUE) {
 func (m *StructMap[KEY, VALUE]) Delete(key KEY) {
 	m.locker.Lock()
 	delete(m.data, key)
+	m.count.Add(-1)
 	m.locker.Unlock()
 }
 
@@ -51,16 +56,18 @@ func (m *StructMap[KEY, VALUE]) Clean() {
 	for k := range m.data {
 		delete(m.data, k)
 	}
+	m.count.Store(0)
 	// m.data = make(map[KEY]*VALUE)
 	m.locker.Unlock()
 }
 
 // Len 获取长度
 func (m *StructMap[KEY, VALUE]) Len() int {
-	m.locker.RLock()
-	l := len(m.data)
-	m.locker.RUnlock()
-	return l
+	return int(m.count.Load())
+	// m.locker.RLock()
+	// l := len(m.data)
+	// m.locker.RUnlock()
+	// return l
 }
 
 // Load 深拷贝一个值
@@ -68,8 +75,8 @@ func (m *StructMap[KEY, VALUE]) Len() int {
 //	获取的值可以安全编辑
 func (m *StructMap[KEY, VALUE]) Load(key KEY) (*VALUE, bool) {
 	m.locker.RLock()
+	defer m.locker.RUnlock()
 	v, ok := m.data[key]
-	m.locker.RUnlock()
 	if ok {
 		z := *v
 		return &z, true
@@ -82,8 +89,8 @@ func (m *StructMap[KEY, VALUE]) Load(key KEY) (*VALUE, bool) {
 //	可用于需要直接修改map内的值的场景，会引起map内值的变化
 func (m *StructMap[KEY, VALUE]) LoadForUpdate(key KEY) (*VALUE, bool) {
 	m.locker.RLock()
+	defer m.locker.RUnlock()
 	v, ok := m.data[key]
-	m.locker.RUnlock()
 	if ok {
 		return v, true
 	}
@@ -119,13 +126,13 @@ func (m *StructMap[KEY, VALUE]) HasPrefix(key string) bool {
 
 // Clone 深拷贝map,可安全编辑
 func (m *StructMap[KEY, VALUE]) Clone() map[KEY]*VALUE {
-	x := make(map[KEY]*VALUE)
 	m.locker.RLock()
+	defer m.locker.RUnlock()
+	x := make(map[KEY]*VALUE)
 	for k, v := range m.data {
 		z := *v
 		x[k] = &z
 	}
-	m.locker.RUnlock()
 	return x
 }
 
@@ -140,6 +147,24 @@ func (m *StructMap[KEY, VALUE]) ForEach(f func(key KEY, value *VALUE) bool) {
 		}
 	}()
 	for k, v := range x {
+		if !f(k, v) {
+			break
+		}
+	}
+}
+
+// ForEachWithRLocker 遍历map的key和value
+//
+//	使用rlocker进行便利，遍历过程中不应该进行读写
+func (m *StructMap[KEY, VALUE]) ForEachWithRLocker(f func(key KEY, value *VALUE) bool) {
+	m.locker.RLock()
+	defer func() {
+		if err := recover(); err != nil {
+			println(fmt.Sprintf("%+v", err))
+		}
+		m.locker.RUnlock()
+	}()
+	for k, v := range m.data {
 		if !f(k, v) {
 			break
 		}

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/gin-contrib/cors"
-	gingzip "github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/loopfunc"
@@ -145,15 +144,36 @@ func ListenAndServeWithOption(opt *ServiceOption) {
 				Handler:      h,
 				TLSConfig: &tls.Config{
 					Certificates: []tls.Certificate{cc},
+					CipherSuites: []uint16{
+						tls.TLS_AES_128_GCM_SHA256,
+						tls.TLS_AES_256_GCM_SHA384,
+						tls.TLS_CHACHA20_POLY1305_SHA256,
+						tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+						tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+						tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+						tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+						tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+						tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+						tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+						tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+						tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+						tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+						tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+						tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+						tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+						tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+						tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+					},
 				},
 			}
 			loopfunc.GoFunc(func(params ...interface{}) {
 				for {
 					time.Sleep(time.Hour * 23)
 					if cc, err := tls.LoadX509KeyPair(opt.CertFile, opt.KeyFile); err == nil {
-						s.TLSConfig = &tls.Config{
-							Certificates: []tls.Certificate{cc},
-						}
+						s.TLSConfig.Certificates[0] = cc
+						// s.TLSConfig = &tls.Config{
+						// 	Certificates: []tls.Certificate{cc},
+						// }
 					}
 				}
 			}, "cert update", os.Stdout)
@@ -212,7 +232,7 @@ func LiteEngine(logfile string, logDays int, hosts ...string) *gin.Engine {
 	// 绑定域名
 	r.Use(bindHosts(hosts...))
 	// 数据压缩
-	r.Use(gingzip.Gzip(6))
+	// r.Use(gingzip.Gzip(6))
 	return r
 }
 

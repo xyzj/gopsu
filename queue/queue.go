@@ -3,32 +3,39 @@ package queue
 import (
 	"container/list"
 	"sync"
+	"sync/atomic"
 )
 
 // Queue queue for go
 type Queue struct {
+	c      atomic.Int64
 	q      *list.List
-	locker *sync.Mutex
+	locker *sync.RWMutex
 }
 
 // New get a new queue
 func New() *Queue {
 	mq := &Queue{
+		c:      atomic.Int64{},
 		q:      list.New(),
-		locker: &sync.Mutex{},
+		locker: &sync.RWMutex{},
 	}
 	return mq
 }
 
 // Clear clear queue list
 func (mq *Queue) Clear() {
+	mq.locker.Lock()
 	mq.q.Init()
+	mq.c.Store(0)
+	mq.locker.Unlock()
 }
 
 // Put put data to the end of the queue
 func (mq *Queue) Put(value interface{}) {
 	mq.locker.Lock()
 	mq.q.PushBack(value)
+	mq.c.Add(1)
 	mq.locker.Unlock()
 }
 
@@ -36,6 +43,7 @@ func (mq *Queue) Put(value interface{}) {
 func (mq *Queue) PutFront(value interface{}) {
 	mq.locker.Lock()
 	mq.q.PushFront(value)
+	mq.c.Add(1)
 	mq.locker.Unlock()
 }
 
@@ -47,6 +55,7 @@ func (mq *Queue) Get() interface{} {
 		return nil
 	}
 	e := mq.q.Remove(mq.q.Front())
+	mq.c.Add(-1)
 	return e
 }
 
@@ -63,10 +72,16 @@ func (mq *Queue) GetNoDel() interface{} {
 
 // Len get queue len
 func (mq *Queue) Len() int64 {
-	return int64(mq.q.Len())
+	return mq.c.Load()
+	// mq.locker.RLock()
+	// defer mq.locker.RUnlock()
+	// return int64(mq.q.Len())
 }
 
 // Empty check if empty
 func (mq *Queue) Empty() bool {
-	return mq.q.Len() == 0
+	return mq.c.Load() == 0
+	// mq.locker.RLock()
+	// defer mq.locker.RUnlock()
+	// return mq.q.Len() == 0
 }

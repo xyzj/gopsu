@@ -25,9 +25,9 @@ func NewProgram(info *Info) *Program {
 	if info == nil {
 		info = &Info{}
 	}
-	if info.Title == "" {
-		info.Title = "A general program startup framework"
-	}
+	// if info.Title == "" {
+	// 	info.Title = "A general program startup framework"
+	// }
 	// if info.Descript == "" {
 	// 	info.Descript = "can run program in the background"
 	// }

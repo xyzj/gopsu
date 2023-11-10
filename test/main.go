@@ -3,8 +3,11 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"math/rand"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 	"unicode"
 
 	"github.com/xyzj/gopsu"
@@ -89,8 +92,24 @@ type serviceParams struct {
 }
 
 func main() {
-	for i := 0; i < 19; i++ {
-		println(gopsu.GetRandomString(19, false))
+	var aa int32
+	go func() {
+		for {
+			atomic.AddInt32(&aa, 1)
+			time.Sleep(time.Millisecond * time.Duration(rand.Int31n(100)))
+		}
+	}()
+
+	go func() {
+		for {
+			atomic.AddInt32(&aa, -1)
+			time.Sleep(time.Millisecond * time.Duration(rand.Int31n(1000)))
+		}
+	}()
+
+	for {
+		time.Sleep(time.Second)
+		println(aa)
 	}
 }
 
