@@ -8,18 +8,20 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/logger"
 )
 
 // RabbitMQData rabbit-mq data send struct
+// Deprecated:
 type RabbitMQData struct {
 	RoutingKey string
 	Data       *amqp.Publishing
 }
 
 // Session rmq session
+// Deprecated:
 type Session struct {
 	name         string
 	logger       logger.Logger
@@ -40,6 +42,7 @@ type Session struct {
 
 // NewConsumer 初始化消费者实例
 // exchangename,connstr,queuename,durable,autodel,debug
+// Deprecated: use NewRMQConsumer instead
 func NewConsumer(name, connstr, queuename string, durable, autodel, debug bool) *Session {
 	sessn := &Session{
 		sessnType:    "consumer",
@@ -58,6 +61,7 @@ func NewConsumer(name, connstr, queuename string, durable, autodel, debug bool) 
 }
 
 // NewProducer 初始化生产者实例
+// Deprecated: use NewRMQProducer instead
 func NewProducer(name, connstr string, debug bool) *Session {
 	sessn := &Session{
 		sessnType: "producer",

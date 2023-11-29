@@ -9,7 +9,7 @@ import (
 	"unicode"
 
 	"github.com/pkg/errors"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/logger"
@@ -99,8 +99,8 @@ RECONN:
 			false,               // exclusive
 			false,               // no-wait
 			amqp.Table{
-				"x-max-length":  xMaxLength,
-				"x-message-ttl": xMessageTTL,
+				amqp.QueueMaxLenArg:     xMaxLength,
+				amqp.QueueMessageTTLArg: xMessageTTL,
 			}, // arguments
 		)
 		if err != nil {
@@ -179,7 +179,7 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 				channel.Close()
 				conn.Close()
 				logg.Error(opt.LogHeader + "E:Possible service error")
-				panic(errors.New(opt.LogHeader + "E:Possible service error"))
+				panic(errors.New(opt.LogHeader + "E:Possible service error," + d.ContentType + "," + strconv.Itoa(int(d.DeliveryTag))))
 			}
 			logg.Debug(opt.LogHeader + "D:" + d.RoutingKey + " | " + FormatMQBody(d.Body))
 			func() {

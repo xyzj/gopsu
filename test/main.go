@@ -3,15 +3,15 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"math/rand"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 	"unicode"
 
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/config"
+	"github.com/xyzj/gopsu/logger"
+	"github.com/xyzj/gopsu/mq"
 )
 
 var (
@@ -92,25 +92,30 @@ type serviceParams struct {
 }
 
 func main() {
-	var aa int32
 	go func() {
+		snd := mq.NewRMQProducer(&mq.RabbitMQOpt{
+			Addr:         "192.168.50.83:5672",
+			Username:     "arx7",
+			Passwd:       "arbalest",
+			ExchangeName: "luwak_topic",
+		}, logger.NewConsoleLogger())
 		for {
-			atomic.AddInt32(&aa, 1)
-			time.Sleep(time.Millisecond * time.Duration(rand.Int31n(100)))
+			time.Sleep(time.Second * 30)
+			snd.Send("test.abcd.efgh", []byte(gopsu.GetRandomString(50, true)), time.Second)
 		}
 	}()
-
 	go func() {
-		for {
-			atomic.AddInt32(&aa, -1)
-			time.Sleep(time.Millisecond * time.Duration(rand.Int31n(1000)))
-		}
+		mq.NewRMQConsumer(&mq.RabbitMQOpt{
+			Addr:            "192.168.50.83:5672",
+			Username:        "arx7",
+			Passwd:          "arbalest",
+			ExchangeName:    "luwak_topic",
+			Subscribe:       []string{"test.#"},
+			QueueName:       "test_qqqq",
+			QueueAutoDelete: true,
+		}, logger.NewConsoleLogger(), func(topic string, body []byte) { println(topic, body) })
 	}()
-
-	for {
-		time.Sleep(time.Second)
-		println(aa)
-	}
+	select {}
 }
 
 var (

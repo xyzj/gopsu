@@ -13,8 +13,8 @@ require (
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/pebbe/zmq4 v1.2.9
 	github.com/pkg/errors v0.9.1
+	github.com/rabbitmq/amqp091-go v1.9.0
 	github.com/starainrt/astro v0.0.0-20220517045710-51b9f1642f72
-	github.com/streadway/amqp v1.0.0
 	github.com/tealeg/xlsx/v3 v3.3.0
 	github.com/tidwall/gjson v1.14.4
 	github.com/tidwall/sjson v1.2.5
