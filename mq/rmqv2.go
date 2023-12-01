@@ -1,8 +1,10 @@
 package mq
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -129,6 +131,12 @@ RECONN:
 				return nil, nil, err
 			}
 		}
+		// 添加一个测试专用的订阅
+		channel.QueueBind(opt.QueueName,
+			"rmqc.self.test.#",
+			opt.ExchangeName,
+			false,
+			nil)
 	}
 	return conn, channel, nil
 }
@@ -151,13 +159,48 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 	if recvCallback == nil {
 		recvCallback = func(topic string, body []byte) {}
 	}
+	rcvTime := time.Now().Unix()
+	ctxRecv, rcvCancel := context.WithCancel(context.TODO())
+	if tself := gopsu.String2Int64(os.Getenv("RMQC_SELF_TEST"), 10) * 60; tself > 0 {
+		go loopfunc.LoopFunc(func(params ...interface{}) {
+			sendtest := false
+			sndOpt := &RabbitMQOpt{
+				LogHeader:    "[RMQ-Self]",
+				Username:     opt.Username,
+				Passwd:       opt.Passwd,
+				Addr:         opt.Addr,
+				ExchangeName: opt.ExchangeName,
+				VHost:        opt.VHost,
+			}
+			for {
+				time.Sleep(time.Minute)
+				if time.Now().Unix()-rcvTime <= tself {
+					continue
+				}
+				if sendtest {
+					rcvCancel()
+					sendtest = false
+					continue
+				}
+				// 指定时间没有数据，开一个生产者进行测试
+				snd := NewRMQProducer(sndOpt, logger.NewConsoleLogger())
+				snd.Send("rmqc.self.test.recover."+time.Now().Format("2006-01-02.15:04:05.000"), []byte("hello"), time.Second*10)
+				time.Sleep(time.Second * 2)
+				snd.Close()
+				sendtest = true
+			}
+		}, "rmqc rcv timer", logg.DefaultWriter())
+	}
 	go loopfunc.LoopFunc(func(params ...interface{}) {
+		rcvTime = time.Now().Unix()
 		conn, channel, err := rmqConnect(opt, true)
 		if err != nil {
 			logg.Error(opt.LogHeader + "connect to " + opt.Addr + " error: " + err.Error())
 			panic(err)
 		}
-		rcvMQ, err := channel.Consume(
+		ctxRecv, rcvCancel = context.WithCancel(context.TODO())
+		rcvMQ, err := channel.ConsumeWithContext(
+			ctxRecv,
 			opt.QueueName,
 			"",    // Consumer
 			true,  // Auto-Ack
@@ -182,6 +225,7 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 				panic(errors.New(opt.LogHeader + "E:Possible service error," + d.ContentType + "," + strconv.Itoa(int(d.DeliveryTag))))
 			}
 			logg.Debug(opt.LogHeader + "D:" + d.RoutingKey + " | " + FormatMQBody(d.Body))
+			rcvTime = time.Now().Unix()
 			func() {
 				defer func() {
 					if err := recover(); err != nil {
@@ -197,13 +241,18 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 
 // RMQProducer rmq发送者
 type RMQProducer struct {
-	sendData chan *rmqSendData
-	ready    bool
+	sendData  chan *rmqSendData
+	ctxClose  context.Context
+	sndCancel context.CancelFunc
+	ready     bool
 }
 
 // Enable rmq发送是否可用
 func (r *RMQProducer) Enable() bool {
 	return r.ready
+}
+func (r *RMQProducer) Close() {
+	r.sndCancel()
 }
 
 // Send rmq发送数据
@@ -211,7 +260,6 @@ func (r *RMQProducer) Send(topic string, body []byte, expire time.Duration) {
 	if !r.ready {
 		return
 	}
-
 	r.sendData <- &rmqSendData{
 		topic:  topic,
 		body:   body,
@@ -239,6 +287,9 @@ func NewRMQProducer(opt *RabbitMQOpt, logg logger.Logger) *RMQProducer {
 	var sender = &RMQProducer{
 		sendData: make(chan *rmqSendData, 1000),
 	}
+	sender.ctxClose, sender.sndCancel = context.WithCancel(context.TODO())
+
+	ctxReady, cancel := context.WithTimeout(context.TODO(), time.Second*2)
 	go loopfunc.LoopFunc(func(params ...interface{}) {
 		conn, channel, err := rmqConnect(opt, false)
 		if err != nil {
@@ -247,34 +298,44 @@ func NewRMQProducer(opt *RabbitMQOpt, logg logger.Logger) *RMQProducer {
 		}
 		logg.System(opt.LogHeader + "Success connect to " + opt.Addr + "; exchange: `" + opt.ExchangeName + "`")
 		sender.ready = true
-		for d := range sender.sendData {
-			ex := strconv.Itoa(int(d.expire.Milliseconds()))
-			if ex == "0" {
-				ex = "600000"
-			}
-			err := channel.Publish(
-				opt.ExchangeName, // exchange
-				d.topic,          // routing key
-				true,             // mandatory
-				false,            // immediate
-				amqp.Publishing{
-					ContentType:  "text/plain",
-					DeliveryMode: amqp.Persistent,
-					Expiration:   ex,
-					Timestamp:    time.Now(),
-					Body:         d.body,
-				},
-			)
-			if err != nil {
-				logg.Error(opt.LogHeader + "E:" + err.Error())
+		cancel()
+		for {
+			select {
+			case <-sender.ctxClose.Done():
 				sender.ready = false
-				channel.Close()
-				conn.Close()
-				panic(err)
+				logg.Error(opt.LogHeader + "sender close")
+				return
+			case d := <-sender.sendData:
+				ex := strconv.Itoa(int(d.expire.Milliseconds()))
+				if ex == "0" {
+					ex = "600000"
+				}
+				err := channel.PublishWithContext(
+					context.TODO(),
+					opt.ExchangeName, // exchange
+					d.topic,          // routing key
+					true,             // mandatory
+					false,            // immediate
+					amqp.Publishing{
+						ContentType:  "text/plain",
+						DeliveryMode: amqp.Persistent,
+						Expiration:   ex,
+						Timestamp:    time.Now(),
+						Body:         d.body,
+					},
+				)
+				if err != nil {
+					logg.Error(opt.LogHeader + "E:" + err.Error())
+					sender.ready = false
+					channel.Close()
+					conn.Close()
+					panic(err)
+				}
+				logg.Debug(opt.LogHeader + "D:" + d.topic + " | " + FormatMQBody(d.body))
 			}
-			logg.Debug(opt.LogHeader + "D:" + d.topic + " | " + FormatMQBody(d.body))
 		}
 	}, opt.LogHeader, logg.DefaultWriter())
+	<-ctxReady.Done()
 	return sender
 }
 

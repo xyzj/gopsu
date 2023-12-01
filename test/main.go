@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"os"
 	"strings"
 	"sync"
-	"time"
 	"unicode"
 
 	"github.com/xyzj/gopsu"
@@ -92,18 +92,19 @@ type serviceParams struct {
 }
 
 func main() {
-	go func() {
-		snd := mq.NewRMQProducer(&mq.RabbitMQOpt{
-			Addr:         "192.168.50.83:5672",
-			Username:     "arx7",
-			Passwd:       "arbalest",
-			ExchangeName: "luwak_topic",
-		}, logger.NewConsoleLogger())
-		for {
-			time.Sleep(time.Second * 30)
-			snd.Send("test.abcd.efgh", []byte(gopsu.GetRandomString(50, true)), time.Second)
-		}
-	}()
+	os.Setenv("RMQC_SELF_TEST", "2")
+	// go func() {
+	// 	snd := mq.NewRMQProducer(&mq.RabbitMQOpt{
+	// 		Addr:         "192.168.50.83:5672",
+	// 		Username:     "arx7",
+	// 		Passwd:       "arbalest",
+	// 		ExchangeName: "luwak_topic",
+	// 	}, logger.NewConsoleLogger())
+	// 	for {
+	// 		time.Sleep(time.Second * 3)
+	// 		snd.Send("rmqc.self.test", []byte(gopsu.GetRandomString(50, true)), time.Second)
+	// 	}
+	// }()
 	go func() {
 		mq.NewRMQConsumer(&mq.RabbitMQOpt{
 			Addr:            "192.168.50.83:5672",
