@@ -175,7 +175,7 @@ func (p *SQLPool) New(tls ...string) error {
 			"password=%s;"+
 			"server=%s;"+
 			"database=%s;"+
-			"connection timeout=60",
+			"connection timeout=180",
 			p.User, p.Passwd, p.Server, p.DataBase)
 		if len(tls) > 0 {
 			if tls[0] != "false" {
@@ -196,7 +196,7 @@ func (p *SQLPool) New(tls ...string) error {
 			DBName:               p.DataBase,
 			MultiStatements:      true,
 			ParseTime:            true,
-			Timeout:              time.Second * 30,
+			Timeout:              time.Second * 180,
 			ColumnsWithAlias:     true,
 			ClientFoundRows:      true,
 			InterpolateParams:    true,
