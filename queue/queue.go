@@ -8,7 +8,7 @@ import (
 
 // Queue queue for go
 type Queue struct {
-	c      atomic.Int64
+	c      atomic.Int32
 	q      *list.List
 	locker *sync.RWMutex
 }
@@ -16,7 +16,7 @@ type Queue struct {
 // New get a new queue
 func New() *Queue {
 	mq := &Queue{
-		c:      atomic.Int64{},
+		c:      atomic.Int32{},
 		q:      list.New(),
 		locker: &sync.RWMutex{},
 	}
@@ -71,8 +71,8 @@ func (mq *Queue) GetNoDel() interface{} {
 }
 
 // Len get queue len
-func (mq *Queue) Len() int64 {
-	return mq.c.Load()
+func (mq *Queue) Len() int {
+	return int(mq.c.Load())
 	// mq.locker.RLock()
 	// defer mq.locker.RUnlock()
 	// return int64(mq.q.Len())
