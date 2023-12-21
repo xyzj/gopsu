@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"sync/atomic"
 )
 
 // 使用示例：
@@ -23,13 +22,11 @@ func NewStructMap[KEY comparable, VALUE any]() *StructMap[KEY, VALUE] {
 	return &StructMap[KEY, VALUE]{
 		locker: sync.RWMutex{},
 		data:   make(map[KEY]*VALUE),
-		count:  atomic.Int64{},
 	}
 }
 
 // StructMap 泛型map 对应各种slice类型
 type StructMap[KEY comparable, VALUE any] struct {
-	count  atomic.Int64
 	locker sync.RWMutex
 	data   map[KEY]*VALUE
 }
@@ -38,7 +35,6 @@ type StructMap[KEY comparable, VALUE any] struct {
 func (m *StructMap[KEY, VALUE]) Store(key KEY, value *VALUE) {
 	m.locker.Lock()
 	m.data[key] = value
-	m.count.Add(1)
 	m.locker.Unlock()
 }
 
@@ -46,7 +42,15 @@ func (m *StructMap[KEY, VALUE]) Store(key KEY, value *VALUE) {
 func (m *StructMap[KEY, VALUE]) Delete(key KEY) {
 	m.locker.Lock()
 	delete(m.data, key)
-	m.count.Add(-1)
+	m.locker.Unlock()
+}
+
+// DeleteMore 批量删除内容
+func (m *StructMap[KEY, VALUE]) DeleteMore(keys ...KEY) {
+	m.locker.Lock()
+	for _, key := range keys {
+		delete(m.data, key)
+	}
 	m.locker.Unlock()
 }
 
@@ -56,18 +60,16 @@ func (m *StructMap[KEY, VALUE]) Clean() {
 	for k := range m.data {
 		delete(m.data, k)
 	}
-	m.count.Store(0)
 	// m.data = make(map[KEY]*VALUE)
 	m.locker.Unlock()
 }
 
 // Len 获取长度
 func (m *StructMap[KEY, VALUE]) Len() int {
-	return int(m.count.Load())
-	// m.locker.RLock()
-	// l := len(m.data)
-	// m.locker.RUnlock()
-	// return l
+	m.locker.RLock()
+	l := len(m.data)
+	m.locker.RUnlock()
+	return l
 }
 
 // Load 深拷贝一个值

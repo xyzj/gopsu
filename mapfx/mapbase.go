@@ -5,7 +5,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	"github.com/xyzj/gopsu/json"
 )
@@ -23,7 +22,6 @@ func NewBaseMap[T byte | int8 | int | int32 | int64 | float32 | float64 | string
 	return &BaseMap[T]{
 		locker: sync.RWMutex{},
 		data:   make(map[string]T),
-		count:  atomic.Int64{},
 	}
 }
 
@@ -31,7 +29,6 @@ func NewBaseMap[T byte | int8 | int | int32 | int64 | float32 | float64 | string
 type BaseMap[T byte | int8 | int | int32 | int64 | float32 | float64 | string | struct{}] struct {
 	locker sync.RWMutex
 	data   map[string]T
-	count  atomic.Int64
 }
 
 // Store 添加内容
@@ -41,7 +38,6 @@ func (m *BaseMap[T]) Store(key string, value T) {
 	}
 	m.locker.Lock()
 	m.data[key] = value
-	m.count.Add(1)
 	m.locker.Unlock()
 }
 
@@ -52,7 +48,6 @@ func (m *BaseMap[T]) Delete(key string) {
 	}
 	m.locker.Lock()
 	delete(m.data, key)
-	m.count.Add(-1)
 	m.locker.Unlock()
 }
 
@@ -62,17 +57,15 @@ func (m *BaseMap[T]) Clean() {
 	for k := range m.data {
 		delete(m.data, k)
 	}
-	m.count.Store(0)
 	m.locker.Unlock()
 }
 
 // Len 获取长度
 func (m *BaseMap[T]) Len() int {
-	return int(m.count.Load())
-	// m.locker.RLock()
-	// l := len(m.data)
-	// m.locker.RUnlock()
-	// return l
+	m.locker.RLock()
+	l := len(m.data)
+	m.locker.RUnlock()
+	return l
 }
 
 // Load 深拷贝一个值
