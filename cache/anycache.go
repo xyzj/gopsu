@@ -84,11 +84,16 @@ func (ac *AnyCache[T]) Len() int {
 
 // Store 添加缓存内容，如果缓存已关闭，会返回错误
 func (ac *AnyCache[T]) Store(key string, value *T) error {
+	return ac.StoreWithExpire(key, value, ac.cacheExpire)
+}
+
+// StoreWithExpire 添加缓存内容，设置自定义的有效时间，如果缓存已关闭，会返回错误
+func (ac *AnyCache[T]) StoreWithExpire(key string, value *T, expire time.Duration) error {
 	if ac.closed.Load() {
 		return fmt.Errorf("cache is closed")
 	}
 	ac.cache.Store(key, &cData[T]{
-		expire: time.Now().Add(ac.cacheExpire),
+		expire: time.Now().Add(expire),
 		data:   value,
 	})
 	return nil
