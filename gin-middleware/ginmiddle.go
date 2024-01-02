@@ -43,12 +43,13 @@ func getSocketTimeout() time.Duration {
 // XForwardedIP 替换realip
 func XForwardedIP() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		for _, v := range []string{"X-Forwarded-For", "X-Real-IP", "CF-Connecting-IP"} {
+		for _, v := range []string{"CF-Connecting-IP", "X-Real-IP", "X-Forwarded-For"} {
 			if ip := c.Request.Header.Get(v); ip != "" {
 				_, b, err := net.SplitHostPort(c.Request.RemoteAddr)
-				if err != nil {
+				if err == nil {
 					c.Request.RemoteAddr = ip + ":" + b
 				}
+				break
 			}
 		}
 	}

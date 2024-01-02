@@ -1,16 +1,15 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"flag"
-	"fmt"
+	"net/url"
 	"strings"
 	"sync"
-	"time"
 	"unicode"
 
 	"github.com/xyzj/gopsu"
-	"github.com/xyzj/gopsu/cache"
 	"github.com/xyzj/gopsu/config"
 )
 
@@ -92,31 +91,29 @@ type serviceParams struct {
 }
 
 func main() {
-	a := cache.NewAnyCache[serviceParams](time.Second * 3)
-	go func() {
-		for {
-			time.Sleep(time.Second)
-			a.Store("gopsu.GetRandomString(10, true)", &serviceParams{
-				Exec: gopsu.GetRandomString(10, true),
-			})
-		}
-	}()
+	skey := "oqxGEEpf0UbqYZEfK8zgWH2yowjRB+SIRiWVTIOMaP7J8pAZJ0JFsIzr+fqOv7qluAaZlx27O2Bn+E4WoUbo6A=="
+	bkey, err := base64.StdEncoding.DecodeString(skey)
+	if err != nil {
+		println(err.Error())
+		return
+	}
+	ss := make([]string, 0)
+	ss = append(ss, "1703483475")
+	ss = append(ss, "sha1")
+	ss = append(ss, "userid/104332")
+	ss = append(ss, "2022-05-01")
+	xs := strings.Join(ss, "\n")
+	println(xs)
+	cworker := gopsu.GetNewCryptoWorker(gopsu.CryptoHMACSHA1)
+	err = cworker.SetKey(string(bkey), "")
+	if err != nil {
+		println(err.Error())
+		return
+	}
+	xurl := url.Values{}
+	xurl.Add("sign", cworker.HashB64([]byte(xs)))
+	println(xurl.Encode())
 
-	go func() {
-		for {
-			time.Sleep(time.Second * 5)
-			a.ForEach(func(key string, value *serviceParams) bool {
-				println(key, fmt.Sprintf("%+v", value))
-				return true
-			})
-		}
-	}()
-	// time.Sleep(time.Second * 15)
-	// a.SetCleanUp(time.Second * 3)
-	// time.Sleep(time.Second * 9)
-	// a.Close()
-
-	select {}
 }
 
 var (

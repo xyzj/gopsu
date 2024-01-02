@@ -158,11 +158,10 @@ func DoRequestWithTimeout(req *http.Request, timeo time.Duration) (int, []byte, 
 	if err != nil {
 		return 502, nil, nil, err
 	}
-	end := time.Since(start).String()
 	// 处理头
 	h := make(map[string]string)
-	h["resp_from"] = req.Host
-	h["resp_duration"] = end
+	h["Resp-From"] = req.Host
+	h["Resp-Duration"] = time.Since(start).String()
 	for k := range resp.Header {
 		h[k] = resp.Header.Get(k)
 	}
