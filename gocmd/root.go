@@ -75,12 +75,26 @@ func (p *Program) AddCommand(cmd *Command) *Program {
 	}
 	return p
 }
-func (p *Program) OnSignalQuit(f func()) *Program {
-	if f != nil {
-		p.pinfo.onSignalQuit = f
-	}
+
+// BeforeStart 启动前执行的内容
+func (p *Program) BeforeStart(f func()) *Program {
+	p.pinfo.beforeStart = f
 	return p
 }
+
+// AfterStop 启动前执行的内容
+func (p *Program) AfterStop(f func()) *Program {
+	p.pinfo.onSignalQuit = f
+	return p
+}
+
+// // OnSignalQuit
+// func (p *Program) OnSignalQuit(f func()) *Program {
+// 	if f != nil {
+// 		p.pinfo.onSignalQuit = f
+// 	}
+// 	return p
+// }
 
 // Execute Execute the given command, when no command is given, print help
 func (p *Program) Execute() {
@@ -108,6 +122,10 @@ func (p *Program) Execute() {
 	if p.pinfo.onSignalQuit == nil {
 		p.pinfo.onSignalQuit = func() {}
 	}
+	if p.pinfo.beforeStart == nil {
+		p.pinfo.beforeStart = func() {}
+	}
+
 	found := false
 	code := 0
 	for _, v := range p.cmds.Slice() {

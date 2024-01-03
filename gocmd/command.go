@@ -101,6 +101,8 @@ func start(pinfo *ProcInfo) int {
 			}
 		}
 	}
+	pinfo.beforeStart()
+
 	xargs := []string{"run"}
 	if len(pinfo.Args) > 0 {
 		xargs = append(xargs, pinfo.Args...)

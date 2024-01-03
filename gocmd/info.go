@@ -34,6 +34,7 @@ type ProcInfo struct {
 	Pid int `json:"pid"`
 	// onSignalQuit todo before exit
 	onSignalQuit func()      `json:"-"`
+	beforeStart  func()      `json:"-"`
 	sigc         *SignalQuit `json:"-"` // = make(chan os.Signal, 1)
 }
 
