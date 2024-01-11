@@ -47,13 +47,18 @@ func Recovery() gin.HandlerFunc {
 					}
 					if brokenPipe {
 						fmt.Fprintf(gin.DefaultWriter, "%s\n%s\n", err, gopsu.String(httpRequest))
-					} else if gin.IsDebugging() {
-						fmt.Fprintf(gin.DefaultWriter, "[Recovery] %s\n%+v\n", strings.Join(headers, "\n"), errors.WithStack(err.(error)))
-						// fmt.Fprintf(gin.DefaultWriter, "[Recovery] %s\n%+v\n", strings.Join(headers, "\n"), gopsu.String(stack))
 					} else {
-						fmt.Fprintf(gin.DefaultWriter, "[Recovery] %+v\n", errors.WithStack(err.(error)))
-						// fmt.Fprintf(gin.DefaultWriter, "[Recovery] %+v\n", gopsu.String(stack))
+						if xerr, ok := err.(error); ok {
+							fmt.Fprintf(gin.DefaultWriter, "[Recovery] %+v\n", errors.WithStack(xerr))
+						} else {
+							fmt.Fprintf(gin.DefaultWriter, "[Recovery] %+v\n", err)
+						}
 					}
+					// } else if gin.IsDebugging() {
+					// 	fmt.Fprintf(gin.DefaultWriter, "[Recovery] %s\n%+v\n", strings.Join(headers, "\n"), errors.WithStack(err.(error)))
+					// } else {
+					// 	fmt.Fprintf(gin.DefaultWriter, "[Recovery] %+v\n", errors.WithStack(err.(error)))
+					// }
 				}
 
 				// If the connection is dead, we can't write a status to it.
