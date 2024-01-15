@@ -1,16 +1,27 @@
 package main
 
 import (
+	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"flag"
-	"net/url"
+	"io"
+	"os"
 	"strings"
 	"sync"
 	"unicode"
 
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/config"
+	"github.com/xyzj/gopsu/crypto"
 )
 
 var (
@@ -90,30 +101,205 @@ type serviceParams struct {
 	manualStop bool     `yaml:"-"`
 }
 
-func main() {
-	skey := "oqxGEEpf0UbqYZEfK8zgWH2yowjRB+SIRiWVTIOMaP7J8pAZJ0JFsIzr+fqOv7qluAaZlx27O2Bn+E4WoUbo6A=="
-	bkey, err := base64.StdEncoding.DecodeString(skey)
+func RSAGenKey(bits int) error {
+	/*
+		生成私钥
+	*/
+	//1、使用RSA中的GenerateKey方法生成私钥
+	privateKey, err := rsa.GenerateKey(rand.Reader, bits)
 	if err != nil {
-		println(err.Error())
-		return
+		return err
 	}
-	ss := make([]string, 0)
-	ss = append(ss, "1703483475")
-	ss = append(ss, "sha1")
-	ss = append(ss, "userid/104332")
-	ss = append(ss, "2022-05-01")
-	xs := strings.Join(ss, "\n")
-	println(xs)
-	cworker := gopsu.GetNewCryptoWorker(gopsu.CryptoHMACSHA1)
-	err = cworker.SetKey(string(bkey), "")
+	//2、通过X509标准将得到的RAS私钥序列化为：ASN.1 的DER编码字符串
+	privateStream := x509.MarshalPKCS1PrivateKey(privateKey)
+	//3、将私钥字符串设置到pem格式块中
+	block1 := pem.Block{
+		Type:  "private key",
+		Bytes: privateStream,
+	}
+	//4、通过pem将设置的数据进行编码，并写入磁盘文件
+	fPrivate, err := os.Create("privateKey.pem")
 	if err != nil {
-		println(err.Error())
-		return
+		return err
 	}
-	xurl := url.Values{}
-	xurl.Add("sign", cworker.HashB64([]byte(xs)))
-	println(xurl.Encode())
+	defer fPrivate.Close()
+	err = pem.Encode(fPrivate, &block1)
+	if err != nil {
+		return err
+	}
 
+	/*
+		生成公钥
+	*/
+	publicKey := privateKey.PublicKey
+	publicStream, err := x509.MarshalPKIXPublicKey(&publicKey)
+	//publicStream:=x509.MarshalPKCS1PublicKey(&publicKey)
+	block2 := pem.Block{
+		Type:  "public key",
+		Bytes: publicStream,
+	}
+	fPublic, err := os.Create("publicKey.pem")
+	if err != nil {
+		return err
+	}
+	defer fPublic.Close()
+	pem.Encode(fPublic, &block2)
+	return nil
+}
+
+// 对数据进行加密操作
+func EncyptogRSA(src []byte, path string) (res []byte, err error) {
+	//1.获取秘钥（从本地磁盘读取）
+	f, err := os.Open(path)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	fileInfo, _ := f.Stat()
+	b := make([]byte, fileInfo.Size())
+	f.Read(b)
+	// 2、将得到的字符串解码
+	block, _ := pem.Decode(b)
+	println(base64.StdEncoding.EncodeToString(block.Bytes))
+	bb, _ := base64.StdEncoding.DecodeString(`MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAzi1j6RjsQ/l0sSsR+SV5WVjl6QPRtd9X9flVwOS1pmRtpoEgvHSM6Q1tgdih/wXaFylgbNquULZ0Ld/8XPLHXY3nhW6fHmpd9O4oE4prGX7CKPLiQTatTy/S3vMbjR3lQP3mn+DAq4ygIWnnE4ZWCh4BvULuNp4ZPNUb8k2OX0wkidG+oAHmNqcRhvXWIFv3v80etgeOxjZXwLZjmMB+ZFWNaA4Ut8OCxXnxdNBt61EAxJsjWAWQ0aVLt8ZBp7yVolCz6thYPybNkjc3N/Oejt8pzpSgi5ZTBIBWRVJOhDC45okUCDXgXW6X5+UL7qFC54QGYcuKNcSgTIML+ZwGE/68G6mvIdUHG44nxbz9rfno02KNdFSxG0gTDNCqr/ifommR+nE/ggjvpJI6avrTldeyhzgUY/Q9/nuIdTyDYXWSbumE6iFaDagxQ8ay6EOCPE/bAdhsL99nT+v9xBG+FaHY9EOdi0TQsNmteu9L8l3+v6BDqn2Mt79tRob6nJu9zlbu8XFE5ASqRWUzLZ5Nxdr8eFHZGF3gHR/abVyNG8j4HAmFkkHlANg5nQnODukkyAWTJoYGcpqjSqOaJkyFk4mxmEf2SkXfI8reY8yx7niAbacy3DHhs6F9VF7M3GRMtymneQsqAihdQ2B8y9qT6KreEKmrCi/k9CmKLhrzFg8CAwEAAQ==`)
+	// 使用X509将解码之后的数据 解析出来
+	//x509.MarshalPKCS1PublicKey(block):解析之后无法用，所以采用以下方法：ParsePKIXPublicKey
+	keyInit, err := x509.ParsePKIXPublicKey(bb) //对应于生成秘钥的x509.MarshalPKIXPublicKey(&publicKey)
+	// keyInit, err := x509.ParsePKCS1PublicKey(bb)
+	if err != nil {
+		return
+	}
+	//4.使用公钥加密数据
+	// pubKey := keyInit
+	pubKey := keyInit.(*rsa.PublicKey)
+	res, err = rsa.EncryptPKCS1v15(rand.Reader, pubKey, src)
+	return
+}
+
+// 对数据进行解密操作
+func DecrptogRSA(src []byte, path string) (res []byte, err error) {
+	//1.获取秘钥（从本地磁盘读取）
+	f, err := os.Open(path)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	fileInfo, _ := f.Stat()
+	b := make([]byte, fileInfo.Size())
+	f.Read(b)
+	block, _ := pem.Decode(b)                                 //解码
+	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes) //还原数据
+	res, err = rsa.DecryptPKCS1v15(rand.Reader, privateKey, src)
+	return
+}
+
+func addBase64Padding(value string) string {
+	m := len(value) % 4
+	if m != 0 {
+		value += strings.Repeat("=", 4-m)
+	}
+
+	return value
+}
+
+func removeBase64Padding(value string) string {
+	return strings.Replace(value, "=", "", -1)
+}
+
+func Pad(src []byte) []byte {
+	padding := aes.BlockSize - len(src)%aes.BlockSize
+	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
+	return append(src, padtext...)
+}
+
+func Unpad(src []byte) ([]byte, error) {
+	length := len(src)
+	unpadding := int(src[length-1])
+
+	if unpadding > length {
+		return nil, errors.New("unpad error. This could happen when incorrect encryption key is used")
+	}
+
+	return src[:(length - unpadding)], nil
+}
+
+func encrypt(key, iv []byte, text string) (string, error) {
+	block, err := aes.NewCipher(key[:32])
+	if err != nil {
+		return "", err
+	}
+
+	msg := Pad([]byte(text))
+	ciphertext := make([]byte, aes.BlockSize+len(msg))
+	// iv = ciphertext[:aes.BlockSize]
+	// println(fmt.Sprintf("===========%+v", iv))
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		return "", err
+	}
+	// println(fmt.Sprintf("===========%+v", iv))
+	// io.ReadFull(rand.Reader, iv)
+	cfb := cipher.NewCFBEncrypter(block, iv)
+	cfb.XORKeyStream(ciphertext[aes.BlockSize:], []byte(msg))
+	finalMsg := hex.EncodeToString(ciphertext)
+	return finalMsg, nil
+}
+
+func decrypt(key []byte, text string) (string, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+
+	decodedMsg, err := base64.StdEncoding.DecodeString(text)
+	if err != nil {
+		return "", err
+	}
+	println("=====", hex.EncodeToString(decodedMsg))
+	if (len(decodedMsg) % aes.BlockSize) != 0 {
+		return "", errors.New("blocksize must be multipe of decoded message length")
+	}
+
+	// iv := decodedMsg[:aes.BlockSize]
+	iv := []byte("4qzB9DK6eFuSOMfB")
+	msg := decodedMsg //[aes.BlockSize:]
+
+	cfb := cipher.NewCFBDecrypter(block, iv)
+	cfb.XORKeyStream(msg, msg)
+	println("===++++++++++", len(msg))
+
+	// unpadMsg, err := Unpad(msg)
+	// if err != nil {
+	// 	return "", err
+	// }
+
+	return string(msg), nil
+}
+func main() {
+	s := gopsu.GetRandomString(12, true)
+	println(crypto.FillBase64(s))
+	// demsg, _ := decrypt(key, "29c4upSLyhFYO8cGwCLOZ67p1WuKwpoOCsUol0uKyqrj")
+	// println(demsg)
+	// encryptMsg, _ := encrypt([]byte("myverystrongpasswordo32bitlength"), iv, "This is AES-256 CFB!!sdfasfdafdaf")
+	// println(encryptMsg)
+	// msg, _ := decrypt([]byte("myverystrongpasswordo32bitlength"), encryptMsg)
+	// fmt.Println(msg) // Hello World
+	//rsa.GenerateKey()
+	// err := RSAGenKey(4096)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	return
+	// }
+	// fmt.Println("秘钥生成成功！")
+	// str := "山重水复疑无路，柳暗花明又一村！"
+	// fmt.Println("加密之前的数据为：", string(str))
+	// data, err := EncyptogRSA([]byte(str), "publicKey.pem")
+	// if err != nil {
+	// 	println(err.Error())
+	// 	return
+	// }
+	// fmt.Println("加密之后的数据为：", string(data))
+	// data, err = DecrptogRSA(data, "privateKey.pem")
+	// fmt.Println("解密之后的数据为：", string(data))
 }
 
 var (

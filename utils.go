@@ -19,7 +19,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"hash"
 	"hash/crc32"
@@ -38,6 +37,7 @@ import (
 	"unsafe"
 
 	"github.com/golang/snappy"
+	"github.com/xyzj/gopsu/crypto"
 	"github.com/xyzj/gopsu/gocmd"
 	json "github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/pathtool"
@@ -169,10 +169,7 @@ func DoRequestWithTimeout(req *http.Request, timeo time.Duration) (int, []byte, 
 	return sc, b, h, nil
 }
 
-// GetNewCryptoWorker 获取新的序列化或加密管理器
-// md5,sha256,sha512初始化后直接调用hash
-// hmacsha1初始化后需调用SetSignKey设置签名key后调用hash
-// aes加密算法初始化后需调用SetKey设置key和iv后调用Encrypt，Decrypt
+// GetNewCryptoWorker 获取新的序列化或加密管理器，已过时，使用github.com/xyzj/gopsu/crypto包
 func GetNewCryptoWorker(cryptoType byte) *CryptoWorker {
 	h := &CryptoWorker{
 		cryptoType: cryptoType,
@@ -203,7 +200,7 @@ func pkcs5Unpadding(encrypt []byte) []byte {
 	return encrypt[:len(encrypt)-int(padding)]
 }
 
-// SetKey 设置aes-key,iv
+// SetKey 设置aes-key,iv，已过时，使用github.com/xyzj/gopsu/crypto包
 func (h *CryptoWorker) SetKey(key, iv string) error {
 	switch h.cryptoType {
 	case CryptoHMACSHA1:
@@ -252,7 +249,7 @@ func (h *CryptoWorker) SetKey(key, iv string) error {
 	return nil
 }
 
-// Encrypt 加密
+// Encrypt 加密，已过时，使用github.com/xyzj/gopsu/crypto包
 func (h *CryptoWorker) Encrypt(s string) string {
 	// h.cryptoLocker.Lock()
 	// defer h.cryptoLocker.Unlock()
@@ -273,12 +270,12 @@ func (h *CryptoWorker) Encrypt(s string) string {
 	return ""
 }
 
-// EncryptNoTail 加密，去掉base64尾巴的=符号
+// EncryptNoTail 加密，去掉base64尾巴的=符号，已过时，使用github.com/xyzj/gopsu/crypto包
 func (h *CryptoWorker) EncryptNoTail(s string) string {
 	return strings.Replace(h.Encrypt(s), "=", "", -1)
 }
 
-// Decrypt 解密
+// Decrypt 解密，已过时，使用github.com/xyzj/gopsu/crypto包
 func (h *CryptoWorker) Decrypt(s string) string {
 	// h.cryptoLocker.Lock()
 	// defer h.cryptoLocker.Unlock()
@@ -306,7 +303,7 @@ func (h *CryptoWorker) Decrypt(s string) string {
 	return ""
 }
 
-// Hash 计算序列
+// Hash 计算序列，已过时，使用github.com/xyzj/gopsu/crypto包
 func (h *CryptoWorker) Hash(b []byte) string {
 	h.cryptoLocker.Lock()
 	defer h.cryptoLocker.Unlock()
@@ -319,7 +316,7 @@ func (h *CryptoWorker) Hash(b []byte) string {
 	return ""
 }
 
-// HashB64 返回base64编码格式
+// HashB64 返回base64编码格式，已过时，使用github.com/xyzj/gopsu/crypto包
 func (h *CryptoWorker) HashB64(b []byte) string {
 	h.cryptoLocker.Lock()
 	defer h.cryptoLocker.Unlock()
@@ -332,24 +329,9 @@ func (h *CryptoWorker) HashB64(b []byte) string {
 	return ""
 }
 
-// GetMD5 生成32位md5字符串
+// GetMD5 生成32位md5字符串，已过时，使用github.com/xyzj/gopsu/crypto包
 func GetMD5(text string) string {
-	ctx := md5.New()
-	ctx.Write(Bytes(text))
-	return hex.EncodeToString(ctx.Sum(nil))
-}
-
-// HashData 计算hash
-func HashData(b []byte, cryptoType byte) string {
-	switch cryptoType {
-	case CryptoMD5:
-		return fmt.Sprintf("%x", md5.Sum(b))
-	case CryptoSHA256:
-		return fmt.Sprintf("%x", sha256.Sum256(b))
-	case CryptoSHA512:
-		return fmt.Sprintf("%x", sha512.Sum512(b))
-	}
-	return ""
+	return crypto.GetMD5(text)
 }
 
 // ArchiveType 压缩编码类型
