@@ -275,8 +275,24 @@ func decrypt(key []byte, text string) (string, error) {
 	return string(msg), nil
 }
 func main() {
-	s := gopsu.GetRandomString(12, true)
-	println(crypto.FillBase64(s))
+	var key, iv = []byte("(NMNle+XW!ykVjf1"), []byte("Zq0V+,.2u|3sGAzH")
+	c := crypto.NewAESWorker(crypto.AES128CFB)
+	c.SetKeyIV(key, iv)
+	c.EnableCFBPadding()
+	x, _ := c.Encode([]byte("arx7"))
+	println(x.Base64String())
+	x, _ = c.Encode([]byte("arx7"))
+	println(x.Base64String())
+	y, err := c.DecodeBase64(x.Base64String()) //"NrLwSPfpOb1s9r6VazGaaw==")
+	if err != nil {
+		println(err.Error())
+	}
+	println(y)
+	y, err = c.DecodeBase64(x.Base64String()) //"NrLwSPfpOb1s9r6VazGaaw==")
+	if err != nil {
+		println(err.Error())
+	}
+	println(y)
 	// demsg, _ := decrypt(key, "29c4upSLyhFYO8cGwCLOZ67p1WuKwpoOCsUol0uKyqrj")
 	// println(demsg)
 	// encryptMsg, _ := encrypt([]byte("myverystrongpasswordo32bitlength"), iv, "This is AES-256 CFB!!sdfasfdafdaf")

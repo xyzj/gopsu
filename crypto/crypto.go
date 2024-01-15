@@ -2,8 +2,10 @@
 package crypto
 
 import (
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
+	"io"
 	"strings"
 	"unsafe"
 )
@@ -114,4 +116,11 @@ func GetSHA256(text string) string {
 // GetSHA512 生成sha512字符串
 func GetSHA512(text string) string {
 	return sha512hash.Hash(Bytes(text)).HexString()
+}
+
+// GetRandom 获取随机数据
+func GetRandom(l int) []byte {
+	buf := make([]byte, l)
+	io.ReadFull(rand.Reader, buf)
+	return buf
 }

@@ -8,6 +8,8 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"github.com/xyzj/gopsu/crypto"
 )
 
 // A Time represents a time as the number of 100's of nanoseconds since 15 Oct
@@ -136,7 +138,7 @@ func GetUUID1() string {
 	var buf [36]byte
 	now, seq, err := getTime()
 	if err != nil {
-		encodeHex(buf[:], GetRandomASCII(16))
+		encodeHex(buf[:], crypto.GetRandom(16))
 		return String(buf[:])
 	}
 

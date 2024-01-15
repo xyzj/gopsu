@@ -729,7 +729,7 @@ func ReverseString(s string) string {
 func CodeString(s string) string {
 	x := byte(rand.Int31n(126) + 1)
 	l := len(s)
-	salt := GetRandomASCII(int64(l))
+	salt := crypto.GetRandom(l)
 	var y, z bytes.Buffer
 	for _, v := range Bytes(s) {
 		y.WriteByte(v + x)
@@ -760,12 +760,7 @@ func DecodeString(s string) string {
 		return ""
 	}
 	s = ReverseString(SwapCase(s))
-	if x := 4 - len(s)%4; x != 4 {
-		for i := 0; i < x; i++ {
-			s += "="
-		}
-	}
-	if y, ex := base64.StdEncoding.DecodeString(s); ex == nil {
+	if y, ex := base64.StdEncoding.DecodeString(crypto.FillBase64(s)); ex == nil {
 		var ns bytes.Buffer
 		x := y[0]
 		for k, v := range y {
@@ -787,12 +782,7 @@ func DecodeStringOld(s string) string {
 	s = SwapCase(s)
 	var ns bytes.Buffer
 	ns.Write([]byte{120, 156})
-	if x := 4 - len(s)%4; x != 4 {
-		for i := 0; i < x; i++ {
-			s += "="
-		}
-	}
-	if y, ex := base64.StdEncoding.DecodeString(s); ex == nil {
+	if y, ex := base64.StdEncoding.DecodeString(crypto.FillBase64(s)); ex == nil {
 		x := String2Byte(string(y[0])+string(y[1]), 0)
 		z := y[2:]
 		for i := len(z) - 1; i >= 0; i-- {
@@ -915,16 +905,6 @@ func CalculateSecurityCode(t, salt string, offset int) []string {
 	return sc
 }
 
-// GetRandomASCII 获取随机ascII码字符串
-func GetRandomASCII(l int64) []byte {
-	var rs bytes.Buffer
-	// r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	for i := int64(0); i < l; i++ {
-		rs.WriteByte(byte(rand.Int31n(255) + 1))
-	}
-	return rs.Bytes()
-}
-
 // GetRandomString 生成随机字符串
 func GetRandomString(l int64, letteronly ...bool) string {
 	str := "!#%&()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}"
@@ -933,11 +913,8 @@ func GetRandomString(l int64, letteronly ...bool) string {
 	}
 	bb := Bytes(str)
 	var rs strings.Builder
-	// var rs bytes.Buffer
-	// r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i := int64(0); i < l; i++ {
 		rs.WriteByte(bb[rand.Intn(len(bb))])
-		// rs.WriteByte(bb[rand.Intn(len(bb))])
 	}
 	return rs.String()
 }
