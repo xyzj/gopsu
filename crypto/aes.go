@@ -40,8 +40,8 @@ func (w *AESWorker) SetKeyIV(key, iv []byte) error {
 	if len(key) < l || len(iv) < aes.BlockSize {
 		return fmt.Errorf("key length must be longer than %d, and the length of iv must be longer than %d", l, aes.BlockSize)
 	}
-	w.block, _ = aes.NewCipher([]byte(key)[:l])
-	w.iv = []byte(iv)[:aes.BlockSize]
+	w.block, _ = aes.NewCipher(key[:l])
+	w.iv = iv[:aes.BlockSize]
 	return nil
 }
 
@@ -57,29 +57,22 @@ func (w *AESWorker) Encode(b []byte) (CValue, error) {
 		content = pkcs7Padding(b, aes.BlockSize)
 	}
 	var crypted []byte
+	var idx = 0
+	if w.appendiv {
+		crypted = make([]byte, aes.BlockSize+len(content))
+		copy(crypted, w.iv)
+		idx = aes.BlockSize
+	} else {
+		crypted = make([]byte, len(content))
+	}
+	// 不能预初始化，否则二次编码过程会出错
 	switch w.workType {
 	case AES128CBC, AES192CBC, AES256CBC:
-		if w.appendiv {
-			crypted = make([]byte, aes.BlockSize+len(content))
-			copy(crypted, w.iv)
-			cipher.NewCBCEncrypter(w.block, w.iv).CryptBlocks(crypted[aes.BlockSize:], content)
-		} else {
-			crypted = make([]byte, len(content))
-			cipher.NewCBCEncrypter(w.block, w.iv).CryptBlocks(crypted, content)
-		}
-		return CValue(crypted), nil
+		cipher.NewCBCEncrypter(w.block, w.iv).CryptBlocks(crypted[idx:], content)
 	case AES128CFB, AES192CFB, AES256CFB:
-		if w.appendiv {
-			crypted = make([]byte, aes.BlockSize+len(content))
-			copy(crypted, w.iv)
-			cipher.NewCFBEncrypter(w.block, w.iv).XORKeyStream(crypted[aes.BlockSize:], content)
-		} else {
-			crypted = make([]byte, len(content))
-			cipher.NewCFBEncrypter(w.block, w.iv).XORKeyStream(crypted, content)
-		}
-		return CValue(crypted), nil
+		cipher.NewCFBEncrypter(w.block, w.iv).XORKeyStream(crypted[idx:], content)
 	}
-	return CValue([]byte{}), nil
+	return CValue(crypted), nil
 }
 
 // Decode aes解密
@@ -89,23 +82,16 @@ func (w *AESWorker) Decode(b []byte) (string, error) {
 	}
 	w.locker.Lock()
 	defer w.locker.Unlock()
+	if w.appendiv {
+		w.iv = b[:aes.BlockSize]
+		b = b[aes.BlockSize:]
+	}
 	switch w.workType {
 	case AES128CBC, AES192CBC, AES256CBC:
-		if w.appendiv {
-			w.iv = b[:aes.BlockSize]
-			b = b[aes.BlockSize:]
-		}
 		decrypted := make([]byte, len(b))
 		cipher.NewCBCDecrypter(w.block, w.iv).CryptBlocks(decrypted, b)
 		return String(pkcs7Unpadding(decrypted)), nil
 	case AES128CFB, AES192CFB, AES256CFB:
-		if w.appendiv {
-			w.iv = b[:aes.BlockSize]
-			b = b[aes.BlockSize:]
-		}
-		if len(b) < aes.BlockSize {
-			return "", fmt.Errorf("ciphertext too short")
-		}
 		cipher.NewCFBDecrypter(w.block, w.iv).XORKeyStream(b, b)
 		if w.padding {
 			return String(pkcs7Unpadding(b)), nil

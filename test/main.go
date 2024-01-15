@@ -278,7 +278,7 @@ func main() {
 	var key, iv = []byte("(NMNle+XW!ykVjf1"), []byte("Zq0V+,.2u|3sGAzH")
 	c := crypto.NewAESWorker(crypto.AES128CFB)
 	c.SetKeyIV(key, iv)
-	c.EnableCFBPadding()
+	// c.EnableCFBPadding()
 	x, _ := c.Encode([]byte("arx7"))
 	println(x.Base64String())
 	x, _ = c.Encode([]byte("arx7"))

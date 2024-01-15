@@ -60,6 +60,8 @@ const (
 	HashHMACSHA256 HashType = 5
 	// HashSHA1 sha1算法
 	HashSHA1 HashType = 6
+	// HashSM3 国密sm3
+	HashSM3 = 7
 	// AES128CBC aes128cbc算法
 	AES128CBC AESType = 1
 	// AES128CFB aes128cfb算法
@@ -72,8 +74,8 @@ const (
 	AES256CBC AESType = 5
 	// AES256CFB aes256cfb算法
 	AES256CFB AESType = 6
-	// RSA rsa加密解密
-	RSA RSAType = 1
+	// RSA_SHA256 rsa加密解密
+	RSASHA256 RSAType = 1
 )
 
 var (

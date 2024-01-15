@@ -8,6 +8,8 @@ import (
 	"crypto/sha512"
 	"hash"
 	"sync"
+
+	"github.com/tjfoc/gmsm/sm3"
 )
 
 // HashWorker hash算法
@@ -31,13 +33,9 @@ func (w *HashWorker) SetHMACKey(key []byte) {
 func (w *HashWorker) Hash(b []byte) CValue {
 	w.locker.Lock()
 	defer w.locker.Unlock()
-	switch w.workType {
-	case HashMD5, HashSHA1, HashSHA256, HashSHA512, HashHMACSHA1, HashHMACSHA256:
-		w.hash.Reset()
-		w.hash.Write(b)
-		return CValue(w.hash.Sum(nil))
-	}
-	return CValue("")
+	w.hash.Reset()
+	w.hash.Write(b)
+	return CValue(w.hash.Sum(nil))
 }
 
 // NewHashWorker 创建一个新的hash算法器
@@ -59,6 +57,8 @@ func NewHashWorker(t HashType) *HashWorker {
 		w.hash = sha256.New()
 	case HashSHA512:
 		w.hash = sha512.New()
+	case HashSM3:
+		w.hash = sm3.New()
 	}
 	return w
 }

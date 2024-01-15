@@ -18,8 +18,8 @@ type RSAWorker struct {
 	locker     sync.Mutex
 	workType   RSAType
 	signWorker *HashWorker
-	publicKey  *rsa.PublicKey
-	privateKey *rsa.PrivateKey
+	rsaPubKey  *rsa.PublicKey
+	rsaPriKey  *rsa.PrivateKey
 }
 
 // SetPublicKeyFromFile 从文件获取公钥
@@ -42,7 +42,7 @@ func (w *RSAWorker) SetPublicKey(key string) error {
 	if err != nil {
 		return err
 	}
-	w.publicKey = pubKey.(*rsa.PublicKey)
+	w.rsaPubKey = pubKey.(*rsa.PublicKey)
 	return nil
 }
 
@@ -62,7 +62,7 @@ func (w *RSAWorker) SetPrivateKey(key string) error {
 	if err != nil {
 		return err
 	}
-	w.privateKey, err = x509.ParsePKCS1PrivateKey(bb)
+	w.rsaPriKey, err = x509.ParsePKCS1PrivateKey(bb)
 	if err != nil {
 		return err
 	}
@@ -71,25 +71,25 @@ func (w *RSAWorker) SetPrivateKey(key string) error {
 
 // Encode 编码
 func (w *RSAWorker) Encode(b []byte) (CValue, error) {
-	if w.publicKey == nil {
-		return CValue([]byte{}), fmt.Errorf("no publicKey found")
+	if w.rsaPubKey == nil {
+		return CValue([]byte{}), fmt.Errorf("no rsaPubKey found")
 	}
 	w.locker.Lock()
 	defer w.locker.Unlock()
-	max := w.publicKey.Size() / 2
+	max := w.rsaPubKey.Size() / 2
 	buf := bytes.Buffer{}
 	var err error
 	var res []byte
 	for {
 		if len(b) <= max {
-			res, err = rsa.EncryptPKCS1v15(rand.Reader, w.publicKey, b)
+			res, err = rsa.EncryptPKCS1v15(rand.Reader, w.rsaPubKey, b)
 			if err != nil {
 				return CValue([]byte{}), err
 			}
 			buf.Write(res)
 			break
 		}
-		res, err = rsa.EncryptPKCS1v15(rand.Reader, w.publicKey, b[:max])
+		res, err = rsa.EncryptPKCS1v15(rand.Reader, w.rsaPubKey, b[:max])
 		if err != nil {
 			return CValue([]byte{}), err
 		}
@@ -101,25 +101,25 @@ func (w *RSAWorker) Encode(b []byte) (CValue, error) {
 
 // Decode 解码
 func (w *RSAWorker) Decode(b []byte) (string, error) {
-	if w.privateKey == nil {
-		return "", fmt.Errorf("no privatekey found")
+	if w.rsaPriKey == nil {
+		return "", fmt.Errorf("no rsaPriKey found")
 	}
 	w.locker.Lock()
 	defer w.locker.Unlock()
-	max := w.privateKey.Size()
+	max := w.rsaPriKey.Size()
 	buf := bytes.Buffer{}
 	var err error
 	var res []byte
 	for {
 		if len(b) <= max {
-			res, err = rsa.DecryptPKCS1v15(rand.Reader, w.privateKey, b)
+			res, err = rsa.DecryptPKCS1v15(rand.Reader, w.rsaPriKey, b)
 			if err != nil {
 				return "", err
 			}
 			buf.Write(res)
 			break
 		}
-		res, err = rsa.DecryptPKCS1v15(rand.Reader, w.privateKey, b[:max])
+		res, err = rsa.DecryptPKCS1v15(rand.Reader, w.rsaPriKey, b[:max])
 		if err != nil {
 			return "", err
 		}
@@ -140,12 +140,12 @@ func (w *RSAWorker) DecodeBase64(s string) (string, error) {
 
 // Sign 签名，返回签名，hash值
 func (w *RSAWorker) Sign(b []byte) (CValue, error) {
-	if w.privateKey == nil {
-		return CValue([]byte{}), fmt.Errorf("no privatekey found")
+	if w.rsaPriKey == nil {
+		return CValue([]byte{}), fmt.Errorf("no rsaPriKey found")
 	}
 	w.locker.Lock()
 	defer w.locker.Unlock()
-	signature, err := rsa.SignPSS(rand.Reader, w.privateKey, crypto.SHA256, w.signWorker.Hash(b).Bytes(), nil)
+	signature, err := rsa.SignPSS(rand.Reader, w.rsaPriKey, crypto.SHA256, w.signWorker.Hash(b).Bytes(), nil)
 	if err != nil {
 		return CValue([]byte{}), err
 	}
@@ -154,19 +154,19 @@ func (w *RSAWorker) Sign(b []byte) (CValue, error) {
 
 // VerySign 验证签名
 func (w *RSAWorker) VerySign(signature, hash []byte) (bool, error) {
-	if w.publicKey == nil {
-		return false, fmt.Errorf("no publicKey found")
+	if w.rsaPubKey == nil {
+		return false, fmt.Errorf("no rsaPubKey found")
 	}
 	w.locker.Lock()
 	defer w.locker.Unlock()
-	err := rsa.VerifyPSS(w.publicKey, crypto.SHA256, hash, signature, nil)
+	err := rsa.VerifyPSS(w.rsaPubKey, crypto.SHA256, hash, signature, nil)
 	return err == nil, nil
 }
 
 // VerySignFromBase64 验证base64格式的签名
 func (w *RSAWorker) VerySignFromBase64(signature string, hash []byte) (bool, error) {
-	if w.publicKey == nil {
-		return false, fmt.Errorf("no publicKey found")
+	if w.rsaPubKey == nil {
+		return false, fmt.Errorf("no rsaPubKey found")
 	}
 	bb, err := base64.StdEncoding.DecodeString(signature)
 	if err != nil {
@@ -184,7 +184,7 @@ func (w *RSAWorker) Hash(b []byte) CValue {
 func NewRSAWorker() *RSAWorker {
 	w := &RSAWorker{
 		locker:     sync.Mutex{},
-		workType:   RSA,
+		workType:   RSASHA256,
 		signWorker: NewHashWorker(HashSHA256),
 	}
 	return w
