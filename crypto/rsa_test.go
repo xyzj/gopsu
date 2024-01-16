@@ -57,17 +57,21 @@ func RSAGenKey(bits int) error {
 func TestRSA(t *testing.T) {
 	// RSAGenKey(4096)
 	sss := "1267312shfskdfadfaf"
-	c := NewRSAWorker()
-	err := c.SetPublicKeyFromFile("publicKey.pem")
-	if err != nil {
-		t.Fatal("set public key error " + err.Error())
-		return
-	}
-	err = c.SetPrivateKeyFromFile("privateKey.pem")
-	if err != nil {
-		t.Fatal("set private key error " + err.Error())
-		return
-	}
+	c := NewRSA()
+	c.GenerateKey(RSA2048)
+	c.ToFile("rsa2048pub.pem", "rsa2048pri.pem")
+	c.GenerateKey(RSA4096)
+	c.ToFile("rsa4096pub.pem", "rsa4096pri.pem")
+	// err := c.SetPublicKeyFromFile("publicKey.pem")
+	// if err != nil {
+	// 	t.Fatal("set public key error " + err.Error())
+	// 	return
+	// }
+	// err = c.SetPrivateKeyFromFile("privateKey.pem")
+	// if err != nil {
+	// 	t.Fatal("set private key error " + err.Error())
+	// 	return
+	// }
 	if v, err := c.Encode([]byte(sss)); err != nil {
 		t.Fatal("encode error " + err.Error())
 	} else {
@@ -84,7 +88,7 @@ func TestRSA(t *testing.T) {
 
 func TestSign(t *testing.T) {
 	sss := "1267312shfskdfadfaf" //gopsu.GetRandomString(30002, true) // "1267312shfskdfadfaf"
-	c := NewRSAWorker()
+	c := NewRSA()
 	c.SetPublicKeyFromFile("publicKey.pem")
 	c.SetPrivateKeyFromFile("privateKey.pem")
 	x, err := c.Sign([]byte(sss))
@@ -93,7 +97,7 @@ func TestSign(t *testing.T) {
 		return
 	}
 	println(x.HexString())
-	z, err := c.VerySign(x.Bytes(), c.Hash([]byte(sss)))
+	z, err := c.VerySign(x.Bytes(), []byte(sss))
 	if err != nil {
 		t.Fatal(err.Error())
 		return
@@ -102,7 +106,7 @@ func TestSign(t *testing.T) {
 		t.Fail()
 		return
 	}
-	z, err = c.VerySignFromBase64(x.Base64String(), c.Hash([]byte(sss)))
+	z, err = c.VerySignFromBase64(x.Base64String(), []byte(sss))
 	if err != nil {
 		t.Fatal(err.Error())
 		return

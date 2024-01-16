@@ -8,9 +8,9 @@ import (
 	"sync"
 )
 
-// AESWorker aes算法
-type AESWorker struct {
-	locker   sync.Mutex
+// AES aes算法
+type AES struct {
+	sync.Mutex
 	workType AESType
 	block    cipher.Block
 	iv       []byte
@@ -19,13 +19,13 @@ type AESWorker struct {
 }
 
 // EnableCFBPadding 对cfb的数据进行pkcspadding
-func (w *AESWorker) EnableCFBPadding() {
+func (w *AES) EnableCFBPadding() {
 	w.padding = true
 }
 
 // SetKeyIV 设置iv和key
 // 如果不设置iv，会生成随机iv并追加在加密结果的头部
-func (w *AESWorker) SetKeyIV(key, iv []byte) error {
+func (w *AES) SetKeyIV(key, iv []byte) error {
 	var l = 16
 	switch w.workType {
 	case AES192CBC, AES192CFB:
@@ -46,12 +46,12 @@ func (w *AESWorker) SetKeyIV(key, iv []byte) error {
 }
 
 // Encode aes加密
-func (w *AESWorker) Encode(b []byte) (CValue, error) {
+func (w *AES) Encode(b []byte) (CValue, error) {
 	if w.block == nil {
 		return CValue([]byte{}), fmt.Errorf("key or iv are not set")
 	}
-	w.locker.Lock()
-	defer w.locker.Unlock()
+	w.Lock()
+	defer w.Unlock()
 	var content = b
 	if w.padding {
 		content = pkcs7Padding(b, aes.BlockSize)
@@ -76,12 +76,12 @@ func (w *AESWorker) Encode(b []byte) (CValue, error) {
 }
 
 // Decode aes解密
-func (w *AESWorker) Decode(b []byte) (string, error) {
+func (w *AES) Decode(b []byte) (string, error) {
 	if w.block == nil {
 		return "", fmt.Errorf("key or iv are not set")
 	}
-	w.locker.Lock()
-	defer w.locker.Unlock()
+	w.Lock()
+	defer w.Unlock()
 	if w.appendiv {
 		w.iv = b[:aes.BlockSize]
 		b = b[aes.BlockSize:]
@@ -102,7 +102,7 @@ func (w *AESWorker) Decode(b []byte) (string, error) {
 }
 
 // DecodeBase64 aes解密base64编码的字符串
-func (w *AESWorker) DecodeBase64(s string) (string, error) {
+func (w *AES) DecodeBase64(s string) (string, error) {
 	b, err := base64.StdEncoding.DecodeString(FillBase64(s))
 	if err != nil {
 		return "", err
@@ -110,10 +110,10 @@ func (w *AESWorker) DecodeBase64(s string) (string, error) {
 	return w.Decode(b)
 }
 
-// NewAESWorker 创建一个新的aes加密解密器
-func NewAESWorker(t AESType) *AESWorker {
-	w := &AESWorker{
-		locker:   sync.Mutex{},
+// NewAES 创建一个新的aes加密解密器
+func NewAES(t AESType) *AES {
+	w := &AES{
+		Mutex:    sync.Mutex{},
 		workType: t,
 	}
 	switch t {

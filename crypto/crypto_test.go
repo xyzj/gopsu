@@ -14,7 +14,7 @@ func TestHash(t *testing.T) {
 		println(GetSHA512(v))
 	})
 	t.Run("hash sha1", func(t *testing.T) {
-		c := NewHashWorker(HashSHA1)
+		c := NewHash(HashSHA1)
 		println(c.Hash(Bytes(v)).HexString())
 	})
 }

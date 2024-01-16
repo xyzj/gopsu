@@ -14,12 +14,12 @@ func TestAES(t *testing.T) {
 		Name    string
 		AesType AESType
 	}{
-		{"aes128cbc", AES128CBC},
-		{"aes128cfb", AES128CFB},
-		{"aes192cbc", AES192CBC},
-		{"aes192cfb", AES192CFB},
-		{"aes256cbc", AES256CBC},
-		{"aes256cfb", AES256CFB},
+		{Name: "aes128cbc", AesType: AES128CBC},
+		{Name: "aes128cfb", AesType: AES128CFB},
+		{Name: "aes192cbc", AesType: AES192CBC},
+		{Name: "aes192cfb", AesType: AES192CFB},
+		{Name: "aes256cbc", AesType: AES256CBC},
+		{Name: "aes256cfb", AesType: AES256CFB},
 	}
 	// l := 10
 	var key, iv = []byte("nNZT3xhtcKyykgBtsn7OAx0cymmNEPqE"), []byte("4qzB9DK6eFuSOMfB")
@@ -27,7 +27,7 @@ func TestAES(t *testing.T) {
 	s = "PvNmdlAIIu"
 	for _, x := range clist {
 		t.Run(x.Name, func(t *testing.T) {
-			c := NewAESWorker(x.AesType)
+			c := NewAES(x.AesType)
 			c.SetKeyIV(key, iv)
 			v, err := c.Encode([]byte(s))
 			if err != nil {

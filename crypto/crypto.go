@@ -13,6 +13,7 @@ import (
 type HashType byte
 type AESType byte
 type RSAType byte
+type SM4Type byte
 
 // CValue 加密后的数据，可输出[]byte,hex string,base64string
 type CValue []byte
@@ -74,15 +75,22 @@ const (
 	AES256CBC AESType = 5
 	// AES256CFB aes256cfb算法
 	AES256CFB AESType = 6
-	// RSA_SHA256 rsa加密解密
-	RSASHA256 RSAType = 1
+	// SM4CBC SM4 CBC算法
+	SM4CBC SM4Type = 1
+	// SM4CFB SM4 CFB算法
+	SM4CFB SM4Type = 2
+	// SM4OFB SM4 CBC算法
+	SM4OFB SM4Type = 3
+	// SM4ECB SM4 CFB算法
+	SM4ECB SM4Type = 4
 )
 
 var (
-	md5hash    = NewHashWorker(HashMD5)
-	sha1hash   = NewHashWorker(HashSHA1)
-	sha256hash = NewHashWorker(HashSHA256)
-	sha512hash = NewHashWorker(HashSHA512)
+	md5hash    = NewHash(HashMD5)
+	sha1hash   = NewHash(HashSHA1)
+	sha256hash = NewHash(HashSHA256)
+	sha512hash = NewHash(HashSHA512)
+	sm3hash    = NewHash(HashSM3)
 )
 
 // String 内存地址转换[]byte
@@ -118,6 +126,11 @@ func GetSHA256(text string) string {
 // GetSHA512 生成sha512字符串
 func GetSHA512(text string) string {
 	return sha512hash.Hash(Bytes(text)).HexString()
+}
+
+// GetSM3 生成sm3字符串
+func GetSM3(text string) string {
+	return sm3hash.Hash(Bytes(text)).HexString()
 }
 
 // GetRandom 获取随机数据

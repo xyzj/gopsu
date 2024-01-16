@@ -276,7 +276,7 @@ func decrypt(key []byte, text string) (string, error) {
 }
 func main() {
 	var key, iv = []byte("(NMNle+XW!ykVjf1"), []byte("Zq0V+,.2u|3sGAzH")
-	c := crypto.NewAESWorker(crypto.AES128CFB)
+	c := crypto.NewAES(crypto.AES128CFB)
 	c.SetKeyIV(key, iv)
 	// c.EnableCFBPadding()
 	x, _ := c.Encode([]byte("arx7"))

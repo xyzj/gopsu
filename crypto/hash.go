@@ -12,15 +12,15 @@ import (
 	"github.com/tjfoc/gmsm/sm3"
 )
 
-// HashWorker hash算法
-type HashWorker struct {
-	locker   sync.Mutex
+// HASH hash算法
+type HASH struct {
+	sync.Mutex
 	hash     hash.Hash
 	workType HashType
 }
 
 // SetHMACKey 设置hmac算法的key
-func (w *HashWorker) SetHMACKey(key []byte) {
+func (w *HASH) SetHMACKey(key []byte) {
 	switch w.workType {
 	case HashHMACSHA1:
 		w.hash = hmac.New(sha1.New, key)
@@ -30,18 +30,18 @@ func (w *HashWorker) SetHMACKey(key []byte) {
 }
 
 // Hash 计算哈希值
-func (w *HashWorker) Hash(b []byte) CValue {
-	w.locker.Lock()
-	defer w.locker.Unlock()
+func (w *HASH) Hash(b []byte) CValue {
+	w.Lock()
+	defer w.Unlock()
 	w.hash.Reset()
 	w.hash.Write(b)
 	return CValue(w.hash.Sum(nil))
 }
 
-// NewHashWorker 创建一个新的hash算法器
-func NewHashWorker(t HashType) *HashWorker {
-	w := &HashWorker{
-		locker:   sync.Mutex{},
+// NewHash 创建一个新的hash算法器
+func NewHash(t HashType) *HASH {
+	w := &HASH{
+		Mutex:    sync.Mutex{},
 		workType: t,
 	}
 	switch t {
