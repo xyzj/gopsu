@@ -20,13 +20,13 @@ import (
 	"github.com/pkg/errors"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/cache"
+	"github.com/xyzj/gopsu/crypto"
 	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/logger"
 )
 
 var (
-	codeGzip    = gopsu.GetNewArchiveWorker(gopsu.ArchiveGZip)
-	cacheWroker = gopsu.GetNewCryptoWorker(gopsu.CryptoMD5)
+	codeGzip = gopsu.GetNewArchiveWorker(gopsu.ArchiveGZip)
 )
 
 func qdMarshal(qd *QueryData) ([]byte, error) {
@@ -778,7 +778,7 @@ func (p *SQLPool) queryChan(qdc chan *QueryDataChan, s string, rowsCount int, pa
 		Columns:  columns,
 		Total:    0,
 		Rows:     make([]*QueryDataRow, 0),
-		CacheTag: p.CacheHead + cacheWroker.Hash(gopsu.Bytes(fmt.Sprintf("%d", time.Now().UnixNano()))),
+		CacheTag: p.CacheHead + crypto.GetMD5(fmt.Sprintf("%d", time.Now().UnixNano())),
 	}
 	count := len(columns)
 	values := make([]interface{}, count)

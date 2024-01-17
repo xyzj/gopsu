@@ -19,56 +19,49 @@ import (
 )
 
 var (
-	// json = sonic.Config{
-	// 	// NoNullSliceOrMap:     true,
-	// 	NoQuoteTextMarshaler: true,
-	// }.Froze()
-
-	// Marshal is exported by gin/json package.
-	Marshal = xMarshal
-	// Unmarshal is exported by gin/json package.
-	Unmarshal = xUnmarshal
-	// MarshalIndent is exported by gin/json package.
-	MarshalIndent = json.MarshalIndent
-	// MarshalToString return string and error
-	MarshalToString = xMarshalToString
-	// UnmarshalFromString get data from string
-	UnmarshalFromString = xUnmarshalFromString
-	// NewDecoder is exported by gin/json package.
-	NewDecoder = json.NewDecoder
-	// NewEncoder is exported by gin/json package.
-	NewEncoder = json.NewEncoder
-	// Valid check if valid json string
-	Valid = json.Valid
+//	json = sonic.Config{
+//		// NoNullSliceOrMap:     true,
+//		NoQuoteTextMarshaler: true,
+//	}.Froze()
 )
 
-// xMarshal json.MarshalWithOption
-func xMarshal(v interface{}) ([]byte, error) {
-	// return json.Marshal(v)
-	return json.MarshalWithOption(v, json.DisableHTMLEscape(), json.UnorderedMap())
+// Valid json.Valid
+func Valid(data []byte) bool {
+	return json.Valid(data)
 }
 
-// xMarshalToString json.MarshalWithOption and return string
-func xMarshalToString(v interface{}) (string, error) {
-	b, err := xMarshal(v)
+// Marshal json.MarshalWithOption
+func Marshal(v interface{}) ([]byte, error) {
+	return json.MarshalNoEscape(v)
+	// return json.MarshalWithOption(v, json.UnorderedMap())
+}
+
+// MarshalIndent json.MarshalIndent
+func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
+	return json.MarshalIndent(v, prefix, indent)
+}
+
+// MarshalToString json.MarshalWithOption and return string
+func MarshalToString(v interface{}) (string, error) {
+	b, err := Marshal(v)
 	if err == nil {
 		return ToString(b), nil
 	}
 	return "", err
 }
 
-// xUnmarshal json.UnmarshalWithOption
-func xUnmarshal(data []byte, v interface{}) error {
-	err := json.UnmarshalNoEscape(data, v, json.DecodeFieldPriorityFirstWin())
+// Unmarshal json.UnmarshalWithOption
+func Unmarshal(data []byte, v interface{}) error {
+	err := json.UnmarshalNoEscape(data, v)
 	if err != nil {
 		return jsonstd.Unmarshal(data, v)
 	}
 	return nil
 }
 
-// xUnmarshalFromString json.UnmarshalFromString
-func xUnmarshalFromString(data string, v interface{}) error {
-	return xUnmarshal(ToBytes(data), v)
+// UnmarshalFromString json.UnmarshalFromString
+func UnmarshalFromString(data string, v interface{}) error {
+	return Unmarshal(ToBytes(data), v)
 }
 
 // ToBytes 内存地址转换string
@@ -88,7 +81,7 @@ func ToString(b []byte) string {
 
 // PB2Json pb2格式转换为json []byte格式
 func PB2Json(pb interface{}) []byte {
-	jsonBytes, err := xMarshal(pb)
+	jsonBytes, err := Marshal(pb)
 	if err != nil {
 		return nil
 	}
@@ -97,7 +90,7 @@ func PB2Json(pb interface{}) []byte {
 
 // PB2String pb2格式转换为json 字符串格式
 func PB2String(pb interface{}) string {
-	b, err := xMarshalToString(pb)
+	b, err := MarshalToString(pb)
 	if err != nil {
 		return ""
 	}
@@ -106,6 +99,6 @@ func PB2String(pb interface{}) string {
 
 // JSON2PB json字符串转pb2格式
 func JSON2PB(js string, pb interface{}) error {
-	err := xUnmarshal(ToBytes(js), &pb)
+	err := Unmarshal(ToBytes(js), &pb)
 	return err
 }
