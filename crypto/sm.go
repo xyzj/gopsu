@@ -54,7 +54,7 @@ func (w *SM2) GenerateKey() (CValue, CValue, error) {
 // ToFile 创建ecc密钥到文件
 func (w *SM2) ToFile(pubfile, prifile string) error {
 	block := &pem.Block{
-		Type:  "ecdsa public key",
+		Type:  "sm2 public key",
 		Bytes: w.pubBytes.Bytes(),
 	}
 	txt := pem.EncodeToMemory(block)
@@ -63,7 +63,7 @@ func (w *SM2) ToFile(pubfile, prifile string) error {
 		return err
 	}
 	block = &pem.Block{
-		Type:  "ecdsa public key",
+		Type:  "sm2 public key",
 		Bytes: w.priBytes.Bytes(),
 	}
 	txt = pem.EncodeToMemory(block)
@@ -276,7 +276,7 @@ func (w *SM4) DecodeBase64(s string) (string, error) {
 	return w.Decode(b)
 }
 
-// NewSM4 创建一个新的sm2算法器
+// NewSM4 创建一个新的sm4算法器
 func NewSM4(t SM4Type) *SM4 {
 	return &SM4{
 		Mutex:    sync.Mutex{},
