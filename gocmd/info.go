@@ -98,7 +98,7 @@ func (v *VersionInfo) String() string {
 		v.StartWith = strings.Join(os.Args[1:], " ")
 	}
 	b, _ := json.MarshalIndent(v, "", "  ")
-	return json.ToString(b)
+	return json.String(b)
 }
 
 // PrintVersion show something
@@ -114,5 +114,5 @@ func PrintVersion(v *VersionInfo) string {
 		v.StartWith = strings.Join(os.Args[1:], " ")
 	}
 	b, _ := json.MarshalIndent(v, "", "  ")
-	return json.ToString(b)
+	return json.String(b)
 }

@@ -45,7 +45,7 @@ func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
 func MarshalToString(v interface{}) (string, error) {
 	b, err := Marshal(v)
 	if err == nil {
-		return ToString(b), nil
+		return String(b), nil
 	}
 	return "", err
 }
@@ -61,11 +61,11 @@ func Unmarshal(data []byte, v interface{}) error {
 
 // UnmarshalFromString json.UnmarshalFromString
 func UnmarshalFromString(data string, v interface{}) error {
-	return Unmarshal(ToBytes(data), v)
+	return Unmarshal(Bytes(data), v)
 }
 
-// ToBytes 内存地址转换string
-func ToBytes(s string) []byte {
+// Bytes 内存地址转换string
+func Bytes(s string) []byte {
 	return *(*[]byte)(unsafe.Pointer(
 		&struct {
 			string
@@ -74,8 +74,8 @@ func ToBytes(s string) []byte {
 	))
 }
 
-// ToString 内存地址转换[]byte
-func ToString(b []byte) string {
+// String 内存地址转换[]byte
+func String(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
 
@@ -99,6 +99,6 @@ func PB2String(pb interface{}) string {
 
 // JSON2PB json字符串转pb2格式
 func JSON2PB(js string, pb interface{}) error {
-	err := Unmarshal(ToBytes(js), &pb)
+	err := Unmarshal(Bytes(js), &pb)
 	return err
 }

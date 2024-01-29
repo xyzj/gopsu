@@ -16,7 +16,7 @@ import (
 )
 
 type SM2 struct {
-	sync.Mutex
+	locker   sync.Mutex
 	pubKey   *sm2.PublicKey
 	priKey   *sm2.PrivateKey
 	pubBytes CValue
@@ -126,8 +126,8 @@ func (w *SM2) Encode(b []byte) (CValue, error) {
 	if w.pubKey == nil {
 		return CValue([]byte{}), fmt.Errorf("no public key found")
 	}
-	w.Lock()
-	defer w.Unlock()
+	w.locker.Lock()
+	defer w.locker.Unlock()
 	res, err := w.pubKey.EncryptAsn1(b, rand.Reader)
 	if err != nil {
 		return CValue([]byte{}), err
@@ -140,8 +140,8 @@ func (w *SM2) Decode(b []byte) (string, error) {
 	if w.priKey == nil {
 		return "", fmt.Errorf("no private key found")
 	}
-	w.Lock()
-	defer w.Unlock()
+	w.locker.Lock()
+	defer w.locker.Unlock()
 	c, err := w.priKey.DecryptAsn1(b)
 	if err != nil {
 		return "", err
@@ -163,8 +163,8 @@ func (w *SM2) Sign(b []byte) (CValue, error) {
 	if w.priKey == nil {
 		return CValue([]byte{}), fmt.Errorf("no private key found")
 	}
-	w.Lock()
-	defer w.Unlock()
+	w.locker.Lock()
+	defer w.locker.Unlock()
 	signature, err := w.priKey.Sign(rand.Reader, b, nil)
 	if err != nil {
 		return CValue([]byte{}), err
@@ -177,8 +177,8 @@ func (w *SM2) VerySign(signature, data []byte) (bool, error) {
 	if w.pubKey == nil {
 		return false, fmt.Errorf("no public key found")
 	}
-	w.Lock()
-	defer w.Unlock()
+	w.locker.Lock()
+	defer w.locker.Unlock()
 	ok := w.pubKey.Verify(data, signature)
 	return ok, nil
 }
@@ -201,17 +201,41 @@ func (w *SM2) VerySignFromHex(signature string, data []byte) (bool, error) {
 	return w.VerySign(bb, data)
 }
 
+// Decrypt 兼容旧方法，直接解析base64字符串
+func (w *SM2) Decrypt(s string) string {
+	x, _ := w.DecodeBase64(s)
+	return x
+}
+
+// Encrypt 兼容旧方法，直接返回base64字符串
+func (w *SM2) Encrypt(s string) string {
+	x, err := w.Encode(Bytes(s))
+	if err != nil {
+		return ""
+	}
+	return x.Base64String()
+}
+
+// EncryptTo 兼容旧方法，直接返回base64字符串
+func (w *SM2) EncryptTo(s string) CValue {
+	x, err := w.Encode(Bytes(s))
+	if err != nil {
+		return CValue([]byte{})
+	}
+	return x
+}
+
 // NewSM2 创建一个新的sm2算法器
 func NewSM2() *SM2 {
 	return &SM2{
-		Mutex: sync.Mutex{},
+		locker: sync.Mutex{},
 	}
 }
 
 // sm4
 
 type SM4 struct {
-	sync.Mutex
+	locker   sync.Mutex
 	workType SM4Type
 	key      []byte
 	iv       []byte
@@ -276,10 +300,34 @@ func (w *SM4) DecodeBase64(s string) (string, error) {
 	return w.Decode(b)
 }
 
+// Decrypt 兼容旧方法，直接解析base64字符串
+func (w *SM4) Decrypt(s string) string {
+	x, _ := w.DecodeBase64(s)
+	return x
+}
+
+// Encrypt 兼容旧方法，直接返回base64字符串
+func (w *SM4) Encrypt(s string) string {
+	x, err := w.Encode(Bytes(s))
+	if err != nil {
+		return ""
+	}
+	return x.Base64String()
+}
+
+// EncryptTo 兼容旧方法，直接返回base64字符串
+func (w *SM4) EncryptTo(s string) CValue {
+	x, err := w.Encode(Bytes(s))
+	if err != nil {
+		return CValue([]byte{})
+	}
+	return x
+}
+
 // NewSM4 创建一个新的sm4算法器
 func NewSM4(t SM4Type) *SM4 {
 	return &SM4{
-		Mutex:    sync.Mutex{},
+		locker:   sync.Mutex{},
 		workType: t,
 	}
 }

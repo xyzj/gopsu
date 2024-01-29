@@ -28,7 +28,7 @@ func (b *BoltDB) Read(key string, bucket ...string) string {
 		if bucket[0] == "" {
 			buc = b.bucket
 		} else {
-			buc = json.ToBytes(bucket[0])
+			buc = json.Bytes(bucket[0])
 		}
 	}
 	var value string
@@ -38,11 +38,11 @@ func (b *BoltDB) Read(key string, bucket ...string) string {
 			value = ""
 			return nil
 		}
-		b := t.Get(json.ToBytes(key))
+		b := t.Get(json.Bytes(key))
 		if b == nil {
 			value = ""
 		} else {
-			value = json.ToString(b)
+			value = json.String(b)
 		}
 		return nil
 	})
@@ -58,7 +58,7 @@ func (b *BoltDB) Write(key, value string, bucket ...string) error {
 		if bucket[0] == "" {
 			buc = b.bucket
 		} else {
-			buc = json.ToBytes(bucket[0])
+			buc = json.Bytes(bucket[0])
 		}
 	}
 	return b.db.Update(func(tx *bbolt.Tx) error {
@@ -66,7 +66,7 @@ func (b *BoltDB) Write(key, value string, bucket ...string) error {
 		if err != nil {
 			return err
 		}
-		return t.Put(json.ToBytes(key), json.ToBytes(value))
+		return t.Put(json.Bytes(key), json.Bytes(value))
 	})
 }
 
@@ -79,7 +79,7 @@ func (b *BoltDB) Delete(key string, bucket ...string) error {
 		if bucket[0] == "" {
 			buc = b.bucket
 		} else {
-			buc = json.ToBytes(bucket[0])
+			buc = json.Bytes(bucket[0])
 		}
 	}
 	return b.db.Update(func(tx *bbolt.Tx) error {
@@ -87,7 +87,7 @@ func (b *BoltDB) Delete(key string, bucket ...string) error {
 		if t == nil {
 			return nil
 		}
-		return t.Delete(json.ToBytes(key))
+		return t.Delete(json.Bytes(key))
 	})
 }
 
@@ -100,7 +100,7 @@ func (b *BoltDB) ForEach(f func(k, v string) error, bucket ...string) {
 		if bucket[0] == "" {
 			buc = b.bucket
 		} else {
-			buc = json.ToBytes(bucket[0])
+			buc = json.Bytes(bucket[0])
 		}
 	}
 	var data = make(map[string]string)
@@ -110,12 +110,12 @@ func (b *BoltDB) ForEach(f func(k, v string) error, bucket ...string) {
 			return nil
 		}
 		return t.ForEach(func(k, v []byte) error {
-			data[json.ToString(k)] = json.ToString(v)
+			data[json.String(k)] = json.String(v)
 			return nil
 			// defer func() {
 			// 	recover()
 			// }()
-			// return f(json.ToString(k), json.ToString(v))
+			// return f(json.String(k), json.String(v))
 		})
 	})
 	defer func() {
@@ -135,7 +135,7 @@ func NewBolt(f string) (*BoltDB, error) {
 
 	return &BoltDB{
 		db:       db,
-		bucket:   json.ToBytes("default"),
+		bucket:   json.Bytes("default"),
 		filename: f,
 	}, nil
 }

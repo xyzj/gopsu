@@ -542,7 +542,7 @@ func BcdDT2Stamp(d []byte) int64 {
 	if len(d) == 6 {
 		f = "060102150405"
 	}
-	return Time2Stampf(fmt.Sprintf("%d", int(BcdBytes2Float64(d, 0, true))), f, 8)
+	return Time2Stampf(strconv.FormatInt(int64(BcdBytes2Float64(d, 0, true)), 10), f, 8)
 }
 
 // Stamp2BcdDT unix时间戳转bcd,6字节，第一字节为秒

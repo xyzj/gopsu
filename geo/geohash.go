@@ -88,8 +88,8 @@ func Decode(code uint64) (float64, float64) {
 	return lng, lat
 }
 
-// ToString converts bytes geohash code to base32 string
-func ToString(buf []byte) string {
+// String converts bytes geohash code to base32 string
+func String(buf []byte) string {
 	return enc.EncodeToString(buf)
 }
 

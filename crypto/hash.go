@@ -14,7 +14,7 @@ import (
 
 // HASH hash算法
 type HASH struct {
-	sync.Mutex
+	locker   sync.Mutex
 	hash     hash.Hash
 	workType HashType
 }
@@ -31,8 +31,8 @@ func (w *HASH) SetHMACKey(key []byte) {
 
 // Hash 计算哈希值
 func (w *HASH) Hash(b []byte) CValue {
-	w.Lock()
-	defer w.Unlock()
+	w.locker.Lock()
+	defer w.locker.Unlock()
 	w.hash.Reset()
 	w.hash.Write(b)
 	return CValue(w.hash.Sum(nil))
@@ -41,7 +41,7 @@ func (w *HASH) Hash(b []byte) CValue {
 // NewHash 创建一个新的hash算法器
 func NewHash(t HashType) *HASH {
 	w := &HASH{
-		Mutex:    sync.Mutex{},
+		locker:   sync.Mutex{},
 		workType: t,
 	}
 	switch t {

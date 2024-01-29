@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -778,7 +779,7 @@ func (p *SQLPool) queryChan(qdc chan *QueryDataChan, s string, rowsCount int, pa
 		Columns:  columns,
 		Total:    0,
 		Rows:     make([]*QueryDataRow, 0),
-		CacheTag: p.CacheHead + crypto.GetMD5(fmt.Sprintf("%d", time.Now().UnixNano())),
+		CacheTag: p.CacheHead + crypto.GetMD5(strconv.FormatInt(time.Now().UnixNano(), 10)),
 	}
 	count := len(columns)
 	values := make([]interface{}, count)

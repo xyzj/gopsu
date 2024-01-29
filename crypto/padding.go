@@ -5,6 +5,23 @@ import (
 	"strings"
 )
 
+type Padding byte
+
+var (
+	NoPadding    Padding = 0
+	Pkcs5Padding Padding = 1
+	Pkcs7Padding Padding = 2
+	ZeroPadding  Padding = 3
+)
+
+func noPadding(ciphertext []byte, blockSize int) []byte {
+	return ciphertext
+}
+
+func noUnpadding(encrypt []byte) []byte {
+	return encrypt
+}
+
 func pkcs7Padding(ciphertext []byte, blockSize int) []byte {
 	padding := blockSize - len(ciphertext)%blockSize
 	padtext := bytes.Repeat([]byte{byte(padding)}, padding)

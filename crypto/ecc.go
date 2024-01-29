@@ -24,9 +24,9 @@ var (
 	ECSecp384r1 ECShortName = 2
 )
 
-// ECC rsa算法
+// ECC ecc算法
 type ECC struct {
-	sync.Mutex
+	locker   sync.Mutex
 	signHash *HASH
 	pubKey   *ecdsa.PublicKey
 	priKey   *ecdsa.PrivateKey
@@ -146,8 +146,8 @@ func (w *ECC) Encode(b []byte) (CValue, error) {
 	if w.pubEcies == nil {
 		return CValue([]byte{}), fmt.Errorf("no public key found")
 	}
-	w.Lock()
-	defer w.Unlock()
+	w.locker.Lock()
+	defer w.locker.Unlock()
 	res, err := ecies.Encrypt(rand.Reader, w.pubEcies, b, nil, nil)
 	if err != nil {
 		return CValue([]byte{}), err
@@ -160,8 +160,8 @@ func (w *ECC) Decode(b []byte) (string, error) {
 	if w.priEcies == nil {
 		return "", fmt.Errorf("no private key found")
 	}
-	w.Lock()
-	defer w.Unlock()
+	w.locker.Lock()
+	defer w.locker.Unlock()
 	c, err := w.priEcies.Decrypt(b, nil, nil)
 	if err != nil {
 		return "", err
@@ -183,8 +183,8 @@ func (w *ECC) Sign(b []byte) (CValue, error) {
 	if w.priKey == nil {
 		return CValue([]byte{}), fmt.Errorf("no private key found")
 	}
-	w.Lock()
-	defer w.Unlock()
+	w.locker.Lock()
+	defer w.locker.Unlock()
 	signature, err := ecdsa.SignASN1(rand.Reader, w.priKey, w.signHash.Hash(b).Bytes())
 	if err != nil {
 		return CValue([]byte{}), err
@@ -197,8 +197,8 @@ func (w *ECC) VerySign(signature, data []byte) (bool, error) {
 	if w.pubKey == nil {
 		return false, fmt.Errorf("no public key found")
 	}
-	w.Lock()
-	defer w.Unlock()
+	w.locker.Lock()
+	defer w.locker.Unlock()
 	ok := ecdsa.VerifyASN1(w.pubKey, w.signHash.Hash(data).Bytes(), signature)
 	return ok, nil
 }
@@ -221,13 +221,37 @@ func (w *ECC) VerySignFromHex(signature string, data []byte) (bool, error) {
 	return w.VerySign(bb, data)
 }
 
+// Decrypt 兼容旧方法，直接解析base64字符串
+func (w *ECC) Decrypt(s string) string {
+	x, _ := w.DecodeBase64(s)
+	return x
+}
+
+// Encrypt 兼容旧方法，直接返回base64字符串
+func (w *ECC) Encrypt(s string) string {
+	x, err := w.Encode(Bytes(s))
+	if err != nil {
+		return ""
+	}
+	return x.Base64String()
+}
+
+// EncryptTo 兼容旧方法，直接返回base64字符串
+func (w *ECC) EncryptTo(s string) CValue {
+	x, err := w.Encode(Bytes(s))
+	if err != nil {
+		return CValue([]byte{})
+	}
+	return x
+}
+
 // NewECC 创建一个新的ecc算法器
 //
 //	签名算法采用sha256
 //	支持 openssl ecparam -name prime256v1/secp384r1 格式的密钥
 func NewECC() *ECC {
 	w := &ECC{
-		Mutex:    sync.Mutex{},
+		locker:   sync.Mutex{},
 		signHash: NewHash(HashSHA256),
 	}
 	return w

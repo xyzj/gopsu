@@ -23,7 +23,7 @@ var (
 
 // RSA rsa算法
 type RSA struct {
-	sync.Mutex
+	locker   sync.Mutex
 	signHash *HASH
 	pubKey   *rsa.PublicKey
 	priKey   *rsa.PrivateKey
@@ -99,6 +99,7 @@ func (w *RSA) SetPublicKey(key string) error {
 	if err != nil {
 		return err
 	}
+	w.pubBytes = bb
 	w.pubKey = pubKey.(*rsa.PublicKey)
 	return nil
 }
@@ -123,6 +124,7 @@ func (w *RSA) SetPrivateKey(key string) error {
 	if err != nil {
 		return err
 	}
+	w.priBytes = bb
 	return nil
 }
 
@@ -131,8 +133,8 @@ func (w *RSA) Encode(b []byte) (CValue, error) {
 	if w.pubKey == nil {
 		return CValue([]byte{}), fmt.Errorf("no public key found")
 	}
-	w.Lock()
-	defer w.Unlock()
+	w.locker.Lock()
+	defer w.locker.Unlock()
 	max := w.pubKey.Size() / 2
 	buf := bytes.Buffer{}
 	var err error
@@ -161,8 +163,8 @@ func (w *RSA) Decode(b []byte) (string, error) {
 	if w.priKey == nil {
 		return "", fmt.Errorf("no private key found")
 	}
-	w.Lock()
-	defer w.Unlock()
+	w.locker.Lock()
+	defer w.locker.Unlock()
 	max := w.priKey.Size()
 	buf := bytes.Buffer{}
 	var err error
@@ -200,8 +202,8 @@ func (w *RSA) Sign(b []byte) (CValue, error) {
 	if w.priKey == nil {
 		return CValue([]byte{}), fmt.Errorf("no private key found")
 	}
-	w.Lock()
-	defer w.Unlock()
+	w.locker.Lock()
+	defer w.locker.Unlock()
 	signature, err := rsa.SignPSS(rand.Reader, w.priKey, crypto.SHA256, w.signHash.Hash(b).Bytes(), nil)
 	if err != nil {
 		return CValue([]byte{}), err
@@ -214,8 +216,8 @@ func (w *RSA) VerySign(signature, data []byte) (bool, error) {
 	if w.pubKey == nil {
 		return false, fmt.Errorf("no public key found")
 	}
-	w.Lock()
-	defer w.Unlock()
+	w.locker.Lock()
+	defer w.locker.Unlock()
 	err := rsa.VerifyPSS(w.pubKey, crypto.SHA256, w.signHash.Hash(data).Bytes(), signature, nil)
 	return err == nil, nil
 }
@@ -238,12 +240,36 @@ func (w *RSA) VerySignFromHex(signature string, data []byte) (bool, error) {
 	return w.VerySign(bb, data)
 }
 
+// Decrypt 兼容旧方法，直接解析base64字符串
+func (w *RSA) Decrypt(s string) string {
+	x, _ := w.DecodeBase64(s)
+	return x
+}
+
+// Encrypt 兼容旧方法，直接返回base64字符串
+func (w *RSA) Encrypt(s string) string {
+	x, err := w.Encode(Bytes(s))
+	if err != nil {
+		return ""
+	}
+	return x.Base64String()
+}
+
+// EncryptTo 兼容旧方法，直接返回base64字符串
+func (w *RSA) EncryptTo(s string) CValue {
+	x, err := w.Encode(Bytes(s))
+	if err != nil {
+		return CValue([]byte{})
+	}
+	return x
+}
+
 // NewRSA 创建一个新的rsa算法器
 //
 //	签名算法采用sha256
 func NewRSA() *RSA {
 	w := &RSA{
-		Mutex:    sync.Mutex{},
+		locker:   sync.Mutex{},
 		signHash: NewHash(HashSHA256),
 	}
 	return w

@@ -51,7 +51,7 @@ func LogToWriter(w io.Writer, skippath ...string) gin.HandlerFunc {
 				a.path += " |" + a.body
 			}
 			s := fmt.Sprintf("|%3d |%-13s|%-15s|%-4s %s |%s", a.statusCode, a.timer, a.clientIP, a.method, a.path, a.jsn)
-			w.Write(json.ToBytes(s))
+			w.Write(json.Bytes(s))
 			if gin.IsDebugging() {
 				println(time.Now().Format(logger.ShortTimeFormat) + s)
 			}

@@ -19,9 +19,10 @@ import (
 	"sync"
 	"unicode"
 
+	"github.com/gin-gonic/gin"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/config"
-	"github.com/xyzj/gopsu/crypto"
+	ginmiddleware "github.com/xyzj/gopsu/gin-middleware"
 )
 
 var (
@@ -275,47 +276,11 @@ func decrypt(key []byte, text string) (string, error) {
 	return string(msg), nil
 }
 func main() {
-	var key, iv = []byte("(NMNle+XW!ykVjf1"), []byte("Zq0V+,.2u|3sGAzH")
-	c := crypto.NewAES(crypto.AES128CFB)
-	c.SetKeyIV(key, iv)
-	// c.EnableCFBPadding()
-	x, _ := c.Encode([]byte("arx7"))
-	println(x.Base64String())
-	x, _ = c.Encode([]byte("arx7"))
-	println(x.Base64String())
-	y, err := c.DecodeBase64(x.Base64String()) //"NrLwSPfpOb1s9r6VazGaaw==")
-	if err != nil {
-		println(err.Error())
-	}
-	println(y)
-	y, err = c.DecodeBase64(x.Base64String()) //"NrLwSPfpOb1s9r6VazGaaw==")
-	if err != nil {
-		println(err.Error())
-	}
-	println(y)
-	// demsg, _ := decrypt(key, "29c4upSLyhFYO8cGwCLOZ67p1WuKwpoOCsUol0uKyqrj")
-	// println(demsg)
-	// encryptMsg, _ := encrypt([]byte("myverystrongpasswordo32bitlength"), iv, "This is AES-256 CFB!!sdfasfdafdaf")
-	// println(encryptMsg)
-	// msg, _ := decrypt([]byte("myverystrongpasswordo32bitlength"), encryptMsg)
-	// fmt.Println(msg) // Hello World
-	//rsa.GenerateKey()
-	// err := RSAGenKey(4096)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	return
-	// }
-	// fmt.Println("秘钥生成成功！")
-	// str := "山重水复疑无路，柳暗花明又一村！"
-	// fmt.Println("加密之前的数据为：", string(str))
-	// data, err := EncyptogRSA([]byte(str), "publicKey.pem")
-	// if err != nil {
-	// 	println(err.Error())
-	// 	return
-	// }
-	// fmt.Println("加密之后的数据为：", string(data))
-	// data, err = DecrptogRSA(data, "privateKey.pem")
-	// fmt.Println("解密之后的数据为：", string(data))
+	r := ginmiddleware.LiteEngine("", 0)
+	r.GET("/test", func(ctx *gin.Context) {
+		ctx.String(200, ctx.Request.URL.RawQuery)
+	})
+	ginmiddleware.ListenAndServe(6819, r)
 }
 
 var (

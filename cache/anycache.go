@@ -82,6 +82,13 @@ func (ac *AnyCache[T]) Len() int {
 	return ac.cache.Len()
 }
 
+// Extension 将指定缓存延期
+func (ac *AnyCache[T]) Extension(key string) {
+	if x, ok := ac.cache.LoadForUpdate(key); ok {
+		x.expire = time.Now().Add(ac.cacheExpire)
+	}
+}
+
 // Store 添加缓存内容，如果缓存已关闭，会返回错误
 func (ac *AnyCache[T]) Store(key string, value *T) error {
 	return ac.StoreWithExpire(key, value, ac.cacheExpire)

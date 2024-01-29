@@ -109,7 +109,7 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 							logg.Error(opt.Name + fmt.Sprintf(" %+v", errors.WithStack(err.(error))))
 						}
 					}()
-					logg.Debug(opt.Name + " DR:" + msg.Topic() + "; " + json.ToString(msg.Payload()))
+					logg.Debug(opt.Name + " DR:" + msg.Topic() + "; " + json.String(msg.Payload()))
 					recvCallback(msg.Topic(), msg.Payload())
 				})
 				doneSub = true

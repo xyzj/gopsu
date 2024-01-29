@@ -125,7 +125,7 @@ type Writer struct {
 
 // Write 异步写入日志，返回固定为 0, nil
 func (w *Writer) Write(p []byte) (n int, err error) {
-	xp := json.ToBytes(time.Now().Format(ShortTimeFormat))
+	xp := json.Bytes(time.Now().Format(ShortTimeFormat))
 	xp = append(xp, p...)
 	if !bytes.HasSuffix(xp, lineEnd) {
 		xp = append(xp, lineEnd...)
@@ -206,7 +206,7 @@ func (w *Writer) newFile() {
 	var err error
 	w.fno, err = os.OpenFile(w.pathNow, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0664)
 	if err != nil {
-		os.WriteFile("logerr.log", json.ToBytes("log file open error: "+err.Error()), 0664)
+		os.WriteFile("logerr.log", json.Bytes("log file open error: "+err.Error()), 0664)
 		w.withFile = false
 		return
 	}
