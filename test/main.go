@@ -9,7 +9,6 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"flag"
@@ -17,12 +16,12 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
-	"github.com/gin-gonic/gin"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/config"
-	ginmiddleware "github.com/xyzj/gopsu/gin-middleware"
+	"github.com/xyzj/gopsu/json"
 )
 
 var (
@@ -275,12 +274,32 @@ func decrypt(key []byte, text string) (string, error) {
 
 	return string(msg), nil
 }
+
+// QueryDataRow 数据行
+type QueryDataRow struct {
+	Cells []config.VString `json:"cells,omitempty"`
+}
+
+// QueryData 数据集
+type QueryData struct {
+	Total    int32           `json:"total,omitempty"`
+	CacheTag string          `json:"cache_tag,omitempty"`
+	Rows     []*QueryDataRow `json:"rows,omitempty"`
+	Columns  []string        `json:"columns,omitempty"`
+}
+
+func chtest(ch chan string) {
+	time.Sleep(time.Second)
+	ch <- gopsu.GetRandomString(10, true)
+	time.Sleep(time.Second * 5)
+	println("chtest done")
+}
 func main() {
-	r := ginmiddleware.LiteEngine("", 0)
-	r.GET("/test", func(ctx *gin.Context) {
-		ctx.String(200, ctx.Request.URL.RawQuery)
-	})
-	ginmiddleware.ListenAndServe(6819, r)
+	var cc = make(chan string, 1)
+	chtest(cc)
+	a := <-cc
+	println(a)
+	time.Sleep(time.Second * 8)
 }
 
 var (

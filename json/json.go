@@ -11,7 +11,6 @@ Package json ： 使用 github.com/bytedance/sonic 替代 encoding/json，性能
 package json
 
 import (
-	jsonstd "encoding/json"
 	"unsafe"
 
 	json "github.com/goccy/go-json"
@@ -19,21 +18,17 @@ import (
 )
 
 var (
-//	json = sonic.Config{
-//		// NoNullSliceOrMap:     true,
-//		NoQuoteTextMarshaler: true,
-//	}.Froze()
+	//	json = sonic.Config{
+	//		// NoNullSliceOrMap:     true,
+	//		NoQuoteTextMarshaler: true,
+	//	}.Froze()
+	Valid = json.Valid
 )
-
-// Valid json.Valid
-func Valid(data []byte) bool {
-	return json.Valid(data)
-}
 
 // Marshal json.MarshalWithOption
 func Marshal(v interface{}) ([]byte, error) {
-	return json.MarshalNoEscape(v)
-	// return json.MarshalWithOption(v, json.UnorderedMap())
+	return json.MarshalWithOption(v, json.UnorderedMap())
+
 }
 
 // MarshalIndent json.MarshalIndent
@@ -52,11 +47,7 @@ func MarshalToString(v interface{}) (string, error) {
 
 // Unmarshal json.UnmarshalWithOption
 func Unmarshal(data []byte, v interface{}) error {
-	err := json.UnmarshalNoEscape(data, v)
-	if err != nil {
-		return jsonstd.Unmarshal(data, v)
-	}
-	return nil
+	return json.Unmarshal(data, v)
 }
 
 // UnmarshalFromString json.UnmarshalFromString

@@ -26,9 +26,29 @@ func (rs VString) TryBool() bool {
 	return v
 }
 
+// TryInt reutrn int
+func (rs VString) TryInt() int {
+	return gopsu.String2Int(string(rs), 10)
+}
+
+// TryInt32 reutrn int32
+func (rs VString) TryInt32() int32 {
+	return gopsu.String2Int32(string(rs), 10)
+}
+
 // TryInt64 reutrn int64
 func (rs VString) TryInt64() int64 {
 	return gopsu.String2Int64(string(rs), 10)
+}
+
+// TryUint64 reutrn uint64
+func (rs VString) TryUint64() uint64 {
+	return gopsu.String2UInt64(string(rs), 10)
+}
+
+// TryFloat32 reutrn float32
+func (rs VString) TryFloat32() float32 {
+	return gopsu.String2Float32(string(rs))
 }
 
 // TryFloat64 reutrn fl
