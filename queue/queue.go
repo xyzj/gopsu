@@ -1,3 +1,4 @@
+// Package queue safety queue
 package queue
 
 import (
@@ -23,8 +24,8 @@ func New() *Queue {
 	return mq
 }
 
-// Clear clear queue list
-func (mq *Queue) Clear() {
+// Clean clean queue list
+func (mq *Queue) Clean() {
 	mq.locker.Lock()
 	mq.q.Init()
 	mq.c.Store(0)

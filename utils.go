@@ -86,20 +86,6 @@ const (
 	CryptoAES256CFB
 )
 
-// SliceFlag 切片型参数，仅支持字符串格式
-type SliceFlag []string
-
-// String 返回参数
-func (f *SliceFlag) String() string {
-	return fmt.Sprintf("%v", []string(*f))
-}
-
-// Set 设置值
-func (f *SliceFlag) Set(value string) error {
-	*f = append(*f, value)
-	return nil
-}
-
 // CryptoWorker 序列化或加密管理器
 type CryptoWorker struct {
 	cryptoType   byte

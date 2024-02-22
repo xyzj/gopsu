@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/config"
 	"github.com/xyzj/gopsu/crypto"
@@ -19,6 +18,19 @@ func newResult() *QueryData {
 		Columns: []string{},
 		Rows:    []*QueryDataRow{},
 	}
+}
+
+// QueryJSON 执行查询语句，返回结果集的json字符串
+//
+// s: sql语句
+// rowsCount: 返回数据行数，0-返回全部
+// params: 查询参数,对应查询语句中的`？`占位符
+func (p *SQLPool) QueryJSON(s string, rowsCount int, params ...interface{}) (string, error) {
+	x, err := p.Query(s, rowsCount, params...)
+	if err != nil {
+		return "", err
+	}
+	return x.JSON(), nil
 }
 
 // QueryLimit 执行查询语句，限制返回行数
@@ -134,23 +146,14 @@ ANS:
 	return qd, err
 }
 
-// QueryJSON 执行查询语句，返回结果集的json字符串
-//
-// s: sql语句
-// rowsCount: 返回数据行数，0-返回全部
-// params: 查询参数,对应查询语句中的`？`占位符
-func (p *SQLPool) QueryJSON(s string, rowsCount int, params ...interface{}) (string, error) {
-	x, err := p.Query(s, rowsCount, params...)
-	if err != nil {
-		return "", err
-	}
-	return x.JSON(), nil
-}
-
 func (p *SQLPool) queryDataChan(ctx context.Context, done context.CancelFunc, ch chan *QueryDataChan, s string, rowsCount int, params ...interface{}) int {
 	defer func() {
 		if err := recover(); err != nil {
-			p.Logger.Error(fmt.Sprintf("[DB] query error: %v", errors.WithStack(err.(error))))
+			// p.Logger.Error(fmt.Sprintf("[DB] query error: %v", errors.WithStack(err.(error))))
+			ch <- &QueryDataChan{
+				Data: newResult(),
+				Err:  err.(error),
+			}
 		}
 		done()
 	}()

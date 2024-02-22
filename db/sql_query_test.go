@@ -6,6 +6,22 @@ import (
 	"github.com/goccy/go-json"
 )
 
+func TestQueryChan(t *testing.T) {
+	s := SQLPool{
+		Server:   "192.168.50.83:3306",
+		User:     "root",
+		Passwd:   "lp1234xy",
+		DataBase: "v5db_assetdatacenter",
+	}
+	s.New("false")
+
+	qdc := <-s.QueryPB2Chan("select aid,name,dt_create from asset_info", 0)
+	if qdc.Err != nil {
+		println(qdc.Err.Error())
+		t.Fail()
+	}
+	println(len(qdc.Data.Rows))
+}
 func TestSQL(t *testing.T) {
 	s := SQLPool{
 		Server:   "192.168.50.83:3306",

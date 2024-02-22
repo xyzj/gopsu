@@ -19,6 +19,7 @@ require (
 	github.com/tidwall/gjson v1.17.0
 	github.com/tidwall/sjson v1.2.5
 	github.com/tjfoc/gmsm v1.4.1
+	github.com/tovenja/cron/v3 v3.0.2
 	github.com/unrolled/secure v1.13.0
 	go.etcd.io/bbolt v1.3.8
 	golang.org/x/text v0.14.0

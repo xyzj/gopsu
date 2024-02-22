@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/cache"
 	"github.com/xyzj/gopsu/config"
+	"github.com/xyzj/gopsu/crypto"
 	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/logger"
 )
@@ -46,8 +48,8 @@ func qdUnmarshal(b []byte) *QueryData {
 
 // QueryDataRow 数据行
 type QueryDataRow struct {
-	Cells  []string         `json:"-"` // `json:"cells,omitempty"`
-	VCells []config.VString `json:"cells,omitempty"`
+	Cells  []string         `json:"cells,omitempty"`
+	VCells []config.VString `json:"vcells,omitempty"`
 }
 
 func (d *QueryDataRow) JSON() string {
@@ -263,8 +265,8 @@ func (p *SQLPool) New(tls ...string) error {
 	// 			}()
 	// 			for cq := range p.chanQuery {
 	// 				// 调用chan方法
-	// 				// p.queryChan(cq.QDC, cq.Strsql, cq.RowsCount, cq.Params...)
-	// 				p.queryDataChan(cq.Done, cq.QDC, cq.Strsql, cq.RowsCount, cq.Params...)
+	// 				p.queryChan(cq.QDC, cq.Strsql, cq.RowsCount, cq.Params...)
+	// 				// p.queryDataChan(cq.Done, cq.QDC, cq.Strsql, cq.RowsCount, cq.Params...)
 	// 			}
 	// 		}()
 	// 		locker.Wait()
@@ -533,155 +535,153 @@ func (p *SQLPool) QueryPB2(s string, rowsCount int, params ...interface{}) (quer
 	// return ans.Data, nil
 }
 
-// // QueryPB2Chan 查询v2,采用线程+channel优化超大数据集分页的首页返回时间
-// //
-// // s: sql语句
-// //
-// // rowsCount: 返回数据行数，0-返回全部
-// //
-// // params: 查询参数,对应查询语句中的`？`占位符
-// func (p *SQLPool) QueryPB2Chan(s string, rowsCount int, params ...interface{}) <-chan *QueryDataChan {
-// 	ctx, cancel := context.WithCancel(context.Background())
-// 	qdc := &QueryDataChanWorker{
-// 		QDC:         make(chan *QueryDataChan, 1),
-// 		RowsCount:   rowsCount,
-// 		Strsql:      s,
-// 		Params:      params,
-// 		keyColumeID: -1,
-// 		Done:        cancel,
-// 	}
-// 	p.chanQuery <- qdc
-// 	<-ctx.Done()
-// 	return qdc.QDC
-// }
-// func (p *SQLPool) queryChan(qdc chan *QueryDataChan, s string, rowsCount int, params ...interface{}) {
-// 	defer func() {
-// 		if err := recover(); err != nil {
-// 			qdc <- &QueryDataChan{
-// 				Data: nil,
-// 				Err:  errors.WithStack(err.(error)),
-// 			}
-// 		}
-// 	}()
+// QueryPB2Chan 查询v2,采用线程+channel优化超大数据集分页的首页返回时间
+//
+// Deprecated: use Query() or QueryFirstPage() or QueryBig()
+func (p *SQLPool) QueryPB2Chan(s string, rowsCount int, params ...interface{}) <-chan *QueryDataChan {
+	var ch = make(chan *QueryDataChan, 1)
+	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
+	go p.queryDataChan(ctx, cancel, ch, s, rowsCount, params...)
+	// go p.queryChan(ch, s, rowsCount, params...)
+	return ch
+	// qdc := &QueryDataChanWorker{
+	// 	QDC:         make(chan *QueryDataChan, 1),
+	// 	RowsCount:   rowsCount,
+	// 	Strsql:      s,
+	// 	Params:      params,
+	// 	keyColumeID: -1,
+	// }
+	// p.chanQuery <- qdc
+	// return qdc.QDC
+}
+func (p *SQLPool) queryChan(qdc chan *QueryDataChan, s string, rowsCount int, params ...interface{}) {
+	defer func() {
+		if err := recover(); err != nil {
+			qdc <- &QueryDataChan{
+				Data: nil,
+				Err:  errors.WithStack(err.(error)),
+			}
+		}
+	}()
 
-// 	if rowsCount < 0 {
-// 		rowsCount = 0
-// 	}
-// 	// 查询总行数
-// 	var total int
-// 	// 查询数据集
-// 	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
-// 	defer cancel()
-// 	rows, err := p.connPool.QueryContext(ctx, s, params...)
-// 	if err != nil {
-// 		qdc <- &QueryDataChan{
-// 			Data: nil,
-// 			Err:  err,
-// 		}
-// 		return
-// 	}
-// 	defer rows.Close()
-// 	// 处理数据集
-// 	columns, err := rows.Columns()
-// 	if err != nil {
-// 		qdc <- &QueryDataChan{
-// 			Data: nil,
-// 			Err:  err,
-// 		}
-// 		return
-// 	}
-// 	// 初始化
-// 	queryCache := &QueryData{
-// 		Columns:  columns,
-// 		Total:    0,
-// 		Rows:     make([]*QueryDataRow, 0),
-// 		CacheTag: p.CacheHead + crypto.GetMD5(strconv.FormatInt(time.Now().UnixNano(), 10)),
-// 	}
-// 	count := len(columns)
-// 	values := make([]interface{}, count)
-// 	scanArgs := make([]interface{}, count)
+	if rowsCount < 0 {
+		rowsCount = 0
+	}
+	// 查询总行数
+	var total int
+	// 查询数据集
+	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
+	defer cancel()
+	rows, err := p.connPool.QueryContext(ctx, s, params...)
+	if err != nil {
+		qdc <- &QueryDataChan{
+			Data: nil,
+			Err:  err,
+		}
+		return
+	}
+	defer rows.Close()
+	// 处理数据集
+	columns, err := rows.Columns()
+	if err != nil {
+		qdc <- &QueryDataChan{
+			Data: nil,
+			Err:  err,
+		}
+		return
+	}
+	// 初始化
+	queryCache := &QueryData{
+		Columns:  columns,
+		Total:    0,
+		Rows:     make([]*QueryDataRow, 0),
+		CacheTag: p.CacheHead + crypto.GetMD5(strconv.FormatInt(time.Now().UnixNano(), 10)),
+	}
+	count := len(columns)
+	values := make([]interface{}, count)
+	scanArgs := make([]interface{}, count)
 
-// 	for i := range values {
-// 		scanArgs[i] = &values[i]
-// 	}
-// 	// 扫描
-// 	var queryDone bool
-// 	var rowIdx = 0
-// 	var totalLocker = &sync.WaitGroup{}
-// 	totalLocker.Add(1)
-// 	for rows.Next() {
-// 		err := rows.Scan(scanArgs...)
-// 		if err != nil {
-// 			qdc <- &QueryDataChan{
-// 				Data: queryCache,
-// 				Err:  err,
-// 			}
-// 			totalLocker.Done()
-// 			return
-// 		}
-// 		row := &QueryDataRow{
-// 			Cells:  make([]string, count),
-// 			VCells: make([]config.VString, count),
-// 		}
-// 		for k, v := range values {
-// 			if v == nil {
-// 				row.Cells[k] = ""
-// 				row.VCells[k] = ""
-// 				continue
-// 			}
-// 			if b, ok := v.([]uint8); ok {
-// 				row.Cells[k] = gopsu.String(b)
-// 				// row.VCells[k] = config.VString(b)
-// 			} else if b, ok := v.(time.Time); ok {
-// 				row.Cells[k] = b.Format("2006-01-02 15:04:05")
-// 				// row.VCells[k] = config.VString(b.Format("2006-01-02 15:04:05"))
-// 			} else {
-// 				row.Cells[k] = fmt.Sprintf("%v", v)
-// 				// row.VCells[k] = config.VString(fmt.Sprintf("%v", v))
-// 			}
-// 		}
-// 		// queryCache.Rows[rowIdx] = row
-// 		queryCache.Rows = append(queryCache.Rows, row)
-// 		rowIdx++
-// 		if rowsCount > 0 && rowIdx == rowsCount { // 返回
-// 			queryDone = true
-// 			qdc <- &QueryDataChan{
-// 				Data: &QueryData{
-// 					Rows:     queryCache.Rows[:rowIdx],
-// 					Total:    queryCache.Total,
-// 					CacheTag: queryCache.CacheTag,
-// 					Columns:  queryCache.Columns,
-// 				},
-// 				Err:    nil,
-// 				Total:  &total,
-// 				Locker: totalLocker,
-// 			}
-// 		}
-// 	}
-// 	queryCache.Total = rowIdx
-// 	total = rowIdx
-// 	totalLocker.Done()
-// 	if !queryDone { // 全部返回
-// 		qdc <- &QueryDataChan{
-// 			Data:   queryCache,
-// 			Err:    nil,
-// 			Total:  &total,
-// 			Locker: totalLocker,
-// 		}
-// 	}
-// 	// 开始缓存，方便导出，有数据即缓存,这里因为已经返回数据，所以不用再开线程
-// 	if p.EnableCache && rowIdx > 0 { // && rowsCount < rowIdx {
-// 		p.memCache.Store(queryCache.CacheTag, queryCache)
-// 		// lo := &sync.WaitGroup{}
-// 		// lo.Add(1)
-// 		// p.cacheLocker.Store(queryCache.CacheTag, lo)
-// 		// if b, err := qdMarshal(queryCache); err == nil {
-// 		// 	os.WriteFile(filepath.Join(gopsu.DefaultCacheDir, queryCache.CacheTag), b, 0664)
-// 		// }
-// 		// lo.Done()
-// 		// p.cacheLocker.Delete(queryCache.CacheTag)
-// 	}
-// }
+	for i := range values {
+		scanArgs[i] = &values[i]
+	}
+	// 扫描
+	var queryDone bool
+	var rowIdx = 0
+	var totalLocker = &sync.WaitGroup{}
+	totalLocker.Add(1)
+	for rows.Next() {
+		err := rows.Scan(scanArgs...)
+		if err != nil {
+			qdc <- &QueryDataChan{
+				Data: queryCache,
+				Err:  err,
+			}
+			totalLocker.Done()
+			return
+		}
+		row := &QueryDataRow{
+			Cells:  make([]string, count),
+			VCells: make([]config.VString, count),
+		}
+		for k, v := range values {
+			if v == nil {
+				row.Cells[k] = ""
+				row.VCells[k] = ""
+				continue
+			}
+			if b, ok := v.([]uint8); ok {
+				row.Cells[k] = gopsu.String(b)
+				// row.VCells[k] = config.VString(b)
+			} else if b, ok := v.(time.Time); ok {
+				row.Cells[k] = b.Format("2006-01-02 15:04:05")
+				// row.VCells[k] = config.VString(b.Format("2006-01-02 15:04:05"))
+			} else {
+				row.Cells[k] = fmt.Sprintf("%v", v)
+				// row.VCells[k] = config.VString(fmt.Sprintf("%v", v))
+			}
+		}
+		// queryCache.Rows[rowIdx] = row
+		queryCache.Rows = append(queryCache.Rows, row)
+		rowIdx++
+		if rowsCount > 0 && rowIdx == rowsCount { // 返回
+			queryDone = true
+			qdc <- &QueryDataChan{
+				Data: &QueryData{
+					Rows:     queryCache.Rows[:rowIdx],
+					Total:    queryCache.Total,
+					CacheTag: queryCache.CacheTag,
+					Columns:  queryCache.Columns,
+				},
+				Err:    nil,
+				Total:  &total,
+				Locker: totalLocker,
+			}
+		}
+	}
+	queryCache.Total = rowIdx
+	total = rowIdx
+	totalLocker.Done()
+	if !queryDone { // 全部返回
+		qdc <- &QueryDataChan{
+			Data:   queryCache,
+			Err:    nil,
+			Total:  &total,
+			Locker: totalLocker,
+		}
+	}
+	// 开始缓存，方便导出，有数据即缓存,这里因为已经返回数据，所以不用再开线程
+	if p.EnableCache && rowIdx > 0 { // && rowsCount < rowIdx {
+		p.memCache.Store(queryCache.CacheTag, queryCache)
+		// lo := &sync.WaitGroup{}
+		// lo.Add(1)
+		// p.cacheLocker.Store(queryCache.CacheTag, lo)
+		// if b, err := qdMarshal(queryCache); err == nil {
+		// 	os.WriteFile(filepath.Join(gopsu.DefaultCacheDir, queryCache.CacheTag), b, 0664)
+		// }
+		// lo.Done()
+		// p.cacheLocker.Delete(queryCache.CacheTag)
+	}
+}
 
 // QueryMultirowPage 执行查询语句，返回QueryData结构，检测多个字段进行换行计数
 //
