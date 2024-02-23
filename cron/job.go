@@ -1,4 +1,4 @@
-// Package jobs scheduled jobs
+// Package cron scheduled jobs
 //
 // 定时任务的执行精度为秒，秒的设置为可选，不指定秒时，模块会为你随机设置一个
 // ┌──────────── second (0-59) 非必填
@@ -14,7 +14,7 @@
 // `,`: 分割指定的时间，如：1,2
 // `-`: 指定一个区段，如：4-19
 // `/`: 设置一个指定的周期，一般需要搭配`*`使用，如：*/20
-package jobs
+package cron
 
 import (
 	"fmt"
