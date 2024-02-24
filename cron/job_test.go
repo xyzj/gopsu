@@ -1,46 +1,39 @@
 package cron
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
 
-func TestJob(t *testing.T) {
-	a := NewCrontab()
-	err := a.AddWithLimits("test1", "*/2  *   * * *    *", 3, func() {
-		defer func() {
-			recover()
-		}()
-		println(time.Now().String())
-	})
-	if err != nil {
-		println(err.Error())
-		return
-	}
-	for {
-		time.Sleep(time.Second * 10)
-		if !a.running {
-			return
-		}
-	}
-}
-
 func TestJob2(t *testing.T) {
+	t3 := time.Now().Add(time.Second * -5)
+	time.Sleep(time.Second * 3)
+	println(time.Until(t3).Seconds())
+}
+func TestJob1(t *testing.T) {
 	a := NewCrontab()
-	err := a.AddWithLimits("test1", "*/3  *   * * *    *", 3, func() {
-		defer func() {
-			recover()
-		}()
-		println(time.Now().String())
-	})
-	if err != nil {
-		println(err.Error())
+	if a == nil {
+		t.Fail()
 		return
 	}
-	for {
-		time.Sleep(time.Second * 10)
-		if !a.running {
-			return
-		}
+	err := a.Add("test1", "* * * * *", func() {
+		println("cron job " + time.Now().String())
+	})
+	if err != nil {
+		t.Fatal(err.Error())
+		return
 	}
+	err = a.AddWithLimits("test2", 1, time.Now(), time.Second*15, func() {
+		println("limit job " + time.Now().String())
+	})
+	if err != nil {
+		t.Fatal(err.Error())
+		return
+	}
+	time.Sleep(time.Second * 2)
+	a.Remove("test1")
+	println(strings.Join(a.jobs.Keys(), ", "))
+
+	time.Sleep(time.Minute * 5)
 }

@@ -21,171 +21,187 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/go-co-op/gocron/v2"
+	"github.com/google/uuid"
 	"github.com/tovenja/cron/v3"
 	"github.com/xyzj/gopsu/mapfx"
 )
 
 type job struct {
-	Job    func()
-	Name   string
-	Spec   string
-	Detail string
-	jobID  cron.EntryID
-	times  int
+	job     func()
+	name    string
+	spec    string
+	limits  uint
+	running bool
 }
 type Crontab struct {
 	parser  cron.Parser
-	cron    *cron.Cron
+	cron    gocron.Scheduler
 	jobs    *mapfx.StructMap[string, job]
 	running bool
 }
 
-func (c *Crontab) add(name, spec, detail string, times int, do func()) error {
-	spec = strings.TrimSpace(spec)
-	if name == "" || spec == "" || do == nil {
-		return fmt.Errorf("more job information are needed")
+// Add 添加一个循环任务
+//
+//	name： 任务名称，不可重复
+//	spec： 执行间隔，crontab格式
+//	do: 任务执行内容
+func (c *Crontab) Add(name, spec string, do func()) error {
+	if !c.running {
+		return fmt.Errorf("scheduler is not ready")
 	}
+
+	if c.jobs.Has(name) {
+		return fmt.Errorf("job " + name + " already exist")
+	}
+
 	if _, err := c.parser.Parse(spec); err != nil {
 		if strings.HasPrefix(err.Error(), "expected exactly 6 fields, found 5") { // 采用随机秒
 			spec = strconv.Itoa(rand.Intn(60)) + " " + spec
-		} else {
-			return err
 		}
 	}
-	jid, err := c.cron.AddFunc(spec, do)
+	_, err := c.cron.NewJob(
+		gocron.CronJob(spec, true),
+		gocron.NewTask(do),
+		gocron.WithTags(name),
+	)
 	if err != nil {
 		return err
 	}
-
 	c.jobs.Store(name, &job{
-		Name:   name,
-		Spec:   spec,
-		Detail: detail,
-		Job:    do,
-		jobID:  jid,
-		times:  times,
+		spec:    spec,
+		job:     do,
+		name:    name,
+		running: true,
 	})
-	c.start()
 	return nil
 }
-func (c *Crontab) stop() {
-	if c.jobs.Len() == 0 {
-		c.running = false
-		c.cron.Stop()
-	}
-}
 
-func (c *Crontab) start() {
+// AddWithLimits 添加有限次数的任务，此类任务有时效性，因此无法暂停，只能删除
+//
+//	name： 任务名称，不可重复
+//	limits: 执行次数
+//	startAt 任务开始时间
+//	dur: 任务执行间隔
+//	do: 任务执行内容
+func (c *Crontab) AddWithLimits(name string, limits uint, startAt time.Time, dur time.Duration, do func()) error {
 	if !c.running {
-		c.running = true
-		c.cron.Start()
+		return fmt.Errorf("scheduler is not ready")
 	}
-}
 
-// countJobTimes 倒数任务执行次数，当执行次数为0时，删除任务
-func (c *Crontab) countJobTimes(name string) {
-	if j, ok := c.jobs.LoadForUpdate(name); ok {
-		if j.times == -1 {
-			return
-		}
-		if j.times > 0 {
-			j.times--
-		}
-		if j.times == 0 {
-			c.Remove(name)
-		}
-	}
-}
-
-// Add 添加任务
-//
-//	name： 任务名称，不可重复
-//	spec： 执行间隔，crontab格式
-//	detail： 任务说明，非必要
-//	do: 任务执行内容
-func (c *Crontab) Add(name, spec string, do func()) error {
 	if c.jobs.Has(name) {
-		return fmt.Errorf("job already exist")
+		return fmt.Errorf("job " + name + " already exist")
 	}
-
-	return c.add(name, spec, "", -1, do)
-}
-
-// AddWithLimits 添加有限次数的任务，任务次数为-1时表示无限次数执行
-//
-//	name： 任务名称，不可重复
-//	spec： 执行间隔，crontab格式
-//	detail： 任务说明，非必要
-//	times： 任务执行次数，-1表示无限次执行
-//	do: 任务执行内容
-func (c *Crontab) AddWithLimits(name, spec string, times int, do func()) error {
-	if times == 0 {
-		return fmt.Errorf("times should be -1 or more than zero")
+	if limits == 0 {
+		return fmt.Errorf("limits should be more than zero")
 	}
-	if times < 0 {
-		return c.Add(name, spec, do)
+	flimit := func(jobName string) {
+		if j, ok := c.jobs.LoadForUpdate(jobName); ok {
+			if j.limits > 0 {
+				j.limits--
+			}
+			if j.limits == 0 {
+				c.jobs.Delete(jobName)
+			}
+		}
 	}
-
-	return c.add(name, spec, "", times, func() {
-		defer func() {
-			recover()
-			c.countJobTimes(name)
-		}()
-		do()
+	opts := []gocron.JobOption{
+		gocron.WithTags(name),
+		gocron.WithName(name),
+		gocron.WithLimitedRuns(limits),
+		gocron.WithEventListeners(
+			gocron.AfterJobRuns(func(jobID uuid.UUID, jobName string) { flimit(jobName) }),
+			gocron.AfterJobRunsWithError(func(jobID uuid.UUID, jobName string, err error) { flimit(jobName) }),
+		),
+	}
+	if time.Until(startAt).Seconds() > 1 {
+		opts = append(opts, gocron.JobOption(gocron.WithStartDateTime(startAt)))
+	} else {
+		opts = append(opts, gocron.JobOption(gocron.WithStartImmediately()))
+	}
+	_, err := c.cron.NewJob(
+		gocron.DurationJob(dur),
+		gocron.NewTask(do),
+		opts...,
+	)
+	if err != nil {
+		return err
+	}
+	c.jobs.Store(name, &job{
+		job:     do,
+		name:    name,
+		limits:  limits,
+		running: true,
 	})
+	return nil
 }
 
 // Remove 删除指定任务
 //
 //	name： 任务名称
-func (c *Crontab) Remove(name string) {
-	if j, ok := c.jobs.Load(name); ok {
-		c.cron.Remove(j.jobID)
-		c.jobs.Delete(name)
+func (c *Crontab) Remove(name ...string) error {
+	if !c.running {
+		return fmt.Errorf("scheduler is not ready")
 	}
-	c.stop()
+	c.cron.RemoveByTags(name...)
+	c.jobs.DeleteMore(name...)
+	return nil
+}
+
+// Pause 暂停指定的循环任务，有限执行次数的任务无法暂停，只能删除
+//
+//	name： 任务名称
+func (c *Crontab) Pause(name string) error {
+	if !c.running {
+		return fmt.Errorf("scheduler is not ready")
+	}
+	if j, ok := c.jobs.LoadForUpdate(name); ok {
+		if j.spec == "" {
+			return fmt.Errorf("limits job can not be pause, can only be remove")
+		}
+		if j.running {
+			c.cron.RemoveByTags(name)
+			j.running = false
+		}
+		return nil
+	}
+	return fmt.Errorf("job " + name + " does not exist")
+}
+
+// Resume 继续执行指定的循环任务
+//
+//	name： 任务名称
+func (c *Crontab) Resume(name string) error {
+	if !c.running {
+		return fmt.Errorf("scheduler is not ready")
+	}
+
+	if j, ok := c.jobs.LoadForUpdate(name); ok {
+		if j.running {
+			return nil
+		}
+		if j.spec != "" {
+			_, err := c.cron.NewJob(
+				gocron.CronJob(j.spec, true),
+				gocron.NewTask(j.job),
+				gocron.WithTags(name),
+			)
+			if err != nil {
+				return err
+			}
+			j.running = true
+		}
+		return nil
+	}
+	return fmt.Errorf("job " + name + " does not exist")
 }
 
 // Clean 清除所有任务
 func (c *Crontab) Clean() {
-	c.jobs.ForEach(func(key string, value *job) bool {
-		c.cron.Remove(value.jobID)
-		return true
-	})
+	c.cron.RemoveByTags(c.jobs.Keys()...)
 	c.jobs.Clean()
-	c.stop()
-}
-
-// Pause 暂停指定任务
-//
-//	name： 任务名称
-func (c *Crontab) Pause(name string) error {
-	if j, ok := c.jobs.LoadForUpdate(name); ok {
-		c.cron.Remove(j.jobID)
-		j.jobID = 0
-		return nil
-	}
-	return fmt.Errorf("job not exist")
-}
-
-// Resume 继续执行指定任务
-//
-//	name： 任务名称
-func (c *Crontab) Resume(name string) error {
-	if j, ok := c.jobs.LoadForUpdate(name); ok {
-		if j.jobID != 0 { // 已经运行
-			return nil
-		}
-		jid, err := c.cron.AddFunc(j.Spec, j.Job)
-		if err != nil {
-			return err
-		}
-		j.jobID = jid
-		c.start()
-		return nil
-	}
-	return fmt.Errorf("job not exist")
 }
 
 // List 列出所有任务名称
@@ -195,10 +211,18 @@ func (c *Crontab) List() []string {
 
 // NewCrontab 创建一个新的计划任务
 func NewCrontab() *Crontab {
-	p := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+	// p := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+	sc, err := gocron.NewScheduler(gocron.WithLocation(time.Local))
+	if err != nil {
+		return &Crontab{
+			running: false,
+		}
+	}
+	sc.Start()
 	return &Crontab{
-		parser: p,
-		cron:   cron.New(cron.WithParser(p)),
-		jobs:   mapfx.NewStructMap[string, job](),
+		parser:  cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow),
+		cron:    sc,
+		jobs:    mapfx.NewStructMap[string, job](),
+		running: true,
 	}
 }
