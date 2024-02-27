@@ -146,7 +146,7 @@ func (m *SliceMap[T]) HasPrefix(key string) bool {
 }
 
 // HasItem 判断Key-item是否存在
-func (m *SliceMap[T]) HasItem(key string, item any) bool {
+func (m *SliceMap[T]) HasItem(key string, item T) bool {
 	if key == "" {
 		return false
 	}
