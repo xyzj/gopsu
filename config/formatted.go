@@ -12,8 +12,9 @@ import (
 type FormatType byte
 
 const (
-	YAML FormatType = iota
+	KeyValue FormatType = iota
 	JSON
+	YAML
 )
 
 // Formatted yaml/json 格式化配置文件

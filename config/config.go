@@ -15,6 +15,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// File 配置文件
+type File struct {
+	items      *mapfx.StructMap[string, Item]
+	data       *bytes.Buffer
+	filepath   string
+	formatType FormatType
+}
+
 // Item 配置内容，包含注释，key,value,是否加密value
 type Item struct {
 	Key          string  `json:"-" yaml:"-"`
@@ -44,13 +52,6 @@ func NewConfig(filepath string) *File {
 	f := &File{}
 	f.FromFile(filepath)
 	return f
-}
-
-// File 配置文件结构
-type File struct {
-	items    *mapfx.StructMap[string, Item]
-	data     *bytes.Buffer
-	filepath string
 }
 
 // Keys 获取所有Key
@@ -133,8 +134,21 @@ func (f *File) Print() string {
 	return f.data.String()
 }
 
+// GetAll 返回所有配置项
+func (f *File) GetAll() string {
+	x := f.items.Clone()
+	buf := make([]string, 0)
+	for k, v := range x {
+		buf = append(buf, "\""+k+"\":\""+v.Value.String()+"\"")
+	}
+	return "{" + strings.Join(buf, ",") + "}"
+}
+
 // FromFile 从文件载入配置
 func (f *File) FromFile(configfile string) error {
+	if configfile == "" {
+		return nil
+	}
 	if configfile != "" {
 		f.filepath = configfile
 	}

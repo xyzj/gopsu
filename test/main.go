@@ -13,6 +13,7 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/config"
+	"github.com/xyzj/gopsu/crypto"
 	"github.com/xyzj/gopsu/json"
 )
 
@@ -295,11 +297,11 @@ func chtest(ch chan string) {
 	println("chtest done")
 }
 func main() {
-	var cc = make(chan string, 1)
-	chtest(cc)
-	a := <-cc
-	println(a)
-	time.Sleep(time.Second * 8)
+	s := `/weather/v1/?district_id=310100&data_type=now&ak=SfWZA096ElVgQV070fuimwl4RBwxBm2g`
+	ens := url.QueryEscape(s)
+	println(s)
+	println(ens)
+	println(crypto.GetMD5(ens + "foKX3VXzsC9azTTlLgCRs59OxwdnvQYv"))
 }
 
 var (
