@@ -63,14 +63,18 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 	if opt.SendTimeo == 0 {
 		opt.SendTimeo = time.Second * 5
 	}
+	if opt.Name == "" {
+		opt.Name = "[MQTT]"
+	}
+	if opt.TLSConf == nil {
+		opt.TLSConf = &tls.Config{InsecureSkipVerify: true}
+	}
+
 	if recvCallback == nil {
 		recvCallback = func(topic string, body []byte) {}
 	}
 	if logg == nil {
 		logg = &logger.NilLogger{}
-	}
-	if opt.Name == "" {
-		opt.Name = "[MQTT]"
 	}
 
 	if opt.ClientID == "" {
@@ -86,6 +90,7 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 	xopt.SetClientID(opt.ClientID)
 	xopt.SetUsername(opt.Username)
 	xopt.SetPassword(opt.Passwd)
+	xopt.SetTLSConfig(opt.TLSConf)
 	xopt.SetWriteTimeout(opt.SendTimeo) // 发送3秒超时
 	xopt.SetConnectTimeout(time.Second * 10)
 	xopt.SetConnectionLostHandler(func(client mqtt.Client, err error) {

@@ -1001,20 +1001,42 @@ func CheckSQLInject(s string) bool {
 //	keyfile: 服务端key
 //	clientca: 双向验证时客户端根证书
 func GetServerTLSConfig(certfile, keyfile, clientca string) (*tls.Config, error) {
-	tc := &tls.Config{}
 	cliCrt, err := tls.LoadX509KeyPair(certfile, keyfile)
 	if err != nil {
 		return nil, err
 	}
-	tc.Certificates = []tls.Certificate{cliCrt}
-	caCrt, err := os.ReadFile(clientca)
-	if err != nil {
-		return nil, err
+	tc := &tls.Config{
+		ClientAuth: tls.NoClientCert,
+		CipherSuites: []uint16{
+			tls.TLS_AES_128_GCM_SHA256,
+			tls.TLS_AES_256_GCM_SHA384,
+			tls.TLS_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+		},
+		Certificates: []tls.Certificate{cliCrt},
 	}
-	pool := x509.NewCertPool()
-	if pool.AppendCertsFromPEM(caCrt) {
-		tc.ClientCAs = pool
-		tc.ClientAuth = tls.RequireAndVerifyClientCert
+	if clientca != "" {
+		caCrt, err := os.ReadFile(clientca)
+		if err != nil {
+			return nil, err
+		}
+		pool := x509.NewCertPool()
+		if pool.AppendCertsFromPEM(caCrt) {
+			tc.ClientCAs = pool
+			tc.ClientAuth = tls.RequireAndVerifyClientCert
+		}
 	}
 	return tc, nil
 }
@@ -1027,7 +1049,24 @@ func GetServerTLSConfig(certfile, keyfile, clientca string) (*tls.Config, error)
 func GetClientTLSConfig(certfile, keyfile, rootca string) (*tls.Config, error) {
 	tc := &tls.Config{
 		InsecureSkipVerify: true,
-	}
+		CipherSuites: []uint16{
+			tls.TLS_AES_128_GCM_SHA256,
+			tls.TLS_AES_256_GCM_SHA384,
+			tls.TLS_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+		}}
 	var err error
 	caCrt, err := os.ReadFile(rootca)
 	if err == nil {
