@@ -125,6 +125,16 @@ func (w *RSA) SetPrivateKey(key string) error {
 		return err
 	}
 	w.priBytes = bb
+
+	if len(w.pubBytes) == 0 {
+		// 没有载入国pubkey，生成新的pubkey
+		txt, err := x509.MarshalPKIXPublicKey(&w.priKey.PublicKey)
+		if err != nil {
+			return err
+		}
+		w.pubBytes = txt
+		w.pubKey = &w.priKey.PublicKey
+	}
 	return nil
 }
 

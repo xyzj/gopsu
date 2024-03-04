@@ -156,7 +156,7 @@ type SQLPool struct {
 // New 初始化
 // tls: 是否启用tls链接。支持以下参数：true,false,skip-verify,preferred
 func (p *SQLPool) New(tls ...string) error {
-	if p.Server == "" || p.User == "" || p.Passwd == "" {
+	if p.Server == "" || p.User == "" {
 		return errors.New("config error")
 	}
 	// 处理参数

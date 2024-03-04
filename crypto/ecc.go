@@ -18,9 +18,9 @@ import (
 type ECShortName byte
 
 var (
-	// ECPrime256v1 as elliptic.P256()
+	// ECPrime256v1 as elliptic.P256() and openssl ecparam -name prime256v1
 	ECPrime256v1 ECShortName = 1
-	// ECSecp384r1 as elliptic.P384()
+	// ECSecp384r1 as elliptic.P384() and openssl ecparam -name secp384r1
 	ECSecp384r1 ECShortName = 2
 )
 
@@ -71,22 +71,26 @@ func (w *ECC) GenerateKey(ec ECShortName) (CValue, CValue, error) {
 
 // ToFile 创建ecc密钥到文件
 func (w *ECC) ToFile(pubfile, prifile string) error {
-	block := &pem.Block{
-		Type:  "ecdsa public key",
-		Bytes: w.pubBytes.Bytes(),
+	if pubfile != "" {
+		block := &pem.Block{
+			Type:  "ecdsa public key",
+			Bytes: w.pubBytes.Bytes(),
+		}
+		txt := pem.EncodeToMemory(block)
+		err := os.WriteFile(pubfile, txt, 0644)
+		if err != nil {
+			return err
+		}
 	}
-	txt := pem.EncodeToMemory(block)
-	err := os.WriteFile(pubfile, txt, 0644)
-	if err != nil {
-		return err
+	if prifile != "" {
+		block := &pem.Block{
+			Type:  "ecdsa public key",
+			Bytes: w.priBytes.Bytes(),
+		}
+		txt := pem.EncodeToMemory(block)
+		return os.WriteFile(prifile, txt, 0644)
 	}
-	block = &pem.Block{
-		Type:  "ecdsa public key",
-		Bytes: w.priBytes.Bytes(),
-	}
-	txt = pem.EncodeToMemory(block)
-	err = os.WriteFile(prifile, txt, 0644)
-	return err
+	return nil
 }
 
 // SetPublicKeyFromFile 从文件获取公钥
@@ -138,6 +142,17 @@ func (w *ECC) SetPrivateKey(key string) error {
 	w.priKey = priKey
 	w.priEcies = ecies.ImportECDSA(priKey)
 	w.priBytes = bb
+
+	if len(w.pubBytes) == 0 {
+		// 没有载入国pubkey，生成新的pubkey
+		txt, err := x509.MarshalPKIXPublicKey(&priKey.PublicKey)
+		if err != nil {
+			return err
+		}
+		w.pubBytes = txt
+		w.pubKey = &priKey.PublicKey
+		w.pubEcies = ecies.ImportECDSAPublic(w.pubKey)
+	}
 	return nil
 }
 
