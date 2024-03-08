@@ -150,7 +150,7 @@ type SQLPool struct {
 	// 缓存锁，避免缓存没写完前读取
 	cacheLocker sync.Map
 	// 内存缓存
-	memCache *cache.AnyCache[QueryData] // *cache.XCache
+	memCache *cache.AnyCache[*QueryData] // *cache.XCache
 }
 
 // New 初始化
@@ -218,7 +218,7 @@ func (p *SQLPool) New(tls ...string) error {
 	if p.CacheHead == "" {
 		p.CacheHead = gopsu.CalcCRC32String([]byte(connstr))
 	}
-	p.memCache = cache.NewAnyCache[QueryData](time.Hour) // cache.NewCacheWithWriter(0, p.Logger.DefaultWriter())
+	p.memCache = cache.NewAnyCache[*QueryData](time.Hour) // cache.NewCacheWithWriter(0, p.Logger.DefaultWriter())
 	// 连接/测试
 	db, err := sql.Open(p.DriverType.string(), strings.ReplaceAll(connstr, "\n", ""))
 	if err != nil {

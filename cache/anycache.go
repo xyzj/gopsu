@@ -12,7 +12,7 @@ import (
 
 type cData[T any] struct {
 	expire time.Time
-	data   *T
+	data   T
 }
 
 // AnyCache 泛型结构缓存
@@ -90,12 +90,12 @@ func (ac *AnyCache[T]) Extension(key string) {
 }
 
 // Store 添加缓存内容，如果缓存已关闭，会返回错误
-func (ac *AnyCache[T]) Store(key string, value *T) error {
+func (ac *AnyCache[T]) Store(key string, value T) error {
 	return ac.StoreWithExpire(key, value, ac.cacheExpire)
 }
 
 // StoreWithExpire 添加缓存内容，设置自定义的有效时间，如果缓存已关闭，会返回错误
-func (ac *AnyCache[T]) StoreWithExpire(key string, value *T, expire time.Duration) error {
+func (ac *AnyCache[T]) StoreWithExpire(key string, value T, expire time.Duration) error {
 	if ac.closed.Load() {
 		return fmt.Errorf("cache is closed")
 	}
@@ -107,17 +107,18 @@ func (ac *AnyCache[T]) StoreWithExpire(key string, value *T, expire time.Duratio
 }
 
 // Load 读取一个缓存内容，如果不存在，返回false
-func (ac *AnyCache[T]) Load(key string) (*T, bool) {
+func (ac *AnyCache[T]) Load(key string) (T, bool) {
+	x := new(T)
 	if ac.closed.Load() {
-		return nil, false
+		return *x, false
 	}
 	v, ok := ac.cache.Load(key)
 	if !ok {
-		return nil, false
+		return *x, false
 	}
 	if time.Now().After(v.expire) {
 		// ac.cache.Delete(key) // 删除会有锁操作，因此还是放在清理方法里一次性做
-		return nil, false
+		return *x, false
 	}
 	return v.data, true
 }
@@ -126,9 +127,10 @@ func (ac *AnyCache[T]) Load(key string) (*T, bool) {
 //
 //	当key存在时，返回缓存内容，并设置true
 //	当key不存在时，将内容加入缓存，返回设置内容，并设置false
-func (ac *AnyCache[T]) LoadOrStore(key string, value *T) (*T, bool) {
+func (ac *AnyCache[T]) LoadOrStore(key string, value T) (T, bool) {
+	x := new(T)
 	if ac.closed.Load() {
-		return nil, false
+		return *x, false
 	}
 	v, ok := ac.Load(key)
 	if !ok {
@@ -150,7 +152,7 @@ func (ac *AnyCache[T]) Delete(key string) {
 }
 
 // ForEach 遍历所有缓存内容
-func (ac *AnyCache[T]) ForEach(f func(key string, value *T) bool) {
+func (ac *AnyCache[T]) ForEach(f func(key string, value T) bool) {
 	ac.cache.ForEach(func(key string, value *cData[T]) bool {
 		if time.Now().After(value.expire) {
 			return true

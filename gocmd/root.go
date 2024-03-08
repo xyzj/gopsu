@@ -82,7 +82,7 @@ func (p *Program) BeforeStart(f func()) *Program {
 	return p
 }
 
-// AfterStop 启动前执行的内容
+// AfterStop 收到停止信号后执行的内容
 func (p *Program) AfterStop(f func()) *Program {
 	p.pinfo.onSignalQuit = f
 	return p

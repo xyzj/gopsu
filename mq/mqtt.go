@@ -16,14 +16,22 @@ import (
 
 // MqttOpt mqtt 配置
 type MqttOpt struct {
-	TLSConf   *tls.Config     // tls配置
-	Subscribe map[string]byte // 订阅消息，map[topic]qos
-	SendTimeo time.Duration   // 发送超时
-	ClientID  string
-	Addr      string
-	Username  string
-	Passwd    string
-	Name      string
+	// tls配置，默认为 InsecureSkipVerify: true
+	TLSConf *tls.Config
+	// 订阅消息，map[topic]qos
+	Subscribe map[string]byte
+	// 发送超时
+	SendTimeo time.Duration
+	// ClientID 客户端标示，会添加随机字符串尾巴，最大22个字符
+	ClientID string
+	// 服务端ip:port
+	Addr string
+	// 登录用户名
+	Username string
+	// 登录密码
+	Passwd string
+	// 日志前缀，默认 [MQTT]
+	Name string
 }
 
 // MqttClient mqtt客户端
@@ -35,6 +43,7 @@ func (m *MqttClient) Client() mqtt.Client {
 	return m.client
 }
 
+// IsConnectionOpen 返回在线状态
 func (m *MqttClient) IsConnectionOpen() bool {
 	if m.client == nil {
 		return false
@@ -42,10 +51,12 @@ func (m *MqttClient) IsConnectionOpen() bool {
 	return m.client.IsConnectionOpen()
 }
 
+// Write 以qos0发送消息
 func (m *MqttClient) Write(topic string, body []byte) error {
 	return m.WriteWithQos(topic, body, 0)
 }
 
+// WriteWithQos 发送消息，可自定义qos
 func (m *MqttClient) WriteWithQos(topic string, body []byte, qos byte) error {
 	if m.client == nil {
 		return fmt.Errorf("not connect to the server")
@@ -55,10 +66,10 @@ func (m *MqttClient) WriteWithQos(topic string, body []byte, qos byte) error {
 	return t.Error()
 }
 
-// NewMQTTClient 创建一个mqtt客户端
-func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic string, body []byte)) *MqttClient {
+// NewMQTTClient 创建一个mqtt客户端 3.11
+func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic string, body []byte)) (*MqttClient, error) {
 	if opt == nil {
-		return nil
+		return nil, fmt.Errorf("mqtt opt error")
 	}
 	if opt.SendTimeo == 0 {
 		opt.SendTimeo = time.Second * 5
@@ -78,7 +89,7 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 	}
 
 	if opt.ClientID == "" {
-		opt.ClientID += "_" + gopsu.GetRandomString(7, true)
+		opt.ClientID += "_" + gopsu.GetRandomString(20, true)
 	}
 	if len(opt.ClientID) > 22 {
 		opt.ClientID = opt.ClientID[:22]
@@ -122,5 +133,5 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 			time.Sleep(time.Second * 20)
 		}
 	}, opt.Name, logg.DefaultWriter())
-	return &MqttClient{client: client}
+	return &MqttClient{client: client}, nil
 }
