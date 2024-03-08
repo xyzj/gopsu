@@ -9,9 +9,9 @@ require (
 	github.com/eclipse/paho.golang v0.21.0
 	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/ethereum/go-ethereum v1.13.14
-	github.com/gin-contrib/cors v1.5.0
+	github.com/gin-contrib/cors v1.6.0
 	github.com/gin-gonic/gin v1.9.1
-	github.com/go-co-op/gocron/v2 v2.2.4
+	github.com/go-co-op/gocron/v2 v2.2.5
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/goccy/go-json v0.10.2
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb
@@ -72,11 +72,11 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	golang.org/x/arch v0.7.0 // indirect
-	golang.org/x/crypto v0.20.0 // indirect
+	golang.org/x/crypto v0.21.0 // indirect
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225 // indirect
-	golang.org/x/net v0.21.0 // indirect
+	golang.org/x/net v0.22.0 // indirect
 	golang.org/x/sync v0.6.0 // indirect
-	golang.org/x/sys v0.17.0 // indirect
-	google.golang.org/protobuf v1.32.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
+	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 )
