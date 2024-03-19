@@ -39,6 +39,16 @@ type MqttClient struct {
 	client mqtt.Client
 }
 
+// Close close the mqtt client
+func (m *MqttClient) Close() error {
+	if m.client == nil {
+		return fmt.Errorf("not connect to the server")
+	}
+	m.client.Disconnect(3000)
+	return nil
+}
+
+// Client return mqtt.Client
 func (m *MqttClient) Client() mqtt.Client {
 	return m.client
 }
