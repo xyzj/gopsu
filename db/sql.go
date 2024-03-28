@@ -15,9 +15,13 @@ import (
 	"time"
 
 	// ms-sql driver
-	_ "github.com/denisenkom/go-mssqldb"
+	_ "github.com/microsoft/go-mssqldb"
+	"github.com/microsoft/go-mssqldb/msdsn"
+	"gorm.io/driver/mysql"
+	mssql "gorm.io/driver/sqlserver"
+
 	// mysql driver
-	"github.com/go-sql-driver/mysql"
+	mydsn "github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/cache"
@@ -25,6 +29,7 @@ import (
 	"github.com/xyzj/gopsu/crypto"
 	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/logger"
+	"gorm.io/gorm"
 )
 
 var (
@@ -46,30 +51,6 @@ func qdUnmarshal(b []byte) *QueryData {
 	return qd
 }
 
-// QueryDataRow 数据行
-type QueryDataRow struct {
-	Cells  []string         `json:"cells,omitempty"`
-	VCells []config.VString `json:"vcells,omitempty"`
-}
-
-func (d *QueryDataRow) JSON() string {
-	s, _ := json.MarshalToString(d)
-	return s
-}
-
-// QueryData 数据集
-type QueryData struct {
-	Rows     []*QueryDataRow `json:"rows,omitempty"`
-	Columns  []string        `json:"columns,omitempty"`
-	CacheTag string          `json:"cache_tag,omitempty"`
-	Total    int             `json:"total,omitempty"`
-}
-
-func (d *QueryData) JSON() string {
-	s, _ := json.MarshalToString(d)
-	return s
-}
-
 // QueryDataChan chan方式返回首页数据
 type QueryDataChan struct {
 	Locker *sync.WaitGroup
@@ -88,36 +69,9 @@ type QueryDataChanWorker struct {
 	keyColumeID int
 }
 
-// driveType 数据库驱动类型
-type driveType int
-
-const (
-	// DriverMYSQL mysql
-	DriverMYSQL driveType = iota
-	// DriverMSSQL mssql
-	DriverMSSQL
-)
-
 const (
 	emptyCacheTag = "00000-0"
 )
-
-func (d driveType) string() string {
-	return []string{"mysql", "mssql"}[d]
-}
-
-// SQLInterface 数据库接口
-type SQLInterface interface {
-	New(...string) error
-	IsReady() bool
-	QueryCacheJSON(string, int, int) string
-	QueryCachePB2(string, int, int) *QueryData
-	QueryOnePB2(string, int, ...interface{}) (*QueryData, error)
-	QueryPB2(string, int, ...interface{}) (*QueryData, error)
-	Exec(string, ...interface{}) (int64, int64, error)
-	ExecPrepare(string, int, ...interface{}) error
-	ExecBatch([]string) error
-}
 
 // SQLPool 数据库连接池
 type SQLPool struct {
@@ -129,8 +83,10 @@ type SQLPool struct {
 	Passwd string
 	// 数据库名称
 	DataBase string
+	// tls 参数
+	TLS string
 	// 数据驱动
-	DriverType driveType
+	DriverType Drive
 	// IO超时(秒)
 	Timeout time.Duration
 	// 最大连接数
@@ -151,6 +107,124 @@ type SQLPool struct {
 	cacheLocker sync.Map
 	// 内存缓存
 	memCache *cache.AnyCache[*QueryData] // *cache.XCache
+	// gorm
+	orm       map[string]*gorm.DB
+	defaultDB string
+}
+
+// NewORM 初始化，含orm
+func (p *SQLPool) NewORM() error {
+	if p.Server == "" || p.User == "" {
+		return errors.New("config error")
+	}
+	// 处理参数
+	if p.Timeout.Seconds() > 6000 || p.Timeout.Seconds() < 5 {
+		p.Timeout = time.Second * 300
+	}
+	if p.MaxOpenConns < 10 {
+		p.MaxOpenConns = 10
+	}
+	if p.MaxOpenConns > 100 {
+		p.MaxOpenConns = 100
+	}
+	if p.CacheDir == "" {
+		p.CacheDir = gopsu.DefaultCacheDir
+	}
+	if p.Logger == nil {
+		p.Logger = &logger.NilLogger{}
+	}
+	p.orm = make(map[string]*gorm.DB, 0)
+	// 设置参数
+	var connstr = ""
+	var err error
+	for _, dbname := range strings.Split(p.DataBase, ",") {
+		if strings.TrimSpace(dbname) == "" {
+			continue
+		}
+		switch p.DriverType {
+		case DriveSQLServer:
+			ss := strings.Split(p.Server, ":")
+			if len(ss) == 1 {
+				ss = append(ss, "1433")
+			}
+			pp, err := strconv.ParseUint(ss[1], 10, 64)
+			if err != nil {
+				pp = 1433
+			}
+			connstr = msdsn.Config{
+				Host:        ss[0],
+				Port:        pp,
+				User:        p.User,
+				Password:    p.Passwd,
+				Database:    dbname,
+				DialTimeout: time.Second * 10,
+				ConnTimeout: time.Second * 10,
+			}.URL().String()
+			orm, err := gorm.Open(mssql.Open(connstr))
+			if err != nil {
+				return err
+			}
+			p.orm[dbname] = orm
+		case DriveMySQL:
+			sqlcfg := &mydsn.Config{
+				Collation:            "utf8_general_ci",
+				Loc:                  time.Local,
+				MaxAllowedPacket:     0, // 64*1024*1024
+				AllowNativePasswords: true,
+				CheckConnLiveness:    true,
+				Net:                  "tcp",
+				Addr:                 p.Server,
+				User:                 p.User,
+				Passwd:               p.Passwd,
+				DBName:               dbname,
+				MultiStatements:      true,
+				ParseTime:            true,
+				Timeout:              time.Second * 180,
+				ClientFoundRows:      true,
+				InterpolateParams:    true,
+			}
+			connstr = sqlcfg.FormatDSN()
+			orm, err := gorm.Open(mysql.Open(connstr))
+			if err != nil {
+				return err
+			}
+			p.orm[dbname] = orm
+		default:
+			return fmt.Errorf("not support")
+		}
+		if p.defaultDB == "" {
+			p.defaultDB = dbname
+		}
+	}
+	if p.CacheHead == "" {
+		p.CacheHead = gopsu.CalcCRC32String([]byte(connstr))
+	}
+	p.memCache = cache.NewAnyCache[*QueryData](time.Hour) // cache.NewCacheWithWriter(0, p.Logger.DefaultWriter())
+	for _, v := range p.orm {
+		p.connPool, err = v.DB()
+		if err != nil {
+			return err
+		}
+		break
+	}
+	p.Logger.System("[DB-ORM] Success connect to server " + p.Server)
+	return nil
+}
+
+// DefaultORM 返回默认的orm实例，多个的时候，为第一个
+func (p *SQLPool) DefaultORM() *gorm.DB {
+	if v, ok := p.orm[p.defaultDB]; ok {
+		return v
+	}
+	return nil
+}
+
+// ORM 指定要返回的orm实例
+func (p *SQLPool) ORM(dbname string) *gorm.DB {
+	if v, ok := p.orm[dbname]; ok {
+		return v
+	}
+	return nil
 }
 
 // New 初始化
@@ -178,20 +252,38 @@ func (p *SQLPool) New(tls ...string) error {
 	// 设置参数
 	var connstr string
 	switch p.DriverType {
-	case DriverMSSQL:
-		connstr = fmt.Sprintf("user id=%s;"+
-			"password=%s;"+
-			"server=%s;"+
-			"database=%s;"+
-			"connection timeout=180",
-			p.User, p.Passwd, p.Server, p.DataBase)
-		if len(tls) > 0 {
-			if tls[0] != "false" {
-				connstr += ";encrypt=true;trustservercertificate=true"
-			}
+	case DriveSQLServer:
+		ss := strings.Split(p.Server, ":")
+		if len(ss) == 1 {
+			ss = append(ss, "1433")
 		}
-	case DriverMYSQL:
-		sqlcfg := &mysql.Config{
+		pp, err := strconv.ParseUint(ss[1], 10, 64)
+		if err != nil {
+			pp = 1433
+		}
+		sqlcfg := &msdsn.Config{
+			Host:        ss[0],
+			Port:        pp,
+			User:        p.User,
+			Password:    p.Passwd,
+			Database:    p.DataBase,
+			DialTimeout: time.Second * 10,
+			ConnTimeout: time.Second * 10,
+		}
+		connstr = sqlcfg.URL().String()
+		// connstr = fmt.Sprintf("user id=%s;"+
+		// 	"password=%s;"+
+		// 	"server=%s;"+
+		// 	"database=%s;"+
+		// 	"connection timeout=180",
+		// 	p.User, p.Passwd, p.Server, p.DataBase)
+		// if len(tls) > 0 {
+		// 	if tls[0] != "false" {
+		// 		connstr += ";encrypt=true;trustservercertificate=true"
+		// 	}
+		// }
+	case DriveMySQL:
+		sqlcfg := &mydsn.Config{
 			Collation:            "utf8_general_ci",
 			Loc:                  time.Local,
 			MaxAllowedPacket:     0, // 64*1024*1024
@@ -213,6 +305,8 @@ func (p *SQLPool) New(tls ...string) error {
 			sqlcfg.TLSConfig = tls[0]
 		}
 		connstr = sqlcfg.FormatDSN()
+	default:
+		return fmt.Errorf("not support")
 	}
 
 	if p.CacheHead == "" {
@@ -220,7 +314,7 @@ func (p *SQLPool) New(tls ...string) error {
 	}
 	p.memCache = cache.NewAnyCache[*QueryData](time.Hour) // cache.NewCacheWithWriter(0, p.Logger.DefaultWriter())
 	// 连接/测试
-	db, err := sql.Open(p.DriverType.string(), strings.ReplaceAll(connstr, "\n", ""))
+	db, err := sql.Open(string(p.DriverType), strings.ReplaceAll(connstr, "\n", ""))
 	if err != nil {
 		return err
 	}

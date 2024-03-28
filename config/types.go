@@ -64,6 +64,16 @@ func (rs VString) TryDecode() string {
 	return string(rs)
 }
 
+// TryTimestamp try turn time string to timestamp
+//
+// f: datetime format string，default is 2006-01-02 15:04:05, use timezone +8.0
+func (rs VString) TryTimestamp(f string) int64 {
+	if f == "" {
+		f = gopsu.DateTimeFormat
+	}
+	return gopsu.Time2Stampf(string(rs), f, 8)
+}
+
 // PwdString 序列化反序列化时可自动加密解密字符串，用于敏感字段
 type PwdString string
 

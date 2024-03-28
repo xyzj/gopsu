@@ -14,7 +14,7 @@ import (
 func (p *SQLPool) ShowTableInfo(tableName string) (string, string, int64, int64, error) {
 	var subTableName, engine string
 	var tableSize, rowsCount int64
-	if p.DriverType != DriverMYSQL {
+	if p.DriverType != DriveMySQL {
 		return subTableName, engine, tableSize, rowsCount, errors.New("this function only support mysql driver")
 	}
 	if p.connPool == nil {
@@ -41,7 +41,7 @@ func (p *SQLPool) ShowTableInfo(tableName string) (string, string, int64, int64,
 	idx2 := strings.Index(s[idx+1:], "`")
 	subTableName = s[idx+1 : idx+idx2+1]
 	// 获取子表大小
-	strsql = "select round(sum(DATA_LENGTH/1024/1024),2) as data,TABLE_ROWS,count(*) from information_schema.tables where table_schema=? and table_name=?"
+	strsql = "select round(sum(DATA_LENGTH/1000000),2) as data,TABLE_ROWS,count(*) from information_schema.tables where table_schema=? and table_name=?"
 	ans, err = p.QueryPB2(strsql, 1, p.DataBase, subTableName)
 	if err != nil || len(ans.Rows) > 0 {
 		return subTableName, engine, tableSize, rowsCount, err
@@ -66,7 +66,7 @@ func (p *SQLPool) MergeTable(tableName string, maxSubTables int) error {
 	if maxSubTables < 1 {
 		return errors.New("maxsubTables should be more than 1")
 	}
-	if p.DriverType != DriverMYSQL {
+	if p.DriverType != DriveMySQL {
 		return errors.New("this function only support mysql driver")
 	}
 	if p.connPool == nil {

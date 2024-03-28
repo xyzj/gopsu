@@ -182,7 +182,7 @@ func Stamp2Time(t int64, fmt ...string) string {
 //	 tz：0～12,超范围时使用本地时区
 func Time2Stampf(s, fmt string, tz float32) int64 {
 	if fmt == "" {
-		fmt = "2006-01-02 15:04:05"
+		fmt = DateTimeFormat
 	}
 	if tz > 12 || tz < 0 {
 		_, t := time.Now().Zone()

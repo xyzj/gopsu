@@ -19,8 +19,9 @@ type cData[T any] struct {
 type AnyCache[T any] struct {
 	cache        *mapfx.StructMap[string, cData[T]]
 	cacheCleanup *time.Ticker
-	closed       atomic.Bool
 	cacheExpire  time.Duration
+	closed       atomic.Bool
+	closeChan    chan bool
 }
 
 // NewAnyCache 初始化一个新的缓存
@@ -31,20 +32,25 @@ func NewAnyCache[VALUE any](expire time.Duration) *AnyCache[VALUE] {
 	x := &AnyCache[VALUE]{
 		cacheExpire:  expire,
 		cache:        mapfx.NewStructMap[string, cData[VALUE]](),
-		closed:       atomic.Bool{},
-		cacheCleanup: time.NewTicker(time.Minute),
+		cacheCleanup: time.NewTicker(time.Second * 60),
+		closeChan:    make(chan bool, 1),
 	}
+	x.closed.Store(false)
 	go loopfunc.LoopFunc(func(params ...interface{}) {
-		for !x.closed.Load() {
-			<-x.cacheCleanup.C
-			tnow := time.Now()
-			keys := make([]string, 0, x.cache.Len())
-			for k, v := range x.cache.Clone() {
-				if tnow.After(v.expire) {
-					keys = append(keys, k)
+		for {
+			select {
+			case <-x.closeChan:
+				return
+			case <-x.cacheCleanup.C:
+				tnow := time.Now()
+				keys := make([]string, 0, x.cache.Len())
+				for k, v := range x.cache.Clone() {
+					if tnow.After(v.expire) {
+						keys = append(keys, k)
+					}
 				}
+				x.cache.DeleteMore(keys...)
 			}
-			x.cache.DeleteMore(keys...)
 		}
 	}, "any cache", logger.NewConsoleWriter())
 	return x
@@ -62,6 +68,7 @@ func (ac *AnyCache[T]) SetCleanUp(cleanup time.Duration) {
 func (ac *AnyCache[T]) Close() {
 	ac.closed.Store(true)
 	ac.cacheCleanup.Stop()
+	ac.closeChan <- true
 	ac.cache.Clean()
 	ac.cache = nil
 }

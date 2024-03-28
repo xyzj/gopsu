@@ -49,7 +49,10 @@ func (i *Item) String() string {
 //
 //	依据文件的扩展名，支持yaml和json格式的文件
 func NewConfig(filepath string) *File {
-	f := &File{}
+	f := &File{
+		items: mapfx.NewStructMap[string, Item](),
+		data:  &bytes.Buffer{},
+	}
 	f.FromFile(filepath)
 	return f
 }

@@ -27,7 +27,7 @@ type Formatted[ITEM any] struct {
 
 // NewFormatFile 创建一个新的自定义结构的yaml/json配置文件
 func NewFormatFile[ITEM any](configfile string, ft FormatType) *Formatted[ITEM] {
-	y := &Formatted[ITEM]{filepath: configfile, formatType: ft}
+	y := &Formatted[ITEM]{filepath: configfile, formatType: ft, items: mapfx.NewStructMap[string, ITEM]()}
 	y.FromFile("")
 	return y
 }

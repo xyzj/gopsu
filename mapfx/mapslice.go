@@ -75,7 +75,7 @@ func (m *SliceMap[T]) DeleteItem(key string, item T) {
 		return
 	}
 	m.locker.Lock()
-	defer m.locker.RLock()
+	defer m.locker.Unlock()
 	if v, ok := m.data[key]; ok {
 		for k, vv := range v {
 			if reflect.DeepEqual(vv, item) {

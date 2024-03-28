@@ -13,13 +13,6 @@ import (
 	"github.com/xyzj/gopsu/crypto"
 )
 
-func newResult() *QueryData {
-	return &QueryData{
-		Columns: []string{},
-		Rows:    []*QueryDataRow{},
-	}
-}
-
 // QueryJSON 执行查询语句，返回结果集的json字符串
 //
 // s: sql语句
@@ -47,9 +40,9 @@ func (p *SQLPool) QueryLimit(s string, startRow, rowsCount int, params ...interf
 		return p.Query(s, rowsCount, params...)
 	}
 	switch p.DriverType {
-	case DriverMSSQL:
+	case DriveSQLServer:
 		s += fmt.Sprintf(" between %d and %d", startRow, startRow+rowsCount)
-	case DriverMYSQL:
+	case DriveMySQL:
 		s += fmt.Sprintf(" limit %d,%d", startRow, rowsCount)
 	}
 	query, err := p.Query(s, 0, params...)
@@ -149,7 +142,6 @@ ANS:
 func (p *SQLPool) queryDataChan(ctx context.Context, done context.CancelFunc, ch chan *QueryDataChan, s string, rowsCount int, params ...interface{}) int {
 	defer func() {
 		if err := recover(); err != nil {
-			// p.Logger.Error(fmt.Sprintf("[DB] query error: %v", errors.WithStack(err.(error))))
 			ch <- &QueryDataChan{
 				Data: newResult(),
 				Err:  err.(error),
@@ -163,8 +155,6 @@ func (p *SQLPool) queryDataChan(ctx context.Context, done context.CancelFunc, ch
 	}
 	var rowIdx = 0
 	// 查询数据集
-	// ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
-	// defer cancel()
 	rows, err := p.connPool.QueryContext(ctx, s, params...)
 	if err != nil {
 		ch <- &QueryDataChan{

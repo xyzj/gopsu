@@ -9,7 +9,7 @@ func TestExec(t *testing.T) {
 		Passwd:   "lp1234xy",
 		DataBase: "mydb1024",
 	}
-	s.New("false")
+	s.New()
 	t.Run("exec rollback", func(t *testing.T) {
 		strsql := "insert into 1ab (t1,t2) values (?,?),(?,?);"
 		rows, _, err := s.ExecV2(strsql, 67, "sdfsf", 32, "edf4d")
