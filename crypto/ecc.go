@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/crypto/ecies"
@@ -73,7 +74,7 @@ func (w *ECC) GenerateKey(ec ECShortName) (CValue, CValue, error) {
 func (w *ECC) ToFile(pubfile, prifile string) error {
 	if pubfile != "" {
 		block := &pem.Block{
-			Type:  "ecdsa public key",
+			Type:  "PUBLIC KEY",
 			Bytes: w.pubBytes.Bytes(),
 		}
 		txt := pem.EncodeToMemory(block)
@@ -84,7 +85,7 @@ func (w *ECC) ToFile(pubfile, prifile string) error {
 	}
 	if prifile != "" {
 		block := &pem.Block{
-			Type:  "ecdsa public key",
+			Type:  "EC PRIVATE KEY",
 			Bytes: w.priBytes.Bytes(),
 		}
 		txt := pem.EncodeToMemory(block)
@@ -137,7 +138,15 @@ func (w *ECC) SetPrivateKey(key string) error {
 	}
 	priKey, err := x509.ParseECPrivateKey(bb)
 	if err != nil {
-		return err
+		if strings.Contains(err.Error(), "use ParsePKCS8PrivateKey instead") {
+			priKeypk8, err := x509.ParsePKCS8PrivateKey(bb)
+			if err != nil {
+				return err
+			}
+			priKey = priKeypk8.(*ecdsa.PrivateKey)
+		} else {
+			return err
+		}
 	}
 	w.priKey = priKey
 	w.priEcies = ecies.ImportECDSA(priKey)
@@ -207,8 +216,8 @@ func (w *ECC) Sign(b []byte) (CValue, error) {
 	return CValue(signature), nil
 }
 
-// VerySign 验证签名
-func (w *ECC) VerySign(signature, data []byte) (bool, error) {
+// VerifySign 验证签名
+func (w *ECC) VerifySign(signature, data []byte) (bool, error) {
 	if w.pubKey == nil {
 		return false, fmt.Errorf("no public key found")
 	}
@@ -218,22 +227,22 @@ func (w *ECC) VerySign(signature, data []byte) (bool, error) {
 	return ok, nil
 }
 
-// VerySignFromBase64 验证base64格式的签名
-func (w *ECC) VerySignFromBase64(signature string, data []byte) (bool, error) {
+// VerifySignFromBase64 验证base64格式的签名
+func (w *ECC) VerifySignFromBase64(signature string, data []byte) (bool, error) {
 	bb, err := base64.StdEncoding.DecodeString(signature)
 	if err != nil {
 		return false, err
 	}
-	return w.VerySign(bb, data)
+	return w.VerifySign(bb, data)
 }
 
-// VerySignFromHex 验证hexstring格式的签名
-func (w *ECC) VerySignFromHex(signature string, data []byte) (bool, error) {
+// VerifySignFromHex 验证hexstring格式的签名
+func (w *ECC) VerifySignFromHex(signature string, data []byte) (bool, error) {
 	bb, err := hex.DecodeString(signature)
 	if err != nil {
 		return false, err
 	}
-	return w.VerySign(bb, data)
+	return w.VerifySign(bb, data)
 }
 
 // Decrypt 兼容旧方法，直接解析base64字符串
@@ -242,7 +251,7 @@ func (w *ECC) Decrypt(s string) string {
 	return x
 }
 
-// Encrypt 兼容旧方法，直接返回base64字符串
+// Encrypt 加密，兼容旧方法，直接返回base64字符串
 func (w *ECC) Encrypt(s string) string {
 	x, err := w.Encode(Bytes(s))
 	if err != nil {
@@ -251,7 +260,7 @@ func (w *ECC) Encrypt(s string) string {
 	return x.Base64String()
 }
 
-// EncryptTo 兼容旧方法，直接返回base64字符串
+// EncryptTo 加密字符串
 func (w *ECC) EncryptTo(s string) CValue {
 	x, err := w.Encode(Bytes(s))
 	if err != nil {

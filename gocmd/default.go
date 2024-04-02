@@ -25,20 +25,16 @@ func NewProgram(info *Info) *Program {
 	if info == nil {
 		info = &Info{}
 	}
-	// if info.Title == "" {
-	// 	info.Title = "A general program startup framework"
-	// }
-	// if info.Descript == "" {
-	// 	info.Descript = "can run program in the background"
-	// }
 	if info.Ver == "" {
-		info.Ver = "0.0.1"
+		info.Ver = "0.1.19"
 	}
 	params := os.Args
 	pinfo := &ProcInfo{
-		params: make([]string, 0),
-		Args:   make([]string, 0),
-		sigc:   NewSignalQuit(),
+		params:       make([]string, 0),
+		Args:         make([]string, 0),
+		sigc:         NewSignalQuit(),
+		beforeStart:  func() {},
+		onSignalQuit: func() {},
 	}
 	// 获取程序信息
 	pinfo.params = params[1:]

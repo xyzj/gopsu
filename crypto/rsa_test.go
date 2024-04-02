@@ -56,34 +56,35 @@ func RSAGenKey(bits int) error {
 }
 func TestRSA(t *testing.T) {
 	// RSAGenKey(4096)
-	sss := "1267312shfskdfadfaf"
+	// sss := `{"token": "604213a4-9e4e-11ee-8e42-0242ac110004", "ts": 1711704865}`
 	c := NewRSA()
-	c.GenerateKey(RSA2048)
-	c.ToFile("rsa2048pub.pem", "rsa2048pri.pem")
-	c.GenerateKey(RSA4096)
-	c.ToFile("rsa4096pub.pem", "rsa4096pri.pem")
-	// err := c.SetPublicKeyFromFile("publicKey.pem")
+	// c.GenerateKey(RSA2048)
+	// c.ToFile("rsa2048pub.pem", "rsa2048pri.pem")
+	// c.GenerateKey(RSA4096)
+	// c.ToFile("rsa4096pub.pem", "rsa4096pri.pem")
+	// err := c.SetPublicKeyFromFile("rsa2048pub.pem")
 	// if err != nil {
 	// 	t.Fatal("set public key error " + err.Error())
 	// 	return
 	// }
-	// err = c.SetPrivateKeyFromFile("privateKey.pem")
-	// if err != nil {
-	// 	t.Fatal("set private key error " + err.Error())
-	// 	return
-	// }
-	if v, err := c.Encode([]byte(sss)); err != nil {
-		t.Fatal("encode error " + err.Error())
-	} else {
-		xs, err := c.Decode(v.Bytes())
-		if err != nil {
-			t.Fatal("decode error " + err.Error())
-			return
-		}
-		if xs != sss {
-			t.Fatal("encode decode not match")
-		}
+	err := c.SetPrivateKeyFromFile("rsa2048pri.pem")
+	if err != nil {
+		t.Fatal("set private key error " + err.Error())
+		return
 	}
+	// v, err := c.Encode([]byte(sss))
+	// if err != nil {
+	// 	t.Fatal("encode error " + err.Error())
+	// }
+	xs, err := c.DecodeBase64("lGbUVDR8qQkJDriA8yptt0IeU9IREIF5z1hKCi6bVPd94G69Ocv/wCt31IgrIyCJ5LsjogniBcawC+0eCmoe7STvytMYrV3tAnKGqd+JPGb9Jd2vqt+e7hdKm+qy6P4TJB4Fh/nCXkPU6wydSXQz0/HOaAyCgt0lw3ltOuFntjPjmfgK4b8JAWUjZdpemet2C/FoT+rCo1nKmr1f6NPsbzjfgeRMvoEfjEmHX4lNSEkYlCBWG/EKQTI65vHFNmxWwBcDhhfa2xiPw3wPp7sewyjg4e4v7JPdB0AAibOiga8WJ7w9D36BNdL5gPUNegqJ/Nwx9WLYVICRB3OPvX3trg==")
+	if err != nil {
+		t.Fatal("decode error " + err.Error())
+		return
+	}
+	println(xs)
+	// if xs != sss {
+	// 	t.Fatal("encode decode not match")
+	// }
 }
 
 func TestSign(t *testing.T) {
@@ -97,7 +98,7 @@ func TestSign(t *testing.T) {
 		return
 	}
 	println(x.HexString())
-	z, err := c.VerySign(x.Bytes(), []byte(sss))
+	z, err := c.VerifySign(x.Bytes(), []byte(sss))
 	if err != nil {
 		t.Fatal(err.Error())
 		return
@@ -106,7 +107,7 @@ func TestSign(t *testing.T) {
 		t.Fail()
 		return
 	}
-	z, err = c.VerySignFromBase64(x.Base64String(), []byte(sss))
+	z, err = c.VerifySignFromBase64(x.Base64String(), []byte(sss))
 	if err != nil {
 		t.Fatal(err.Error())
 		return

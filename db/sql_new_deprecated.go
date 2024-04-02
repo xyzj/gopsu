@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"strings"
 )
 
@@ -23,7 +24,55 @@ func (d *Conn) ExecV2(s string, params ...interface{}) (rowAffected, insertID in
 //
 // Deprecated: use ExecPrepare()
 func (d *Conn) ExecPrepareV2(s string, paramNum int, params ...interface{}) (int64, []int64, error) {
-	return 0, []int64{0}, d.ExecPrepare(s, paramNum, params...)
+	defer func() {
+		if err := recover(); err != nil {
+			d.cfg.Logger.Error("[DB] ExecPrepareV2 Err: " + err.(error).Error())
+		}
+	}()
+	if paramNum == 0 {
+		paramNum = strings.Count(s, "?")
+	}
+
+	l := len(params)
+	if l%paramNum != 0 {
+		return 0, nil, errors.New("not enough params")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), d.cfg.Timeout)
+	defer cancel()
+	// 开启事务
+	sqldb, err := d.SQLDB(d.defaultDB)
+	if err != nil {
+		return 0, []int64{}, err
+	}
+	tx, err := sqldb.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer d.rollbackCheck(tx)
+	rowAffected := int64(0)
+	insertID := make([]int64, len(params)/paramNum)
+	idx := 0
+	for i := 0; i < l; i += paramNum {
+		ans, err := tx.ExecContext(ctx, s, params[i:i+paramNum]...)
+		if err != nil {
+			return 0, nil, err
+		}
+		rows, err := ans.RowsAffected()
+		if err == nil {
+			rowAffected += rows
+		}
+		inid, err := ans.LastInsertId()
+		if err == nil {
+			insertID[idx] = inid
+		}
+		idx++
+	}
+	err = tx.Commit()
+	if err != nil {
+		return 0, nil, err
+	}
+	return rowAffected, insertID, nil
 }
 
 // QueryJSON 执行查询语句，返回结果集的json字符串

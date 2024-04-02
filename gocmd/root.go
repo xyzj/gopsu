@@ -78,23 +78,19 @@ func (p *Program) AddCommand(cmd *Command) *Program {
 
 // BeforeStart 启动前执行的内容
 func (p *Program) BeforeStart(f func()) *Program {
-	p.pinfo.beforeStart = f
+	if f != nil {
+		p.pinfo.beforeStart = f
+	}
 	return p
 }
 
 // AfterStop 收到停止信号后执行的内容
 func (p *Program) AfterStop(f func()) *Program {
-	p.pinfo.onSignalQuit = f
+	if f != nil {
+		p.pinfo.onSignalQuit = f
+	}
 	return p
 }
-
-// // OnSignalQuit
-// func (p *Program) OnSignalQuit(f func()) *Program {
-// 	if f != nil {
-// 		p.pinfo.onSignalQuit = f
-// 	}
-// 	return p
-// }
 
 // Execute Execute the given command, when no command is given, print help
 func (p *Program) Execute() {
@@ -163,4 +159,7 @@ func (p *Program) ExecuteDefault(cmd string) {
 		p.pinfo.params = x
 	}
 	p.Execute()
+}
+func (p *Program) Exit(code int) {
+	p.pinfo.sigc.SendSignalQuit()
 }

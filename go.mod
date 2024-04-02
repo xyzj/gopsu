@@ -2,16 +2,14 @@ module github.com/xyzj/gopsu
 
 go 1.21
 
-toolchain go1.22.0
-
 require (
 	github.com/eclipse/paho.golang v0.21.0
 	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/ethereum/go-ethereum v1.13.14
 	github.com/gin-contrib/cors v1.7.1
 	github.com/gin-gonic/gin v1.9.1
-	github.com/go-co-op/gocron/v2 v2.2.6
-	github.com/go-sql-driver/mysql v1.8.0
+	github.com/go-co-op/gocron/v2 v2.2.9
+	github.com/go-sql-driver/mysql v1.8.1
 	github.com/goccy/go-json v0.10.2
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb
 	github.com/google/uuid v1.6.0
@@ -24,7 +22,7 @@ require (
 	github.com/tealeg/xlsx/v3 v3.3.5
 	github.com/tidwall/gjson v1.17.1
 	github.com/tidwall/sjson v1.2.5
-	github.com/tjfoc/gmsm v1.4.1
+	github.com/tjfoc/gmsm v1.4.2-0.20220114090716-36b992c51540
 	github.com/tovenja/cron/v3 v3.0.2
 	github.com/unrolled/secure v1.14.0
 	go.etcd.io/bbolt v1.3.9
@@ -33,7 +31,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/mysql v1.5.6
 	gorm.io/driver/sqlserver v1.5.3
-	gorm.io/gorm v1.25.8
+	gorm.io/gorm v1.25.9
 )
 
 require (
@@ -79,7 +77,7 @@ require (
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	golang.org/x/arch v0.7.0 // indirect
 	golang.org/x/crypto v0.21.0 // indirect
-	golang.org/x/exp v0.0.0-20240318143956-a85f2c67cd81 // indirect
+	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8 // indirect
 	golang.org/x/net v0.22.0 // indirect
 	golang.org/x/sync v0.6.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect

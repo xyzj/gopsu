@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/pem"
 	"fmt"
 	"os"
 	"sync"
@@ -41,7 +40,7 @@ func (w *SM2) GenerateKey() (CValue, CValue, error) {
 		return []byte{}, []byte{}, err
 	}
 	w.priBytes = txt
-	txt, err = x509.MarshalSm2PublicKey(&p.PublicKey)
+	txt, err = x509.MarshalPKIXPublicKey(&p.PublicKey)
 	if err != nil {
 		return []byte{}, []byte{}, err
 	}
@@ -53,22 +52,18 @@ func (w *SM2) GenerateKey() (CValue, CValue, error) {
 
 // ToFile 创建ecc密钥到文件
 func (w *SM2) ToFile(pubfile, prifile string) error {
-	block := &pem.Block{
-		Type:  "sm2 public key",
-		Bytes: w.pubBytes.Bytes(),
+	if pubfile != "" {
+		txt, _ := x509.WritePublicKeyToPem(w.pubKey)
+		err := os.WriteFile(pubfile, txt, 0644)
+		if err != nil {
+			return err
+		}
 	}
-	txt := pem.EncodeToMemory(block)
-	err := os.WriteFile(pubfile, txt, 0644)
-	if err != nil {
-		return err
+	if prifile != "" {
+		txt, _ := x509.WritePrivateKeyToPem(w.priKey, nil)
+		return os.WriteFile(prifile, txt, 0644)
 	}
-	block = &pem.Block{
-		Type:  "sm2 public key",
-		Bytes: w.priBytes.Bytes(),
-	}
-	txt = pem.EncodeToMemory(block)
-	err = os.WriteFile(prifile, txt, 0644)
-	return err
+	return nil
 }
 
 // SetPublicKeyFromFile 从文件获取公钥
@@ -77,8 +72,10 @@ func (w *SM2) SetPublicKeyFromFile(keyPath string) error {
 	if err != nil {
 		return err
 	}
-	block, _ := pem.Decode(b)
-	return w.SetPublicKey(base64.StdEncoding.EncodeToString(block.Bytes))
+	w.pubKey, err = x509.ReadPublicKeyFromPem(b)
+	return err
+	// block, _ := pem.Decode(b)
+	// return w.SetPublicKey(base64.StdEncoding.EncodeToString(block.Bytes))
 }
 
 // SetPublicKey 设置base64编码的公钥
@@ -87,8 +84,10 @@ func (w *SM2) SetPublicKey(key string) error {
 	if err != nil {
 		return err
 	}
+	println(key)
 	pubKey, err := x509.ParseSm2PublicKey(bb)
 	if err != nil {
+		println("==========", err.Error())
 		return err
 	}
 	w.pubKey = pubKey
@@ -102,8 +101,10 @@ func (w *SM2) SetPrivateKeyFromFile(keyPath string) error {
 	if err != nil {
 		return err
 	}
-	block, _ := pem.Decode(b)
-	return w.SetPrivateKey(base64.StdEncoding.EncodeToString(block.Bytes))
+	w.priKey, err = x509.ReadPrivateKeyFromPem(b, nil)
+	return err
+	// block, _ := pem.Decode(b)
+	// return w.SetPrivateKey(base64.StdEncoding.EncodeToString(block.Bytes))
 }
 
 // SetPrivateKey 设置base64编码的私钥
@@ -112,12 +113,22 @@ func (w *SM2) SetPrivateKey(key string) error {
 	if err != nil {
 		return err
 	}
-	priKey, err := x509.ParseSm2PrivateKey(bb)
+	priKey, err := x509.ParsePKCS8UnecryptedPrivateKey(bb)
 	if err != nil {
 		return err
 	}
 	w.priKey = priKey
 	w.priBytes = bb
+
+	// if len(w.pubBytes) == 0 {
+	// 	// 没有载入pubkey，生成新的pubkey
+	// 	txt, err := x509.MarshalSm2PublicKey(&priKey.PublicKey)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	w.pubBytes = txt
+	// 	w.pubKey = &priKey.PublicKey
+	// }
 	return nil
 }
 
@@ -143,6 +154,7 @@ func (w *SM2) Decode(b []byte) (string, error) {
 	w.locker.Lock()
 	defer w.locker.Unlock()
 	c, err := w.priKey.DecryptAsn1(b)
+	// c, err := w.priKey.Decrypt(nil, b, nil)
 	if err != nil {
 		return "", err
 	}
@@ -172,8 +184,8 @@ func (w *SM2) Sign(b []byte) (CValue, error) {
 	return CValue(signature), nil
 }
 
-// VerySign 验证签名
-func (w *SM2) VerySign(signature, data []byte) (bool, error) {
+// VerifySign 验证签名
+func (w *SM2) VerifySign(signature, data []byte) (bool, error) {
 	if w.pubKey == nil {
 		return false, fmt.Errorf("no public key found")
 	}
@@ -183,22 +195,22 @@ func (w *SM2) VerySign(signature, data []byte) (bool, error) {
 	return ok, nil
 }
 
-// VerySignFromBase64 验证base64格式的签名
-func (w *SM2) VerySignFromBase64(signature string, data []byte) (bool, error) {
+// VerifySignFromBase64 验证base64格式的签名
+func (w *SM2) VerifySignFromBase64(signature string, data []byte) (bool, error) {
 	bb, err := base64.StdEncoding.DecodeString(signature)
 	if err != nil {
 		return false, err
 	}
-	return w.VerySign(bb, data)
+	return w.VerifySign(bb, data)
 }
 
-// VerySignFromHex 验证hexstring格式的签名
-func (w *SM2) VerySignFromHex(signature string, data []byte) (bool, error) {
+// VerifySignFromHex 验证hexstring格式的签名
+func (w *SM2) VerifySignFromHex(signature string, data []byte) (bool, error) {
 	bb, err := hex.DecodeString(signature)
 	if err != nil {
 		return false, err
 	}
-	return w.VerySign(bb, data)
+	return w.VerifySign(bb, data)
 }
 
 // Decrypt 兼容旧方法，直接解析base64字符串

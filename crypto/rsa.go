@@ -47,9 +47,12 @@ func (w *RSA) GenerateKey(bits RSABits) (CValue, CValue, error) {
 	case RSA4096:
 		p, _ = rsa.GenerateKey(rand.Reader, 4096)
 	}
-	txt := x509.MarshalPKCS1PrivateKey(p)
+	txt, err := x509.MarshalPKCS8PrivateKey(p)
+	if err != nil {
+		return []byte{}, []byte{}, err
+	}
 	w.priBytes = txt
-	txt, err := x509.MarshalPKIXPublicKey(&p.PublicKey)
+	txt, err = x509.MarshalPKIXPublicKey(&p.PublicKey)
 	if err != nil {
 		return []byte{}, []byte{}, err
 	}
@@ -62,7 +65,7 @@ func (w *RSA) GenerateKey(bits RSABits) (CValue, CValue, error) {
 // ToFile 创建ecc密钥到文件
 func (w *RSA) ToFile(pubfile, prifile string) error {
 	block := &pem.Block{
-		Type:  "rsa public key",
+		Type:  "PUBLIC KEY",
 		Bytes: w.pubBytes.Bytes(),
 	}
 	txt := pem.EncodeToMemory(block)
@@ -71,7 +74,7 @@ func (w *RSA) ToFile(pubfile, prifile string) error {
 		return err
 	}
 	block = &pem.Block{
-		Type:  "rsa public key",
+		Type:  "RSA PRIVATE KEY",
 		Bytes: w.priBytes.Bytes(),
 	}
 	txt = pem.EncodeToMemory(block)
@@ -120,11 +123,12 @@ func (w *RSA) SetPrivateKey(key string) error {
 	if err != nil {
 		return err
 	}
-	w.priKey, err = x509.ParsePKCS1PrivateKey(bb)
+	priKey, err := x509.ParsePKCS8PrivateKey(bb)
 	if err != nil {
 		return err
 	}
 	w.priBytes = bb
+	w.priKey = priKey.(*rsa.PrivateKey)
 
 	if len(w.pubBytes) == 0 {
 		// 没有载入国pubkey，生成新的pubkey
@@ -221,8 +225,8 @@ func (w *RSA) Sign(b []byte) (CValue, error) {
 	return CValue(signature), nil
 }
 
-// VerySign 验证签名
-func (w *RSA) VerySign(signature, data []byte) (bool, error) {
+// VerifySign 验证签名
+func (w *RSA) VerifySign(signature, data []byte) (bool, error) {
 	if w.pubKey == nil {
 		return false, fmt.Errorf("no public key found")
 	}
@@ -232,22 +236,22 @@ func (w *RSA) VerySign(signature, data []byte) (bool, error) {
 	return err == nil, nil
 }
 
-// VerySignFromBase64 验证base64格式的签名
-func (w *RSA) VerySignFromBase64(signature string, data []byte) (bool, error) {
+// VerifySignFromBase64 验证base64格式的签名
+func (w *RSA) VerifySignFromBase64(signature string, data []byte) (bool, error) {
 	bb, err := base64.StdEncoding.DecodeString(signature)
 	if err != nil {
 		return false, err
 	}
-	return w.VerySign(bb, data)
+	return w.VerifySign(bb, data)
 }
 
-// VerySignFromHex 验证hexstring格式的签名
-func (w *RSA) VerySignFromHex(signature string, data []byte) (bool, error) {
+// VerifySignFromHex 验证hexstring格式的签名
+func (w *RSA) VerifySignFromHex(signature string, data []byte) (bool, error) {
 	bb, err := hex.DecodeString(signature)
 	if err != nil {
 		return false, err
 	}
-	return w.VerySign(bb, data)
+	return w.VerifySign(bb, data)
 }
 
 // Decrypt 兼容旧方法，直接解析base64字符串
