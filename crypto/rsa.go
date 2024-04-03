@@ -6,12 +6,16 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
+	"math/big"
+	"net"
 	"os"
 	"sync"
+	"time"
 )
 
 type RSABits byte
@@ -276,6 +280,93 @@ func (w *RSA) EncryptTo(s string) CValue {
 		return CValue([]byte{})
 	}
 	return x
+}
+
+// CreateCert 创建基于rsa算法的数字证书
+func (w *RSA) CreateCert(dns, ip []string) error {
+	// 检查私钥
+	if w.priKey == nil {
+		w.GenerateKey(RSA2048)
+	}
+	// 创建根证书
+	var rootCsr = &x509.Certificate{
+		Version:      3,
+		SerialNumber: big.NewInt(time.Now().Unix()),
+		Subject: pkix.Name{
+			Country:      []string{"CN"},
+			Province:     []string{"Shanghai"},
+			Locality:     []string{"Shanghai"},
+			Organization: []string{"xyzj"},
+			CommonName:   "xyzj",
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(68, 0, 0),
+		MaxPathLen:            1,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageDataEncipherment,
+		// ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+	}
+	var rootDer, txt []byte
+	var err error
+	rootDer, err = x509.CreateCertificate(rand.Reader, rootCsr, rootCsr, w.pubKey, w.priKey)
+	if err != nil {
+		return err
+	}
+	// 处理参数
+	if len(dns) == 0 {
+		dns = []string{"localhost"}
+	}
+	if len(ip) == 0 {
+		ip = []string{"127.0.0.1"}
+	}
+	var ips = make([]net.IP, 0, len(ip))
+	for _, v := range ip {
+		ips = append(ips, net.ParseIP(v))
+	}
+	// 创建服务器证书
+	var certCsr = &x509.Certificate{
+		Version:      3,
+		SerialNumber: big.NewInt(time.Now().Unix()),
+		Subject: pkix.Name{
+			Country:      []string{"CN"},
+			Province:     []string{"Shanghai"},
+			Locality:     []string{"Shanghai"},
+			Organization: []string{"xyzj"},
+			CommonName:   "xyzj",
+		},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().AddDate(68, 0, 0),
+		DNSNames:    dns,
+		IPAddresses: ips,
+		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageDataEncipherment,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+	}
+	certDer, err := x509.CreateCertificate(rand.Reader, certCsr, rootCsr, w.pubKey, w.priKey)
+	if err != nil {
+		return err
+	}
+	// 保存根证书
+	txt = pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: rootDer,
+	})
+	err = os.WriteFile("root.rsa.pem", txt, 0664)
+	if err != nil {
+		return err
+	}
+	// 保存网站证书
+	txt = pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certDer,
+	})
+	err = os.WriteFile("cert.rsa.pem", txt, 0664)
+	if err != nil {
+		return err
+	}
+	// 保存私钥
+	w.ToFile("", "cert-key.rsa.pem")
+	return nil
 }
 
 // NewRSA 创建一个新的rsa算法器

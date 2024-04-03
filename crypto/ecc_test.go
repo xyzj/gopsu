@@ -160,3 +160,13 @@ func TestECCSign(t *testing.T) {
 	b, _ := c.VerifySignFromBase64(s1, []byte(s))
 	println(b)
 }
+
+func TestECCert(t *testing.T) {
+	c := NewECC()
+	// c.SetPrivateKeyFromFile("cert-key.ec.pem")
+	err := c.CreateCert(nil, nil)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+}
