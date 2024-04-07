@@ -99,6 +99,17 @@ var (
 	sm3hash    = NewHash(HashSM3)
 )
 
+type CertOpt struct {
+	// 证书包含的域名清单
+	DNS []string `json:"dns"`
+	// 证书包含的ip清单
+	IP []string `json:"ip"`
+	// 根证书私钥，未指定或载入错误时，会重新生成私钥和根证书
+	RootKey string `json:"root-key"`
+	// 根证书，当私钥配置错误时，该参数无效
+	RootCa string `json:"root-ca"`
+}
+
 // String 内存地址转换[]byte
 func String(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))

@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	pidfile = flag.String("pid-file", "", "set the pid file path")
+	pidfile = flag.String("pid-file", "", "set the pid file path (from gocmd)")
 )
 
 // DefaultProgram Create a default console program, this program contains commands: `start`, `stop`, `restart`, `run`, `status`, `version`, `help`

@@ -9,28 +9,40 @@ import (
 )
 
 var (
-	conf = flag.String("config", "config.json", "config file for dns and ip")
-	cry  = flag.String("crypto", "ecc256", "crypto type, ecc256, ecc384, rsa2048, rsa4096")
+	conf   = flag.String("config", "config.json", "config file for dns and ip")
+	cry    = flag.String("crypto", "ecc256", "crypto type, ecc256, ecc384, rsa2048, rsa4096")
+	sample = flag.Bool("sample", false, "create a sample config file")
 )
 
-type jsonConf struct {
-	DNS []string `json:"dns"`
-	IP  []string `json:"ip"`
-}
-
 func main() {
-	flag.Parsed()
+	flag.Parse()
 	for _, v := range os.Args {
 		if v == "-h" || v == "--help" || v == "-help" {
 			flag.PrintDefaults()
 			return
 		}
 	}
+	if *sample {
+		cf := &crypto.CertOpt{
+			DNS:     []string{"localhost"},
+			IP:      []string{"127.0.0.1"},
+			RootKey: "root-key.ec.pem",
+			RootCa:  "root.ec.pem",
+		}
+		b, err := json.MarshalIndent(cf, "", "  ")
+		if err != nil {
+			println(err.Error())
+			return
+		}
+		os.WriteFile("config.json", b, 0664)
+		println("create sample config file done")
+		return
+	}
 	b, err := os.ReadFile(*conf)
 	if err != nil {
 		b = []byte("{}")
 	}
-	var cf = &jsonConf{
+	var cf = &crypto.CertOpt{
 		DNS: []string{},
 		IP:  []string{},
 	}
@@ -42,52 +54,33 @@ func main() {
 	switch *cry {
 	case "ecc384":
 		ec := crypto.NewECC()
-		_, _, err := ec.GenerateKey(crypto.ECSecp384r1)
-		if err != nil {
-			println("gen ecc-key error: " + err.Error())
-			return
-		}
-		err = ec.CreateCert(cf.DNS, cf.IP)
+		err = ec.CreateCert(cf)
 		if err != nil {
 			println("create ecc-cert error: " + err.Error())
 			return
 		}
 	case "rsa2048":
 		ec := crypto.NewRSA()
-		_, _, err := ec.GenerateKey(crypto.RSA2048)
-		if err != nil {
-			println("gen rsa-key error: " + err.Error())
-			return
-		}
-		err = ec.CreateCert(cf.DNS, cf.IP)
+		err = ec.CreateCert(cf)
 		if err != nil {
 			println("create rsa-cert error: " + err.Error())
 			return
 		}
 	case "rsa4096":
 		ec := crypto.NewRSA()
-		_, _, err := ec.GenerateKey(crypto.RSA4096)
-		if err != nil {
-			println("gen rsa-key error: " + err.Error())
-			return
-		}
-		err = ec.CreateCert(cf.DNS, cf.IP)
+		err = ec.CreateCert(cf)
 		if err != nil {
 			println("create rsa-cert error: " + err.Error())
 			return
 		}
 	default:
+		*cry = "ecc256"
 		ec := crypto.NewECC()
-		_, _, err := ec.GenerateKey(crypto.ECPrime256v1)
-		if err != nil {
-			println("gen ecc-key error: " + err.Error())
-			return
-		}
-		err = ec.CreateCert(cf.DNS, cf.IP)
+		err = ec.CreateCert(cf)
 		if err != nil {
 			println("create ecc-cert error: " + err.Error())
 			return
 		}
 	}
-	println("create cert file done.")
+	println("create " + *cry + " cert file done.")
 }

@@ -4,11 +4,15 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"io"
+	"net/http"
 	"os"
 	"testing"
+	"time"
 )
 
 func GenerateKey() {
@@ -163,10 +167,132 @@ func TestECCSign(t *testing.T) {
 
 func TestECCert(t *testing.T) {
 	c := NewECC()
-	// c.SetPrivateKeyFromFile("cert-key.ec.pem")
-	err := c.CreateCert(nil, nil)
+	err := c.CreateCert(&CertOpt{
+		IP:      []string{"172.17.0.8", "127.0.0.1"},
+		RootKey: "root-key.ec.pem",
+		RootCa:  "root.ec.pem",
+	})
 	if err != nil {
 		t.Fatal(err)
 		return
 	}
+}
+
+func TestTLS(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/tls", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("you are in"))
+	})
+	tl, err := GetServerTLSConfig("cert1.ec.pem", "cert1-key.ec.pem", "root.ec.pem")
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	svr := &http.Server{
+		Addr:      ":6820",
+		Handler:   mux,
+		TLSConfig: tl,
+	}
+	go svr.ListenAndServeTLS("", "")
+	time.Sleep(time.Second)
+	tl2, _ := GetClientTLSConfig("cert.ec.pem", "cert-key.ec.pem", "root.ec.pem")
+	tr := &http.Transport{
+		TLSClientConfig: tl2,
+	}
+	client := &http.Client{Transport: tr}
+	resp, err := client.Get("https://127.0.0.1:6820/tls")
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	defer resp.Body.Close()
+	msg, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	println(string(msg))
+}
+func GetServerTLSConfig(certfile, keyfile, clientca string) (*tls.Config, error) {
+	cliCrt, err := tls.LoadX509KeyPair(certfile, keyfile)
+	if err != nil {
+		return nil, err
+	}
+	tc := &tls.Config{
+		ClientAuth: tls.NoClientCert,
+		CipherSuites: []uint16{
+			tls.TLS_AES_128_GCM_SHA256,
+			tls.TLS_AES_256_GCM_SHA384,
+			tls.TLS_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+		},
+		Certificates: []tls.Certificate{cliCrt},
+	}
+	if clientca != "" {
+		caCrt, err := os.ReadFile(clientca)
+		if err != nil {
+			return nil, err
+		}
+		pool := x509.NewCertPool()
+		if pool.AppendCertsFromPEM(caCrt) {
+			tc.RootCAs = pool
+			tc.ClientCAs = pool
+			tc.ClientAuth = tls.RequireAndVerifyClientCert
+		}
+	}
+	return tc, nil
+}
+
+// GetClientTLSConfig 获取https配置
+//
+//	certfile: 双向验证时客户端证书
+//	keyfile: 双向验证时客户端key
+//	rootca: 服务端根证书
+func GetClientTLSConfig(certfile, keyfile, rootca string) (*tls.Config, error) {
+	tc := &tls.Config{
+		InsecureSkipVerify: true,
+		CipherSuites: []uint16{
+			tls.TLS_AES_128_GCM_SHA256,
+			tls.TLS_AES_256_GCM_SHA384,
+			tls.TLS_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+		}}
+	var err error
+	caCrt, err := os.ReadFile(rootca)
+	if err == nil {
+		pool := x509.NewCertPool()
+		if pool.AppendCertsFromPEM(caCrt) {
+			tc.RootCAs = pool
+		}
+	}
+	cliCrt, err := tls.LoadX509KeyPair(certfile, keyfile)
+	if err != nil {
+		return tc, nil
+	}
+	tc.Certificates = []tls.Certificate{cliCrt}
+	return tc, nil
 }
