@@ -619,3 +619,16 @@ func Days2String(days int) string {
 	}
 	return fmt.Sprintf("%d年%d个月%d天", y, m, d)
 }
+
+// Seconds2String 秒数转换成天，小时，分钟
+func Seconds2String(sec int64) string {
+	var days, hours, minutes int64
+	days = sec / 60 / 60 / 24
+	if a := sec - days*60*60*24; a > 0 {
+		hours = a / 60 / 60
+	}
+	if a := sec - days*60*60*24 - hours*60*60; a > 0 {
+		minutes = a / 60
+	}
+	return fmt.Sprintf("%d Days, %d Hours, %d Minutes", days, hours, minutes)
+}

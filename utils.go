@@ -1032,7 +1032,10 @@ func GetServerTLSConfig(certfile, keyfile, clientca string) (*tls.Config, error)
 		if err != nil {
 			return nil, err
 		}
-		pool := x509.NewCertPool()
+		pool, err := x509.SystemCertPool()
+		if err != nil {
+			pool = x509.NewCertPool()
+		}
 		if pool.AppendCertsFromPEM(caCrt) {
 			tc.ClientCAs = pool
 			tc.ClientAuth = tls.RequireAndVerifyClientCert
@@ -1070,7 +1073,10 @@ func GetClientTLSConfig(certfile, keyfile, rootca string) (*tls.Config, error) {
 	var err error
 	caCrt, err := os.ReadFile(rootca)
 	if err == nil {
-		pool := x509.NewCertPool()
+		pool, err := x509.SystemCertPool()
+		if err != nil {
+			pool = x509.NewCertPool()
+		}
 		if pool.AppendCertsFromPEM(caCrt) {
 			tc.RootCAs = pool
 		}
