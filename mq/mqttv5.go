@@ -110,13 +110,9 @@ func NewMQTTClientV5(opt *MqttOpt, logg logger.Logger, recvCallback func(topic s
 	if logg == nil {
 		logg = &logger.NilLogger{}
 	}
-	opt.ClientID += "_" + gopsu.GetRandomString(19, true)
-	// if len(opt.ClientID) > 22 {
-	// 	opt.ClientID = opt.ClientID[:22]
-	// }
 	if !strings.Contains(opt.Addr, "://") {
 		switch {
-		case strings.Contains(opt.Addr, ":1882"):
+		case strings.Contains(opt.Addr, ":1881"):
 			opt.Addr = "tls://" + opt.Addr
 		default: //case strings.Contains(opt.Addr,":1883"):
 			opt.Addr = "mqtt://" + opt.Addr
@@ -157,7 +153,7 @@ func NewMQTTClientV5(opt *MqttOpt, logg logger.Logger, recvCallback func(topic s
 		ConnectUsername: opt.Username,
 		ConnectPassword: []byte(opt.Passwd),
 		ClientConfig: paho.ClientConfig{
-			ClientID: opt.ClientID,
+			ClientID: opt.ClientID + "_" + gopsu.GetRandomString(19, true),
 			OnServerDisconnect: func(d *paho.Disconnect) {
 				st = false
 				if d.ReasonCode == 142 { // client id 重复

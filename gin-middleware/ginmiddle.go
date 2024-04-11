@@ -1,7 +1,6 @@
 package ginmiddleware
 
 import (
-	"context"
 	"encoding/base64"
 	"io"
 	"net"
@@ -10,7 +9,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -21,15 +19,16 @@ import (
 	"github.com/xyzj/gopsu/db"
 	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/pathtool"
-	"github.com/xyzj/gopsu/rate"
+	"go.uber.org/ratelimit"
 )
 
 // GetSocketTimeout 获取超时时间
 func GetSocketTimeout() time.Duration {
 	return getSocketTimeout()
 }
+
 func getSocketTimeout() time.Duration {
-	var t = 300
+	t := 300
 	b, err := os.ReadFile(".sockettimeout")
 	if err == nil {
 		t = gopsu.String2Int(gopsu.TrimString(gopsu.String(b)), 10)
@@ -125,13 +124,12 @@ func HideParams(params ...string) gin.HandlerFunc {
 // ReadParams 读取请求的参数，保存到c.Params
 func ReadParams() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var ct = strings.Split(c.GetHeader("Content-Type"), ";")[0]
+		ct := strings.Split(c.GetHeader("Content-Type"), ";")[0]
 		var bodyjs string
 		switch ct {
 		case "", "application/x-www-form-urlencoded", "application/json":
-			var x = url.Values{}
 			// 先检查url参数
-			x, _ = url.ParseQuery(c.Request.URL.RawQuery)
+			x, _ := url.ParseQuery(c.Request.URL.RawQuery)
 			// 检查body，若和url里面出现相同的关键字，以body内容为准
 			if b, err := io.ReadAll(c.Request.Body); err == nil {
 				ans := gjson.ParseBytes(b)
@@ -250,66 +248,17 @@ func TLSRedirect() gin.HandlerFunc {
 	}
 }
 
-// RateLimit 限流器，基于官方库
+// RateLimit 限流器，基于uber-go
 //
 //	r: 每秒可访问次数,1-100
 //	b: 缓冲区大小
 func RateLimit(r, b int) gin.HandlerFunc {
-	if r < 1 || r > 100 {
-		r = 5
+	if r < 1 || r > 500 {
+		r = 10
 	}
-	var limiter = rate.NewLimiter(rate.Every(time.Millisecond*time.Duration(1000/r)), b)
+	limiter := ratelimit.New(r, ratelimit.WithSlack(b))
 	return func(c *gin.Context) {
-		if !limiter.Allow() {
-			c.AbortWithStatus(http.StatusTooManyRequests)
-			return
-		}
-		c.Next()
-	}
-}
-
-// RateLimitWithIP ip限流器，基于官方库
-//
-//	r: 每秒可访问次数,1-100
-//	b: 缓冲区大小
-func RateLimitWithIP(r, b int) gin.HandlerFunc {
-	if r < 1 || r > 100 {
-		r = 5
-	}
-	var cliMap sync.Map
-	return func(c *gin.Context) {
-		limiter, _ := cliMap.LoadOrStore(c.ClientIP(), rate.NewLimiter(rate.Every(time.Millisecond*time.Duration(1000/r)), b))
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-		defer cancel()
-		if err := limiter.(*rate.Limiter).WaitN(ctx, 1); err != nil {
-			c.AbortWithStatus(http.StatusTooManyRequests)
-			return
-		}
-		// if !limiter.(*rate.Limiter).Allow() {
-		// 	c.AbortWithStatus(http.StatusTooManyRequests)
-		// 	return
-		// }
-		c.Next()
-	}
-}
-
-// RateLimitWithTimeout 超时限流器，基于官方库
-//
-//	r: 每秒可访问次数,1-100
-//	b: 缓冲区大小
-//	t: 超时时长
-func RateLimitWithTimeout(r, b int, t time.Duration) gin.HandlerFunc {
-	if r < 1 || r > 100 {
-		r = 5
-	}
-	var limiter = rate.NewLimiter(rate.Every(time.Millisecond*time.Duration(1000/r)), b)
-	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(context.Background(), t)
-		defer cancel()
-		if err := limiter.WaitN(ctx, 1); err != nil {
-			c.AbortWithStatus(http.StatusTooManyRequests)
-			return
-		}
+		limiter.Take()
 		c.Next()
 	}
 }
