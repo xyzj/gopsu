@@ -16,6 +16,8 @@ import (
 
 // MqttOpt mqtt 配置
 type MqttOpt struct {
+	// TLSConf 日志
+	Logg logger.Logger
 	// tls配置，默认为 InsecureSkipVerify: true
 	TLSConf *tls.Config
 	// 订阅消息，map[topic]qos
@@ -77,7 +79,7 @@ func (m *MqttClient) WriteWithQos(topic string, body []byte, qos byte) error {
 }
 
 // NewMQTTClient 创建一个mqtt客户端 3.11
-func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic string, body []byte)) (*MqttClient, error) {
+func NewMQTTClient(opt *MqttOpt, recvCallback func(topic string, body []byte)) (*MqttClient, error) {
 	if opt == nil {
 		return nil, fmt.Errorf("mqtt opt error")
 	}
@@ -94,8 +96,8 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 	if recvCallback == nil {
 		recvCallback = func(topic string, body []byte) {}
 	}
-	if logg == nil {
-		logg = &logger.NilLogger{}
+	if opt.Logg == nil {
+		opt.Logg = &logger.NilLogger{}
 	}
 
 	if opt.ClientID == "" {
@@ -104,8 +106,8 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 	if len(opt.ClientID) > 22 {
 		opt.ClientID = opt.ClientID[:22]
 	}
-	var needSub = len(opt.Subscribe) > 0
-	var doneSub = false
+	needSub := len(opt.Subscribe) > 0
+	doneSub := false
 	xopt := mqtt.NewClientOptions()
 	xopt.AddBroker("tcp://" + opt.Addr)
 	xopt.SetClientID(opt.ClientID)
@@ -115,16 +117,16 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 	xopt.SetWriteTimeout(opt.SendTimeo) // 发送3秒超时
 	xopt.SetConnectTimeout(time.Second * 10)
 	xopt.SetConnectionLostHandler(func(client mqtt.Client, err error) {
-		logg.Error(opt.Name + " connection lost, " + err.Error())
+		opt.Logg.Error(opt.Name + " connection lost, " + err.Error())
 		doneSub = false
 	})
 	xopt.SetOnConnectHandler(func(client mqtt.Client) {
-		logg.System(opt.Name + " Success connect to " + opt.Addr)
+		opt.Logg.System(opt.Name + " Success connect to " + opt.Addr)
 	})
 	client := mqtt.NewClient(xopt)
 	go loopfunc.LoopFunc(func(params ...interface{}) {
 		if token := client.Connect(); token.Wait() && token.Error() != nil {
-			logg.Error(opt.Name + " " + token.Error().Error())
+			opt.Logg.Error(opt.Name + " " + token.Error().Error())
 			panic(token.Error())
 		}
 		for {
@@ -132,16 +134,16 @@ func NewMQTTClient(opt *MqttOpt, logg logger.Logger, recvCallback func(topic str
 				client.SubscribeMultiple(opt.Subscribe, func(client mqtt.Client, msg mqtt.Message) {
 					defer func() {
 						if err := recover(); err != nil {
-							logg.Error(opt.Name + fmt.Sprintf(" %+v", errors.WithStack(err.(error))))
+							opt.Logg.Error(opt.Name + fmt.Sprintf(" %+v", errors.WithStack(err.(error))))
 						}
 					}()
-					logg.Debug(opt.Name + " DR:" + msg.Topic() + "; " + json.String(msg.Payload()))
+					opt.Logg.Debug(opt.Name + " DR:" + msg.Topic() + "; " + json.String(msg.Payload()))
 					recvCallback(msg.Topic(), msg.Payload())
 				})
 				doneSub = true
 			}
 			time.Sleep(time.Second * 20)
 		}
-	}, opt.Name, logg.DefaultWriter())
+	}, opt.Name, opt.Logg.DefaultWriter())
 	return &MqttClient{client: client}, nil
 }
