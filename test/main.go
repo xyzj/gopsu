@@ -13,7 +13,6 @@ import (
 	"errors"
 	"flag"
 	"io"
-	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -22,7 +21,6 @@ import (
 
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/config"
-	"github.com/xyzj/gopsu/crypto"
 	"github.com/xyzj/gopsu/json"
 )
 
@@ -65,6 +63,7 @@ func FormatMQBody(d []byte) string {
 	}, gopsu.String(d))
 	// return base64.StdEncoding.EncodeToString(d)
 }
+
 func test(a bool, b ...string) {
 	if len(b) == 0 {
 		println("no b")
@@ -112,14 +111,14 @@ func RSAGenKey(bits int) error {
 	if err != nil {
 		return err
 	}
-	//2、通过X509标准将得到的RAS私钥序列化为：ASN.1 的DER编码字符串
+	// 2、通过X509标准将得到的RAS私钥序列化为：ASN.1 的DER编码字符串
 	privateStream := x509.MarshalPKCS1PrivateKey(privateKey)
-	//3、将私钥字符串设置到pem格式块中
+	// 3、将私钥字符串设置到pem格式块中
 	block1 := pem.Block{
 		Type:  "private key",
 		Bytes: privateStream,
 	}
-	//4、通过pem将设置的数据进行编码，并写入磁盘文件
+	// 4、通过pem将设置的数据进行编码，并写入磁盘文件
 	fPrivate, err := os.Create("privateKey.pem")
 	if err != nil {
 		return err
@@ -135,7 +134,7 @@ func RSAGenKey(bits int) error {
 	*/
 	publicKey := privateKey.PublicKey
 	publicStream, err := x509.MarshalPKIXPublicKey(&publicKey)
-	//publicStream:=x509.MarshalPKCS1PublicKey(&publicKey)
+	// publicStream:=x509.MarshalPKCS1PublicKey(&publicKey)
 	block2 := pem.Block{
 		Type:  "public key",
 		Bytes: publicStream,
@@ -151,7 +150,7 @@ func RSAGenKey(bits int) error {
 
 // 对数据进行加密操作
 func EncyptogRSA(src []byte, path string) (res []byte, err error) {
-	//1.获取秘钥（从本地磁盘读取）
+	// 1.获取秘钥（从本地磁盘读取）
 	f, err := os.Open(path)
 	if err != nil {
 		return
@@ -165,13 +164,13 @@ func EncyptogRSA(src []byte, path string) (res []byte, err error) {
 	println(base64.StdEncoding.EncodeToString(block.Bytes))
 	bb, _ := base64.StdEncoding.DecodeString(`MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAzi1j6RjsQ/l0sSsR+SV5WVjl6QPRtd9X9flVwOS1pmRtpoEgvHSM6Q1tgdih/wXaFylgbNquULZ0Ld/8XPLHXY3nhW6fHmpd9O4oE4prGX7CKPLiQTatTy/S3vMbjR3lQP3mn+DAq4ygIWnnE4ZWCh4BvULuNp4ZPNUb8k2OX0wkidG+oAHmNqcRhvXWIFv3v80etgeOxjZXwLZjmMB+ZFWNaA4Ut8OCxXnxdNBt61EAxJsjWAWQ0aVLt8ZBp7yVolCz6thYPybNkjc3N/Oejt8pzpSgi5ZTBIBWRVJOhDC45okUCDXgXW6X5+UL7qFC54QGYcuKNcSgTIML+ZwGE/68G6mvIdUHG44nxbz9rfno02KNdFSxG0gTDNCqr/ifommR+nE/ggjvpJI6avrTldeyhzgUY/Q9/nuIdTyDYXWSbumE6iFaDagxQ8ay6EOCPE/bAdhsL99nT+v9xBG+FaHY9EOdi0TQsNmteu9L8l3+v6BDqn2Mt79tRob6nJu9zlbu8XFE5ASqRWUzLZ5Nxdr8eFHZGF3gHR/abVyNG8j4HAmFkkHlANg5nQnODukkyAWTJoYGcpqjSqOaJkyFk4mxmEf2SkXfI8reY8yx7niAbacy3DHhs6F9VF7M3GRMtymneQsqAihdQ2B8y9qT6KreEKmrCi/k9CmKLhrzFg8CAwEAAQ==`)
 	// 使用X509将解码之后的数据 解析出来
-	//x509.MarshalPKCS1PublicKey(block):解析之后无法用，所以采用以下方法：ParsePKIXPublicKey
-	keyInit, err := x509.ParsePKIXPublicKey(bb) //对应于生成秘钥的x509.MarshalPKIXPublicKey(&publicKey)
+	// x509.MarshalPKCS1PublicKey(block):解析之后无法用，所以采用以下方法：ParsePKIXPublicKey
+	keyInit, err := x509.ParsePKIXPublicKey(bb) // 对应于生成秘钥的x509.MarshalPKIXPublicKey(&publicKey)
 	// keyInit, err := x509.ParsePKCS1PublicKey(bb)
 	if err != nil {
 		return
 	}
-	//4.使用公钥加密数据
+	// 4.使用公钥加密数据
 	// pubKey := keyInit
 	pubKey := keyInit.(*rsa.PublicKey)
 	res, err = rsa.EncryptPKCS1v15(rand.Reader, pubKey, src)
@@ -180,7 +179,7 @@ func EncyptogRSA(src []byte, path string) (res []byte, err error) {
 
 // 对数据进行解密操作
 func DecrptogRSA(src []byte, path string) (res []byte, err error) {
-	//1.获取秘钥（从本地磁盘读取）
+	// 1.获取秘钥（从本地磁盘读取）
 	f, err := os.Open(path)
 	if err != nil {
 		return
@@ -189,8 +188,8 @@ func DecrptogRSA(src []byte, path string) (res []byte, err error) {
 	fileInfo, _ := f.Stat()
 	b := make([]byte, fileInfo.Size())
 	f.Read(b)
-	block, _ := pem.Decode(b)                                 //解码
-	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes) //还原数据
+	block, _ := pem.Decode(b)                                 // 解码
+	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes) // 还原数据
 	res, err = rsa.DecryptPKCS1v15(rand.Reader, privateKey, src)
 	return
 }
@@ -296,17 +295,30 @@ func chtest(ch chan string) {
 	time.Sleep(time.Second * 5)
 	println("chtest done")
 }
+
 func main() {
-	s := `/weather/v1/?district_id=310100&data_type=now&ak=SfWZA096ElVgQV070fuimwl4RBwxBm2g`
-	ens := url.QueryEscape(s)
-	println(s)
-	println(ens)
-	println(crypto.GetMD5(ens + "foKX3VXzsC9azTTlLgCRs59OxwdnvQYv"))
+	chana := make(chan int, 12)
+	t := time.NewTicker(time.Second * 3)
+	go func() {
+		for i := 0; i <= 10; i++ {
+			chana <- i
+			time.Sleep(time.Second)
+		}
+	}()
+	for {
+		select {
+		case msg := <-chana:
+			if msg%2 == 0 {
+				break
+			}
+			println(msg)
+		case <-t.C:
+			println("timetick")
+		}
+	}
 }
 
-var (
-	georep = strings.NewReplacer("(", "", ")", "", "POINT ", "", "POLYGON ", "", "LINESTRING ", "") // 经纬度字符串处理替换器
-)
+var georep = strings.NewReplacer("(", "", ")", "", "POINT ", "", "POLYGON ", "", "LINESTRING ", "") // 经纬度字符串处理替换器
 
 func text2Geo(s string) []*assetGeo {
 	geostr := strings.Split(georep.Replace(s), ", ")

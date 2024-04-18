@@ -106,10 +106,15 @@ func (ac *AnyCache[T]) StoreWithExpire(key string, value T, expire time.Duration
 	if ac.closed.Load() {
 		return fmt.Errorf("cache is closed")
 	}
-	ac.cache.Store(key, &cData[T]{
-		expire: time.Now().Add(expire),
-		data:   value,
-	})
+	if v, ok := ac.cache.LoadForUpdate(key); ok {
+		v.expire = time.Now().Add(expire)
+		v.data = value
+	} else {
+		ac.cache.Store(key, &cData[T]{
+			expire: time.Now().Add(expire),
+			data:   value,
+		})
+	}
 	return nil
 }
 

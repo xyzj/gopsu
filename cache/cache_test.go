@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"strconv"
 	"testing"
 	"time"
 )
@@ -13,11 +14,13 @@ type aaa struct {
 	Name Cache[bbb]
 }
 
-func TestCache(t *testing.T) {
-	a := &aaa{
-		Name: NewAnyCache[bbb](time.Minute),
+func BenchmarkCache(t *testing.B) {
+	a := NewAnyCache[*bbb](time.Hour)
+	t.ResetTimer()
+	for i := 0; i < 1000000; i++ {
+		a.Store(strconv.Itoa(i+1), &bbb{BBB: "string"})
 	}
-	time.Sleep(time.Second * 3)
-	a.Name.Close()
-	time.Sleep(time.Second)
+	// for i := 0; i < 1000000; i++ {
+	// 	a.Load(strconv.Itoa(i + 1))
+	// }
 }

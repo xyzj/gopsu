@@ -61,6 +61,7 @@ const (
 	// FileTimeFormat 日志文件命名格式 060102
 	FileTimeFormat = "060102" // 日志文件命名格式
 )
+
 const (
 	// CryptoMD5 md5算法
 	CryptoMD5 = iota
@@ -328,7 +329,7 @@ var (
 	ArchiveZlib ArchiveType = 1
 	// ArchiveGZip gzip压缩/解压缩
 	ArchiveGZip ArchiveType = 2
-	//ArchiveSnappy snappy压缩，解压缩
+	// ArchiveSnappy snappy压缩，解压缩
 	ArchiveSnappy ArchiveType = 3
 )
 
@@ -414,7 +415,7 @@ func (a *ArchiveWorker) Uncompress(src []byte) []byte {
 
 // CompressData 使用gzip，zlib压缩数据
 func CompressData(src []byte, t ArchiveType) []byte {
-	var in = &bytes.Buffer{}
+	in := &bytes.Buffer{}
 	switch t {
 	case ArchiveSnappy:
 		w := snappy.NewBufferedWriter(in)
@@ -434,7 +435,7 @@ func CompressData(src []byte, t ArchiveType) []byte {
 
 // UncompressData 使用gzip，zlib解压缩数据
 func UncompressData(src []byte, t ArchiveType, dstlen ...interface{}) []byte {
-	var out = &bytes.Buffer{}
+	out := &bytes.Buffer{}
 	switch t {
 	case ArchiveSnappy:
 		io.Copy(out, snappy.NewReader(bytes.NewReader(src)))
@@ -452,7 +453,7 @@ func UncompressData(src []byte, t ArchiveType, dstlen ...interface{}) []byte {
 
 // Base64URLDecode url解码
 func Base64URLDecode(data string) ([]byte, error) {
-	var missing = (4 - len(data)%4) % 4
+	missing := (4 - len(data)%4) % 4
 	data += strings.Repeat("=", missing)
 	res, err := base64.URLEncoding.DecodeString(data)
 	if err != nil {
@@ -607,9 +608,9 @@ func MakeRuntimeDirs(rootpath string) (string, string, string) {
 	default:
 		basepath = rootpath
 	}
-	os.MkdirAll(filepath.Join(basepath, "conf"), 0775)
-	os.MkdirAll(filepath.Join(basepath, "log"), 0775)
-	os.MkdirAll(filepath.Join(basepath, "cache"), 0775)
+	os.MkdirAll(filepath.Join(basepath, "conf"), 0o775)
+	os.MkdirAll(filepath.Join(basepath, "log"), 0o775)
+	os.MkdirAll(filepath.Join(basepath, "cache"), 0o775)
 	return filepath.Join(basepath, "conf"), filepath.Join(basepath, "log"), filepath.Join(basepath, "cache")
 }
 
@@ -846,7 +847,7 @@ func VersionInfo(name, ver, gover, buildDate, buildOS, auth string) string {
 //		a: auth name
 func WriteVersionInfo(p, v, gv, bd, pl, a string) {
 	fn, _ := os.Executable()
-	f, _ := os.OpenFile(fmt.Sprintf("%s.ver", fn), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0444)
+	f, _ := os.OpenFile(fmt.Sprintf("%s.ver", fn), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o444)
 	defer f.Close()
 	f.WriteString(fmt.Sprintf("\n%s\r\nVersion:\t%s\r\nGo version:\t%s\r\nBuild date:\t%s\r\nBuild OS:\t%s\r\nCode by:\t%s\r\nStart with:\t%s", p, v, gv, pl, bd, a, strings.Join(os.Args[1:], " ")))
 }
@@ -1069,7 +1070,8 @@ func GetClientTLSConfig(certfile, keyfile, rootca string) (*tls.Config, error) {
 			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
 			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
-		}}
+		},
+	}
 	var err error
 	caCrt, err := os.ReadFile(rootca)
 	if err == nil {
@@ -1147,7 +1149,7 @@ func UnZIPFile(archive, target string) error {
 		return err
 	}
 	if target != "" {
-		if err := os.MkdirAll(target, 0775); err != nil {
+		if err := os.MkdirAll(target, 0o775); err != nil {
 			return err
 		}
 	} else {
@@ -1157,7 +1159,7 @@ func UnZIPFile(archive, target string) error {
 	for _, file := range reader.File {
 		path := filepath.Join(target, file.Name)
 		if file.FileInfo().IsDir() {
-			os.MkdirAll(path, 0775)
+			os.MkdirAll(path, 0o775)
 			continue
 		}
 
@@ -1167,7 +1169,7 @@ func UnZIPFile(archive, target string) error {
 		}
 		defer fileReader.Close()
 
-		targetFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0664)
+		targetFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o664)
 		if err != nil {
 			return err
 		}
@@ -1370,7 +1372,7 @@ func GetTCPPort() (int, error) {
 		return 0, err
 	}
 	var listener *net.TCPListener
-	var found = false
+	found := false
 	for i := 0; i < 100; i++ {
 		listener, err = net.ListenTCP("tcp", address)
 		if err != nil {
@@ -1416,7 +1418,7 @@ func Bytes(s string) []byte {
 func FormatFileSize(byteSize uint64) (size string) {
 	fileSize := float64(byteSize)
 	if fileSize < 1024 {
-		//return strconv.FormatInt(fileSize, 10) + "B"
+		// return strconv.FormatInt(fileSize, 10) + "B"
 		return fmt.Sprintf("%.2f B", fileSize/1)
 	} else if fileSize < (1024 * 1024) {
 		return fmt.Sprintf("%.2f KB", fileSize/1024)
@@ -1426,7 +1428,7 @@ func FormatFileSize(byteSize uint64) (size string) {
 		return fmt.Sprintf("%.2f GB", fileSize/(1024*1024*1024))
 	} else if fileSize < (1024 * 1024 * 1024 * 1024 * 1024) {
 		return fmt.Sprintf("%.2f TB", fileSize/(1024*1024*1024*1024))
-	} else { //if fileSize < (1024 * 1024 * 1024 * 1024 * 1024 * 1024)
+	} else { // if fileSize < (1024 * 1024 * 1024 * 1024 * 1024 * 1024)
 		return fmt.Sprintf("%.2f EB", fileSize/(1024*1024*1024*1024*1024))
 	}
 }
@@ -1461,4 +1463,12 @@ func PB2String(pb interface{}) string {
 func JSON2PB(js string, pb interface{}) error {
 	err := json.Unmarshal(Bytes(js), &pb)
 	return err
+}
+
+func DumpReqBody(req *http.Request) ([]byte, error) {
+	body, err := req.GetBody()
+	if err != nil {
+		return []byte{}, err
+	}
+	return io.ReadAll(body)
 }
