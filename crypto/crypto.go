@@ -10,10 +10,12 @@ import (
 	"unsafe"
 )
 
-type HashType byte
-type AESType byte
-type RSAType byte
-type SM4Type byte
+type (
+	HashType byte
+	AESType  byte
+	RSAType  byte
+	SM4Type  byte
+)
 
 // CValue 加密后的数据，可输出[]byte,hex string,base64string
 type CValue []byte

@@ -188,7 +188,7 @@ func Time2Stampf(s, fmt string, tz float32) int64 {
 		_, t := time.Now().Zone()
 		tz = float32(t / 3600)
 	}
-	var loc = time.FixedZone("", int((time.Duration(tz) * time.Hour).Seconds()))
+	loc := time.FixedZone("", int((time.Duration(tz) * time.Hour).Seconds()))
 	tm, ex := time.ParseInLocation(fmt, s, loc)
 	if ex != nil {
 		return 0
@@ -262,7 +262,7 @@ func Int82Bcd(v byte) byte {
 
 // Uint642Bytes 长整形转换字节数组（8位），bigOrder==true，高位在前
 func Uint642Bytes(i uint64, bigOrder bool) []byte {
-	var buf = make([]byte, 8)
+	buf := make([]byte, 8)
 	if bigOrder {
 		binary.BigEndian.PutUint64(buf, i)
 	} else {
@@ -307,7 +307,7 @@ func Base64Imgfile(b, f string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(f, a, 0666)
+	return os.WriteFile(f, a, 0o666)
 }
 
 // SplitStringWithLen 按制定长度分割字符串
@@ -316,7 +316,7 @@ func Base64Imgfile(b, f string) error {
 //	l-切割长度
 func SplitStringWithLen(s string, l int) []string {
 	rs := []rune(s)
-	var ss = make([]string, 0)
+	ss := make([]string, 0)
 	xs := ""
 	for k, v := range rs {
 		xs = xs + string(v)
@@ -341,7 +341,7 @@ func HexString2Bytes(s string, bigorder bool) []byte {
 		s = "0" + s
 	}
 	ss := SplitStringWithLen(s, 2)
-	var b = make([]byte, len(ss))
+	b := make([]byte, len(ss))
 	if bigorder {
 		for k, v := range ss {
 			b[k] = String2Byte(v, 16)
@@ -434,7 +434,7 @@ func Float642BcdBytes(v float64, f string) []byte {
 //	d：小数位数
 //	Unsigned：无符号的
 func BcdBytes2Float64(b []byte, decimal int, unsigned bool) float64 {
-	var negative = false
+	negative := false
 	var s string
 	for k, v := range b {
 		if k == len(b)-1 { // 最后一位，判正负
@@ -485,7 +485,7 @@ func Float642BcdBytesBigOrder(v float64, f string) []byte {
 //	d：小数位数
 //	Unsigned：无符号的
 func BcdBytes2Float64BigOrder(b []byte, decimal int, unsigned bool) float64 {
-	var negative = false
+	negative := false
 	var s string
 	for k, v := range b {
 		if k == len(b)-1 { // 最后一位，判正负
@@ -538,7 +538,7 @@ func SignedInt322Byte(i int32) byte {
 
 // BcdDT2Stamp bcd时间戳转unix
 func BcdDT2Stamp(d []byte) int64 {
-	var f = "0601021504"
+	f := "0601021504"
 	if len(d) == 6 {
 		f = "060102150405"
 	}
@@ -611,13 +611,15 @@ func Days2String(days int) string {
 	if d < 0 {
 		d = 0
 	}
-	if y == 0 {
-		if m == 0 {
-			return fmt.Sprintf("%d天", d)
-		}
-		return fmt.Sprintf("%d个月%d天", m, d)
+	out := []string{}
+	if y > 0 {
+		out = append(out, fmt.Sprintf("%d Years", y))
 	}
-	return fmt.Sprintf("%d年%d个月%d天", y, m, d)
+	if m > 0 {
+		out = append(out, fmt.Sprintf("%d Months", m))
+	}
+	out = append(out, fmt.Sprintf("%d Days", d))
+	return strings.Join(out, ", ")
 }
 
 // Seconds2String 秒数转换成天，小时，分钟
@@ -630,5 +632,13 @@ func Seconds2String(sec int64) string {
 	if a := sec - days*60*60*24 - hours*60*60; a > 0 {
 		minutes = a / 60
 	}
-	return fmt.Sprintf("%d Days, %d Hours, %d Minutes", days, hours, minutes)
+	out := []string{}
+	if days > 0 {
+		out = append(out, fmt.Sprintf("%d Days", days))
+	}
+	if hours > 0 {
+		out = append(out, fmt.Sprintf("%d Hours", hours))
+	}
+	out = append(out, fmt.Sprintf("%d Minutes", minutes))
+	return strings.Join(out, ", ")
 }

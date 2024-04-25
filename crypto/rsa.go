@@ -74,7 +74,7 @@ func (w *RSA) ToFile(pubfile, prifile string) error {
 		Bytes: w.pubBytes.Bytes(),
 	}
 	txt := pem.EncodeToMemory(block)
-	err := os.WriteFile(pubfile, txt, 0644)
+	err := os.WriteFile(pubfile, txt, 0o644)
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func (w *RSA) ToFile(pubfile, prifile string) error {
 		Bytes: w.priBytes.Bytes(),
 	}
 	txt = pem.EncodeToMemory(block)
-	err = os.WriteFile(prifile, txt, 0644)
+	err = os.WriteFile(prifile, txt, 0o644)
 	return err
 }
 
@@ -298,7 +298,7 @@ func (w *RSA) CreateCert(opt *CertOpt) error {
 	if len(opt.IP) == 0 {
 		opt.IP = []string{"127.0.0.1"}
 	}
-	var ips = make([]net.IP, 0, len(opt.IP))
+	ips := make([]net.IP, 0, len(opt.IP))
 	sort.Slice(opt.IP, func(i, j int) bool {
 		return opt.IP[i] < opt.IP[j]
 	})
@@ -353,7 +353,7 @@ func (w *RSA) CreateCert(opt *CertOpt) error {
 		return err
 	}
 	// 创建服务器证书
-	var certCsr = &x509.Certificate{
+	certCsr := &x509.Certificate{
 		Version:      3,
 		SerialNumber: big.NewInt(time.Now().Unix()),
 		Subject: pkix.Name{
@@ -381,7 +381,7 @@ func (w *RSA) CreateCert(opt *CertOpt) error {
 		Type:  "CERTIFICATE",
 		Bytes: certDer,
 	})
-	err = os.WriteFile("cert.rsa.pem", txt, 0664)
+	err = os.WriteFile("cert.rsa.pem", txt, 0o664)
 	if err != nil {
 		return err
 	}
@@ -394,7 +394,7 @@ func (w *RSA) CreateCert(opt *CertOpt) error {
 		Type:  "RSA PRIVATE KEY",
 		Bytes: txt,
 	})
-	err = os.WriteFile("cert-key.rsa.pem", txt, 0664)
+	err = os.WriteFile("cert-key.rsa.pem", txt, 0o664)
 	if err != nil {
 		return err
 	}
@@ -405,7 +405,7 @@ func (w *RSA) CreateCert(opt *CertOpt) error {
 			Type:  "CERTIFICATE",
 			Bytes: rootDer,
 		})
-		err = os.WriteFile("root.rsa.pem", txt, 0664)
+		err = os.WriteFile("root.rsa.pem", txt, 0o664)
 		if err != nil {
 			return err
 		}

@@ -83,7 +83,7 @@ func (w *ECC) ToFile(pubfile, prifile string) error {
 			Bytes: w.pubBytes.Bytes(),
 		}
 		txt := pem.EncodeToMemory(block)
-		err := os.WriteFile(pubfile, txt, 0644)
+		err := os.WriteFile(pubfile, txt, 0o644)
 		if err != nil {
 			return err
 		}
@@ -94,7 +94,7 @@ func (w *ECC) ToFile(pubfile, prifile string) error {
 			Bytes: w.priBytes.Bytes(),
 		}
 		txt := pem.EncodeToMemory(block)
-		return os.WriteFile(prifile, txt, 0644)
+		return os.WriteFile(prifile, txt, 0o644)
 	}
 	return nil
 }
@@ -289,7 +289,7 @@ func (w *ECC) CreateCert(opt *CertOpt) error {
 	if len(opt.IP) == 0 {
 		opt.IP = []string{"127.0.0.1"}
 	}
-	var ips = make([]net.IP, 0, len(opt.IP))
+	ips := make([]net.IP, 0, len(opt.IP))
 	sort.Slice(opt.IP, func(i, j int) bool {
 		return opt.IP[i] < opt.IP[j]
 	})
@@ -344,7 +344,7 @@ func (w *ECC) CreateCert(opt *CertOpt) error {
 		return err
 	}
 	// 创建服务器证书
-	var certCsr = &x509.Certificate{
+	certCsr := &x509.Certificate{
 		Version:      3,
 		SerialNumber: big.NewInt(time.Now().Unix()),
 		Subject: pkix.Name{
@@ -372,7 +372,7 @@ func (w *ECC) CreateCert(opt *CertOpt) error {
 		Type:  "CERTIFICATE",
 		Bytes: certDer,
 	})
-	err = os.WriteFile("cert.ec.pem", txt, 0664)
+	err = os.WriteFile("cert.ec.pem", txt, 0o664)
 	if err != nil {
 		return err
 	}
@@ -385,7 +385,7 @@ func (w *ECC) CreateCert(opt *CertOpt) error {
 		Type:  "EC PRIVATE KEY",
 		Bytes: txt,
 	})
-	err = os.WriteFile("cert-key.ec.pem", txt, 0664)
+	err = os.WriteFile("cert-key.ec.pem", txt, 0o664)
 	if err != nil {
 		return err
 	}
@@ -396,7 +396,7 @@ func (w *ECC) CreateCert(opt *CertOpt) error {
 			Type:  "CERTIFICATE",
 			Bytes: rootDer,
 		})
-		err = os.WriteFile("root.ec.pem", txt, 0664)
+		err = os.WriteFile("root.ec.pem", txt, 0o664)
 		if err != nil {
 			return err
 		}

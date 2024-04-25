@@ -54,14 +54,14 @@ func (w *SM2) GenerateKey() (CValue, CValue, error) {
 func (w *SM2) ToFile(pubfile, prifile string) error {
 	if pubfile != "" {
 		txt, _ := x509.WritePublicKeyToPem(w.pubKey)
-		err := os.WriteFile(pubfile, txt, 0644)
+		err := os.WriteFile(pubfile, txt, 0o644)
 		if err != nil {
 			return err
 		}
 	}
 	if prifile != "" {
 		txt, _ := x509.WritePrivateKeyToPem(w.priKey, nil)
-		return os.WriteFile(prifile, txt, 0644)
+		return os.WriteFile(prifile, txt, 0o644)
 	}
 	return nil
 }
@@ -84,10 +84,8 @@ func (w *SM2) SetPublicKey(key string) error {
 	if err != nil {
 		return err
 	}
-	println(key)
 	pubKey, err := x509.ParseSm2PublicKey(bb)
 	if err != nil {
-		println("==========", err.Error())
 		return err
 	}
 	w.pubKey = pubKey

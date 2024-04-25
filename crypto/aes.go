@@ -38,7 +38,7 @@ func (w *AES) SetPadding(p Padding) {
 // SetKeyIV 设置iv和key
 // 如果不设置iv，会生成随机iv并追加在加密结果的头部
 func (w *AES) SetKeyIV(key, iv string) error {
-	var l = 16
+	l := 16
 	switch w.workType {
 	case AES192CBC, AES192CFB, AES192ECB:
 		l = 24
@@ -48,7 +48,7 @@ func (w *AES) SetKeyIV(key, iv string) error {
 	if len(key) < l {
 		return fmt.Errorf("key length must be longer than %d", l)
 	}
-	var biv = Bytes(iv)
+	biv := Bytes(iv)
 	switch w.workType {
 	case AES128ECB, AES192ECB, AES256ECB:
 	default:
@@ -73,9 +73,9 @@ func (w *AES) Encode(b []byte) (CValue, error) {
 	}
 	w.locker.Lock()
 	defer w.locker.Unlock()
-	var content = w.padding(b, aes.BlockSize)
+	content := w.padding(b, aes.BlockSize)
 	var crypted []byte
-	var idx = 0
+	idx := 0
 	if w.appendiv {
 		crypted = make([]byte, aes.BlockSize+len(content))
 		copy(crypted, w.iv)
