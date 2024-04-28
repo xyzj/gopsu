@@ -63,9 +63,9 @@ func (d *Conn) QueryMultirowPage(dbidx int, s string, rowsCount int, keyColumeID
 		scanArgs[i] = &values[i]
 	}
 	queryCache.Rows = make([]*QueryDataRow, 0)
-	var rowIdx = 0
-	var limit = 0
-	var realIdx = 0
+	rowIdx := 0
+	limit := 0
+	realIdx := 0
 	var keyItem string
 	for rows.Next() {
 		err := rows.Scan(scanArgs...)
@@ -212,7 +212,7 @@ func (d *Conn) QueryFirstPageByDB(dbidx int, s string, rowsCount int, params ...
 	if rowsCount == 0 {
 		return d.QueryByDB(dbidx, s, rowsCount, params...)
 	}
-	var ch = make(chan *QueryDataChan, 1)
+	ch := make(chan *QueryDataChan, 1)
 	ctx, cancel := context.WithTimeout(context.Background(), d.cfg.Timeout)
 	go d.queryDataChan(ctx, cancel, sqldb, ch, s, rowsCount, params...)
 	select {
@@ -234,9 +234,9 @@ func (d *Conn) QueryByDB(dbidx int, s string, rowsCount int, params ...interface
 	if err != nil {
 		return nil, err
 	}
-	var ch = make(chan *QueryDataChan, 1)
+	ch := make(chan *QueryDataChan, 1)
 	ctx, cancel := context.WithTimeout(context.Background(), d.cfg.Timeout)
-	var qd = newResult()
+	qd := newResult()
 	go d.queryDataChan(ctx, cancel, sqldb, ch, s, rowsCount, params...)
 	var q *QueryDataChan
 ANS:
@@ -267,11 +267,10 @@ func (d *Conn) queryDataChan(ctx context.Context, done context.CancelFunc, sqldb
 	if rowsCount < 0 {
 		rowsCount = 0
 	}
-	var rowIdx = 0
+	rowIdx := 0
 	// 查询数据集
 	rows, err := sqldb.QueryContext(ctx, s, params...)
 	if err != nil {
-		println("+++++++++=", err.Error())
 		ch <- &QueryDataChan{
 			Data:  newResult(),
 			Err:   err,
@@ -346,7 +345,8 @@ func (d *Conn) queryDataChan(ctx context.Context, done context.CancelFunc, sqldb
 					Rows:     queryCache.Rows[:rowIdx],
 					Total:    queryCache.Total,
 					CacheTag: queryCache.CacheTag,
-					Columns:  queryCache.Columns},
+					Columns:  queryCache.Columns,
+				},
 				Err:   nil,
 				Total: &rowIdx,
 			}

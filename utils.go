@@ -50,9 +50,9 @@ const (
 	OSARCH = runtime.GOARCH
 	// DateTimeFormat yyyy-mm-dd hh:MM:ss
 	DateTimeFormat = "2006-01-02 15:04:05"
-	// DateOnlyFormat yyyy-mm-dd hh:MM:ss
+	// DateOnlyFormat yyyy-mm-dd
 	DateOnlyFormat = "2006-01-02"
-	// TimeOnlyFormat yyyy-mm-dd hh:MM:ss
+	// TimeOnlyFormat hh:MM:ss
 	TimeOnlyFormat = "15:04:05"
 	// LongTimeFormat 含日期的日志内容时间戳格式 2006-01-02 15:04:05.000
 	LongTimeFormat = "2006-01-02 15:04:05.000"

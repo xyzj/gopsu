@@ -618,7 +618,11 @@ func Days2String(days int) string {
 	if m > 0 {
 		out = append(out, fmt.Sprintf("%d Months", m))
 	}
-	out = append(out, fmt.Sprintf("%d Days", d))
+	if d == 0 {
+		out = append(out, "less than a day")
+	} else {
+		out = append(out, fmt.Sprintf("%d Days", d))
+	}
 	return strings.Join(out, ", ")
 }
 
@@ -639,6 +643,10 @@ func Seconds2String(sec int64) string {
 	if hours > 0 {
 		out = append(out, fmt.Sprintf("%d Hours", hours))
 	}
-	out = append(out, fmt.Sprintf("%d Minutes", minutes))
+	if minutes == 0 && hours == 0 && days == 0 {
+		out = append(out, "less than a minute")
+	} else {
+		out = append(out, fmt.Sprintf("%d Minutes", minutes))
+	}
 	return strings.Join(out, ", ")
 }

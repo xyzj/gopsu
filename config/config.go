@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/mapfx"
@@ -68,6 +70,12 @@ func (f *File) Keys() []string {
 	// return ss
 }
 
+// Clean 清空配置项
+func (f *File) Clean() {
+	f.items.Clean()
+	f.data.Reset()
+}
+
 // DelItem 删除配置项
 func (f *File) DelItem(key string) {
 	f.items.Delete(key)
@@ -122,7 +130,7 @@ func (f *File) Has(key string) bool {
 
 // Print 返回所有配置项
 func (f *File) Print() string {
-	var x = make([]*Item, 0, f.items.Len())
+	x := make([]*Item, 0, f.items.Len())
 	f.items.ForEach(func(key string, value *Item) bool {
 		x = append(x, value)
 		return true
@@ -135,6 +143,18 @@ func (f *File) Print() string {
 		f.data.WriteString(v.String())
 	}
 	return f.data.String()
+}
+
+func (f *File) PrintJSON() string {
+	var js string
+	f.items.ForEach(func(key string, value *Item) bool {
+		it, _ := sjson.Set("", "key", key)
+		it, _ = sjson.Set(it, "value", value.Value.String())
+		it, _ = sjson.Set(it, "comment", value.Comment)
+		js, _ = sjson.Set(js, "data.-1", gjson.Parse(it).Value())
+		return true
+	})
+	return js
 }
 
 // GetAll 返回所有配置项
@@ -201,6 +221,12 @@ func (f *File) FromFile(configfile string) error {
 	return nil
 }
 
+// SaveTo 将配置写入指定文件，依据文件扩展名判断写入格式
+func (f *File) SaveTo(filename string) error {
+	f.filepath = filename
+	return f.ToFile()
+}
+
 // Save 将配置写入文件，依据文件扩展名判断写入格式
 func (f *File) Save() error {
 	return f.ToFile()
@@ -215,7 +241,7 @@ func (f *File) ToFile() error {
 		return f.ToJSON()
 	}
 	f.Print()
-	return os.WriteFile(f.filepath, f.data.Bytes(), 0644)
+	return os.WriteFile(f.filepath, f.data.Bytes(), 0o644)
 }
 
 // ToYAML 保存为yaml格式文件
@@ -224,7 +250,7 @@ func (f *File) ToYAML() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(f.filepath, b, 0644)
+	return os.WriteFile(f.filepath, b, 0o644)
 }
 
 // ToJSON 保存为json格式文件
@@ -233,7 +259,7 @@ func (f *File) ToJSON() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(f.filepath, b, 0644)
+	return os.WriteFile(f.filepath, b, 0o644)
 }
 
 func (f *File) fromYAML(b []byte) error {
