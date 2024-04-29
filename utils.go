@@ -16,6 +16,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"crypto/subtle"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -1477,4 +1478,29 @@ func DumpReqBody(req *http.Request) ([]byte, error) {
 		return []byte{}, err
 	}
 	return io.ReadAll(body)
+}
+
+func HTTPBasicAuth(namemap map[string]string, next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username, password, ok := r.BasicAuth()
+		if ok {
+			usernameHash := sha256.Sum256([]byte(username))
+			passwordHash := sha256.Sum256([]byte(password))
+			for k, v := range namemap {
+				expectedUsernameHash := sha256.Sum256([]byte(k))
+				expectedPasswordHash := sha256.Sum256([]byte(v))
+
+				usernameMatch := (subtle.ConstantTimeCompare(usernameHash[:], expectedUsernameHash[:]) == 1)
+				passwordMatch := (subtle.ConstantTimeCompare(passwordHash[:], expectedPasswordHash[:]) == 1)
+
+				if usernameMatch && passwordMatch {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+		}
+
+		w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	})
 }
