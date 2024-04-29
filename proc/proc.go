@@ -2,6 +2,8 @@
 package proc
 
 import (
+	"bytes"
+	_ "embed"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,16 +12,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-echarts/go-echarts/v2/charts"
+	"github.com/go-echarts/go-echarts/v2/components"
 	"github.com/go-echarts/go-echarts/v2/opts"
-	"github.com/go-echarts/go-echarts/v2/types"
 	"github.com/mohae/deepcopy"
 	"github.com/shirou/gopsutil/process"
 	"github.com/tidwall/sjson"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/cache"
+	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/logger"
 	"github.com/xyzj/gopsu/loopfunc"
 )
+
+//go:embed echarts.min.js
+var echarts []byte
 
 type procStatus struct {
 	dt     string
@@ -45,15 +51,11 @@ func (ps *procStatus) JSON() string {
 	return js
 }
 
-var (
-	procCache = cache.NewAnyCache[*procStatus](time.Hour * 24)
-	lastProc  = &procStatus{}
-)
-
 type RecordOpt struct {
-	Logg  logger.Logger
-	Timer time.Duration
-	Name  string
+	Logg        logger.Logger
+	Timer       time.Duration
+	DataTimeout time.Duration
+	Name        string
 }
 type Recorder struct {
 	lastProc  *procStatus
@@ -72,10 +74,16 @@ func NewRecorder(opt *RecordOpt) *Recorder {
 	if opt.Timer < time.Second*10 {
 		opt.Timer = time.Second * 60
 	}
+	if opt.DataTimeout < time.Minute {
+		opt.DataTimeout = time.Minute
+	}
+	if opt.DataTimeout > time.Hour*24*366 {
+		opt.DataTimeout = time.Hour * 24 * 366
+	}
 	r := &Recorder{
 		opt:       opt,
 		lastProc:  &procStatus{},
-		procCache: cache.NewAnyCache[*procStatus](time.Hour * 24),
+		procCache: cache.NewAnyCache[*procStatus](opt.DataTimeout),
 	}
 	go loopfunc.LoopFunc(func(params ...interface{}) {
 		var proc *process.Process
@@ -89,17 +97,16 @@ func NewRecorder(opt *RecordOpt) *Recorder {
 					return
 				}
 			}
-			lastProc.Cpup, _ = proc.CPUPercent()
-			lastProc.Memp, _ = proc.MemoryPercent()
+			r.lastProc.Cpup, _ = proc.CPUPercent()
+			r.lastProc.Memp, _ = proc.MemoryPercent()
 			memi, _ = proc.MemoryInfo()
 			if memi == nil {
 				memi = &process.MemoryInfoStat{}
 			}
-			lastProc.Memrss = memi.RSS
-			lastProc.Memvms = memi.VMS
-			procCache.Store(time.Now().Format("01-02 15:04:05"), deepcopy.Copy(lastProc).(*procStatus))
+			r.lastProc.Memrss = memi.RSS
+			r.lastProc.Memvms = memi.VMS
+			r.procCache.Store(time.Now().Format("01-02 15:04:05"), deepcopy.Copy(r.lastProc).(*procStatus))
 		}
-		f()
 		t := time.NewTicker(r.opt.Timer)
 		c := 0
 		for range t.C {
@@ -107,7 +114,7 @@ func NewRecorder(opt *RecordOpt) *Recorder {
 			c++
 			if c%30 == 0 {
 				c = 0
-				opt.Logg.Info("[PROC] " + lastProc.String())
+				opt.Logg.Info("[PROC] " + r.lastProc.String())
 			}
 		}
 	}, "proc", opt.Logg.DefaultWriter())
@@ -115,8 +122,8 @@ func NewRecorder(opt *RecordOpt) *Recorder {
 }
 
 func (r *Recorder) GinHandler(c *gin.Context) {
-	js := make([]*procStatus, 0, procCache.Len())
-	procCache.ForEach(func(key string, value *procStatus) bool {
+	js := make([]*procStatus, 0, r.procCache.Len())
+	r.procCache.ForEach(func(key string, value *procStatus) bool {
 		value.dt = key
 		js = append(js, value)
 		return true
@@ -150,8 +157,8 @@ func (r *Recorder) GinHandler(c *gin.Context) {
 		}
 		line1 := charts.NewLine()
 		line1.SetGlobalOptions(SetupLineGOpts(&LineOpt{
-			PageTitle:   "进程资源记录" + nametail,
-			Name:        "CPU、内存占用" + nametail,
+			PageTitle:   "Process Records" + nametail,
+			Name:        "CPU & MEM Use" + nametail,
 			Total:       float32(l),
 			TTFormatter: "{a0}: <b>{b0}</b><br>{a1}: <b>{b1}</b>",
 			YFormatter:  "{value} %",
@@ -160,10 +167,10 @@ func (r *Recorder) GinHandler(c *gin.Context) {
 		line1.SetXAxis(x)
 		line1.AddSeries("cpu", cpu).SetSeriesOptions(SetupLineSOpts()...)
 		line1.AddSeries("mem", mem).SetSeriesOptions(SetupLineSOpts()...)
-		line1.Render(c.Writer)
+
 		lineRss := charts.NewLine()
 		lineRss.SetGlobalOptions(SetupLineGOpts(&LineOpt{
-			Name:        "物理内存使用" + nametail,
+			Name:        "Resident Set Size" + nametail,
 			Total:       float32(l),
 			TTFormatter: "<b>{b}</b>",
 			YFormatter:  "{value} MB",
@@ -174,10 +181,10 @@ func (r *Recorder) GinHandler(c *gin.Context) {
 			SetSeriesOptions(SetupLineSOpts(charts.WithAreaStyleOpts(opts.AreaStyle{
 				Opacity: 0.2,
 			}))...)
-		lineRss.Render(c.Writer)
+
 		lineVms := charts.NewLine()
 		lineVms.SetGlobalOptions(SetupLineGOpts(&LineOpt{
-			Name:        "虚拟内存分配" + nametail,
+			Name:        "Virtual Memory Size" + nametail,
 			Total:       float32(l),
 			TTFormatter: "<b>{b}</b>",
 			YFormatter:  "{value} MB",
@@ -188,13 +195,18 @@ func (r *Recorder) GinHandler(c *gin.Context) {
 			SetSeriesOptions(SetupLineSOpts(charts.WithAreaStyleOpts(opts.AreaStyle{
 				Opacity: 0.2,
 			}))...)
-		lineVms.Render(c.Writer)
+		a := components.NewPage()
+		a.PageTitle = "Process Records" + nametail
+		a.AddCharts(line1, lineRss, lineVms)
+		b := &bytes.Buffer{}
+		a.Render(b)
+		c.Writer.Write(LocalEchartsJS(b.Bytes()))
 	}
 }
 
 func (r *Recorder) HTTPHandler(w http.ResponseWriter, req *http.Request) {
-	js := make([]*procStatus, 0, procCache.Len())
-	procCache.ForEach(func(key string, value *procStatus) bool {
+	js := make([]*procStatus, 0, r.procCache.Len())
+	r.procCache.ForEach(func(key string, value *procStatus) bool {
 		value.dt = key
 		js = append(js, value)
 		return true
@@ -231,8 +243,8 @@ func (r *Recorder) HTTPHandler(w http.ResponseWriter, req *http.Request) {
 		}
 		line1 := charts.NewLine()
 		line1.SetGlobalOptions(SetupLineGOpts(&LineOpt{
-			PageTitle:   "进程资源记录" + nametail,
-			Name:        "CPU、内存占用" + nametail,
+			PageTitle:   "Process Records" + nametail,
+			Name:        "CPU & MEM Use" + nametail,
 			Total:       float32(l),
 			TTFormatter: "{a0}: <b>{b0}</b><br>{a1}: <b>{b1}</b>",
 			YFormatter:  "{value} %",
@@ -241,10 +253,10 @@ func (r *Recorder) HTTPHandler(w http.ResponseWriter, req *http.Request) {
 		line1.SetXAxis(x)
 		line1.AddSeries("cpu", cpu).SetSeriesOptions(SetupLineSOpts()...)
 		line1.AddSeries("mem", mem).SetSeriesOptions(SetupLineSOpts()...)
-		line1.Render(w)
+
 		lineRss := charts.NewLine()
 		lineRss.SetGlobalOptions(SetupLineGOpts(&LineOpt{
-			Name:        "物理内存使用" + nametail,
+			Name:        "Resident Set Size" + nametail,
 			Total:       float32(l),
 			TTFormatter: "<b>{b}</b>",
 			YFormatter:  "{value} MB",
@@ -255,10 +267,10 @@ func (r *Recorder) HTTPHandler(w http.ResponseWriter, req *http.Request) {
 			SetSeriesOptions(SetupLineSOpts(charts.WithAreaStyleOpts(opts.AreaStyle{
 				Opacity: 0.2,
 			}))...)
-		lineRss.Render(w)
+
 		lineVms := charts.NewLine()
 		lineVms.SetGlobalOptions(SetupLineGOpts(&LineOpt{
-			Name:        "虚拟内存分配" + nametail,
+			Name:        "Virtual Memory Size" + nametail,
 			Total:       float32(l),
 			TTFormatter: "<b>{b}</b>",
 			YFormatter:  "{value} MB",
@@ -269,7 +281,13 @@ func (r *Recorder) HTTPHandler(w http.ResponseWriter, req *http.Request) {
 			SetSeriesOptions(SetupLineSOpts(charts.WithAreaStyleOpts(opts.AreaStyle{
 				Opacity: 0.2,
 			}))...)
-		lineVms.Render(w)
+
+		a := components.NewPage()
+		a.PageTitle = "Process Records" + nametail
+		a.AddCharts(line1, lineRss, lineVms)
+		b := &bytes.Buffer{}
+		a.Render(b)
+		w.Write(LocalEchartsJS(b.Bytes()))
 	}
 }
 
@@ -310,12 +328,19 @@ func SetupLineGOpts(lopt *LineOpt) []charts.GlobalOpts {
 			Trigger:   "axis",
 			Show:      true,
 			Formatter: lopt.TTFormatter,
+			AxisPointer: &opts.AxisPointer{
+				Show: true,
+				Type: "line",
+				Label: &opts.Label{
+					Show: true,
+				},
+			},
 		}),
 		charts.WithInitializationOpts(opts.Initialization{
 			PageTitle: lopt.PageTitle,
-			Theme:     types.ChartThemeRiver,
-			Width:     lopt.Width,
-			Height:    lopt.Heigh,
+			// Theme:     types.ChartThemeRiver,
+			Width:  lopt.Width,
+			Height: lopt.Heigh,
 		}),
 		charts.WithXAxisOpts(opts.XAxis{
 			AxisLabel: &opts.AxisLabel{
@@ -360,4 +385,17 @@ func SetupBarSOpts(lopt ...charts.SeriesOpts) []charts.SeriesOpts {
 	}
 	serOpt = append(serOpt, lopt...)
 	return serOpt
+}
+
+func EchartsJS() []byte {
+	return json.Bytes("<script type=\"text/javascript\">" + json.String(echarts) + "\n</script>")
+}
+
+func LocalEchartsJS(htmlpage []byte) []byte {
+	if len(htmlpage) == 0 {
+		return EchartsJS()
+	}
+	s := bytes.ReplaceAll(htmlpage, json.Bytes(`<script src="https://go-echarts.github.io/go-echarts-assets/assets/echarts.min.js"></script>`), EchartsJS())
+	s = bytes.ReplaceAll(s, json.Bytes(`<script src="https://go-echarts.github.io/go-echarts-assets/assets/themes/themeRiver.js"></script>`), []byte{})
+	return s
 }

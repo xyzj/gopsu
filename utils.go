@@ -1466,6 +1466,12 @@ func JSON2PB(js string, pb interface{}) error {
 }
 
 func DumpReqBody(req *http.Request) ([]byte, error) {
+	if req == nil {
+		return []byte{}, fmt.Errorf("request is nil")
+	}
+	if req.Body == nil {
+		return []byte{}, fmt.Errorf("request body is nil")
+	}
 	body, err := req.GetBody()
 	if err != nil {
 		return []byte{}, err

@@ -13,6 +13,7 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -297,25 +298,13 @@ func chtest(ch chan string) {
 }
 
 func main() {
-	chana := make(chan int, 12)
-	t := time.NewTicker(time.Second * 3)
-	go func() {
-		for i := 0; i <= 10; i++ {
-			chana <- i
-			time.Sleep(time.Second)
-		}
-	}()
-	for {
-		select {
-		case msg := <-chana:
-			if msg%2 == 0 {
-				break
-			}
-			println(msg)
-		case <-t.C:
-			println("timetick")
-		}
+	req, _ := http.NewRequest("GET", "http://127.0.0.1", nil)
+	b, err := gopsu.DumpReqBody(req)
+	if err != nil {
+		println(err.Error())
+		return
 	}
+	println(string(b))
 }
 
 var georep = strings.NewReplacer("(", "", ")", "", "POINT ", "", "POLYGON ", "", "LINESTRING ", "") // 经纬度字符串处理替换器
