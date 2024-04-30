@@ -331,6 +331,14 @@ func SetupLineGOpts(lopt *LineOpt) []charts.GlobalOpts {
 				},
 			},
 		}),
+		charts.WithToolboxOpts(opts.Toolbox{
+			Show: true,
+			Feature: &opts.ToolBoxFeature{
+				SaveAsImage: &opts.ToolBoxFeatureSaveAsImage{
+					Show: true,
+				},
+			},
+		}),
 		charts.WithInitializationOpts(opts.Initialization{
 			PageTitle: lopt.PageTitle,
 			// Theme:     types.ChartThemeRiver,
