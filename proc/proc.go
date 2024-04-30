@@ -29,18 +29,20 @@ var echarts []byte
 
 type procStatus struct {
 	dt     string
-	Cpup   float64
-	Memp   float32
 	Memrss uint64
 	Memvms uint64
+	GNum   int
+	TNum   int
+	Cpup   float32
+	Memp   float32
 }
 
 func (ps *procStatus) String() string {
-	return fmt.Sprintf("cpu: %.2f%%; mem: %.2f%%; rss: %s; vms: %s", ps.Cpup, ps.Memp, gopsu.FormatFileSize(ps.Memrss), gopsu.FormatFileSize(ps.Memvms))
+	return fmt.Sprintf("cpu: %.2f%%; mem: %.2f%%; rss: %s", ps.Cpup, ps.Memp, gopsu.FormatFileSize(ps.Memrss))
 }
 
 func (ps *procStatus) HTML() string {
-	return fmt.Sprintf("cpu: %.2f%%\nmem: %.2f%%\nrss: %s\nvms: %s", ps.Cpup, ps.Memp, gopsu.FormatFileSize(ps.Memrss), gopsu.FormatFileSize(ps.Memvms))
+	return fmt.Sprintf("cpu: %.2f%%\nmem: %.2f%%\nrss: %s", ps.Cpup, ps.Memp, gopsu.FormatFileSize(ps.Memrss))
 }
 
 func (ps *procStatus) JSON() string {
@@ -63,15 +65,27 @@ type Recorder struct {
 	opt       *RecordOpt
 }
 
-// NewRecorder 记录进程状态
-func NewRecorder(opt *RecordOpt) *Recorder {
+func (r *Recorder) LastHTML() string {
+	return r.lastProc.HTML()
+}
+
+func (r *Recorder) LastJSON() string {
+	return r.lastProc.JSON()
+}
+
+func (r *Recorder) LastString() string {
+	return r.lastProc.String()
+}
+
+// StartRecord 记录进程状态
+func StartRecord(opt *RecordOpt) *Recorder {
 	if opt == nil {
 		opt = &RecordOpt{}
 	}
 	if opt.Logg == nil {
 		opt.Logg = &logger.NilLogger{}
 	}
-	if opt.Timer < time.Second*10 {
+	if opt.Timer < time.Second*5 {
 		opt.Timer = time.Second * 60
 	}
 	if opt.DataTimeout < time.Minute {
@@ -97,7 +111,8 @@ func NewRecorder(opt *RecordOpt) *Recorder {
 					return
 				}
 			}
-			r.lastProc.Cpup, _ = proc.CPUPercent()
+			v, _ := proc.CPUPercent()
+			r.lastProc.Cpup = float32(v)
 			r.lastProc.Memp, _ = proc.MemoryPercent()
 			memi, _ = proc.MemoryInfo()
 			if memi == nil {
