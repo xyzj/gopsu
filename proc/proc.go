@@ -169,8 +169,8 @@ func (r *Recorder) BuildLines(width string, js []*procStatus) []byte {
 		rss = append(rss, opts.LineData{Name: gopsu.FormatFileSize(v.Memrss), Value: v.Memrss / 1024 / 1024, Symbol: "circle"})
 		vms = append(vms, opts.LineData{Name: gopsu.FormatFileSize(v.Memvms), Value: v.Memvms / 1024 / 1024, Symbol: "circle"})
 		ofd = append(ofd, opts.LineData{Name: fmt.Sprintf("%d", v.Ofd), Value: v.Ofd, Symbol: "circle"})
-		ior = append(ior, opts.LineData{Name: gopsu.FormatFileSize(v.IORead), Value: v.IORead, Symbol: "circle"})
-		iow = append(iow, opts.LineData{Name: gopsu.FormatFileSize(v.IOWrite), Value: v.IOWrite, Symbol: "circle"})
+		ior = append(ior, opts.LineData{Name: gopsu.FormatFileSize(v.IORead), Value: v.IORead / 1024 / 1024, Symbol: "circle"})
+		iow = append(iow, opts.LineData{Name: gopsu.FormatFileSize(v.IOWrite), Value: v.IOWrite / 1024 / 1024, Symbol: "circle"})
 	}
 	line1 := charts.NewLine()
 	line1.SetGlobalOptions(SetupLineGOpts(&LineOpt{
