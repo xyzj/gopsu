@@ -28,13 +28,14 @@ import (
 var echarts []byte
 
 type procStatus struct {
-	dt     string
-	Memrss uint64
-	Memvms uint64
-	GNum   int
-	TNum   int
-	Cpup   float32
-	Memp   float32
+	dt      string
+	Memrss  uint64
+	Memvms  uint64
+	IORead  uint64
+	IOWrite uint64
+	Ofd     int32
+	Cpup    float32
+	Memp    float32
 }
 
 func (ps *procStatus) String() string {
@@ -42,7 +43,7 @@ func (ps *procStatus) String() string {
 }
 
 func (ps *procStatus) HTML() string {
-	return fmt.Sprintf("cpu: %.2f%%\nmem: %.2f%%\nrss: %s", ps.Cpup, ps.Memp, gopsu.FormatFileSize(ps.Memrss))
+	return fmt.Sprintf("cpu: %.2f%%\nmem: %.2f%%\nrss: %s\nofd: %d", ps.Cpup, ps.Memp, gopsu.FormatFileSize(ps.Memrss), ps.Ofd)
 }
 
 func (ps *procStatus) JSON() string {
@@ -50,6 +51,9 @@ func (ps *procStatus) JSON() string {
 	js, _ = sjson.Set(js, "mem", fmt.Sprintf("%.2f", ps.Memp))
 	js, _ = sjson.Set(js, "rss", fmt.Sprintf("%d", ps.Memrss))
 	js, _ = sjson.Set(js, "vms", fmt.Sprintf("%d", ps.Memvms))
+	js, _ = sjson.Set(js, "ofd", fmt.Sprintf("%d", ps.Ofd))
+	js, _ = sjson.Set(js, "ior", fmt.Sprintf("%d", ps.IORead))
+	js, _ = sjson.Set(js, "iow", fmt.Sprintf("%d", ps.IOWrite))
 	return js
 }
 
@@ -103,6 +107,7 @@ func StartRecord(opt *RecordOpt) *Recorder {
 		var proc *process.Process
 		var err error
 		var memi *process.MemoryInfoStat
+		var iost *process.IOCountersStat
 		f := func() {
 			if proc == nil {
 				proc, err = process.NewProcess(int32(os.Getpid()))
@@ -113,6 +118,7 @@ func StartRecord(opt *RecordOpt) *Recorder {
 			}
 			v, _ := proc.CPUPercent()
 			r.lastProc.Cpup = float32(v)
+			r.lastProc.Ofd, _ = proc.NumFDs()
 			r.lastProc.Memp, _ = proc.MemoryPercent()
 			memi, _ = proc.MemoryInfo()
 			if memi == nil {
@@ -120,6 +126,12 @@ func StartRecord(opt *RecordOpt) *Recorder {
 			}
 			r.lastProc.Memrss = memi.RSS
 			r.lastProc.Memvms = memi.VMS
+			iost, _ = proc.IOCounters()
+			if iost == nil {
+				iost = &process.IOCountersStat{}
+			}
+			r.lastProc.IORead = iost.ReadBytes
+			r.lastProc.IOWrite = iost.WriteBytes
 			r.procCache.Store(time.Now().Format("01-02 15:04:05"), deepcopy.Copy(r.lastProc).(*procStatus))
 		}
 		t := time.NewTicker(r.opt.Timer)
@@ -134,6 +146,101 @@ func StartRecord(opt *RecordOpt) *Recorder {
 		}
 	}, "proc", opt.Logg.DefaultWriter())
 	return r
+}
+
+func (r *Recorder) BuildLines(width string, js []*procStatus) []byte {
+	var nametail string
+	if r.opt.Name != "" {
+		nametail = " (" + r.opt.Name + ")"
+	}
+	l := len(js)
+	x := make([]string, 0, l)
+	cpu := make([]opts.LineData, 0, l)
+	mem := make([]opts.LineData, 0, l)
+	rss := make([]opts.LineData, 0, l)
+	vms := make([]opts.LineData, 0, l)
+	ofd := make([]opts.LineData, 0, l)
+	ior := make([]opts.LineData, 0, l)
+	iow := make([]opts.LineData, 0, l)
+	for _, v := range js {
+		x = append(x, v.dt)
+		cpu = append(cpu, opts.LineData{Name: fmt.Sprintf("%.2f%%", v.Cpup), Value: v.Cpup, Symbol: "circle"})
+		mem = append(mem, opts.LineData{Name: fmt.Sprintf("%.2f%%", v.Memp), Value: v.Memp, Symbol: "circle"})
+		rss = append(rss, opts.LineData{Name: gopsu.FormatFileSize(v.Memrss), Value: v.Memrss / 1024 / 1024, Symbol: "circle"})
+		vms = append(vms, opts.LineData{Name: gopsu.FormatFileSize(v.Memvms), Value: v.Memvms / 1024 / 1024, Symbol: "circle"})
+		ofd = append(ofd, opts.LineData{Name: fmt.Sprintf("%d", v.Ofd), Value: v.Ofd, Symbol: "circle"})
+		ior = append(ior, opts.LineData{Name: gopsu.FormatFileSize(v.IORead), Value: v.IORead, Symbol: "circle"})
+		iow = append(iow, opts.LineData{Name: gopsu.FormatFileSize(v.IOWrite), Value: v.IOWrite, Symbol: "circle"})
+	}
+	line1 := charts.NewLine()
+	line1.SetGlobalOptions(SetupLineGOpts(&LineOpt{
+		PageTitle:   "Process Records" + nametail,
+		Name:        "CPU & MEM Use" + nametail,
+		Total:       float32(l),
+		TTFormatter: "{a0}: <b>{b0}</b><br>{a1}: <b>{b1}</b>",
+		YFormatter:  "{value} %",
+		Width:       width,
+	})...)
+	line1.SetXAxis(x)
+	line1.AddSeries("cpu", cpu).SetSeriesOptions(SetupLineSOpts()...)
+	line1.AddSeries("mem", mem).SetSeriesOptions(SetupLineSOpts()...)
+
+	lineMem := charts.NewLine()
+	lineMem.SetGlobalOptions(SetupLineGOpts(&LineOpt{
+		Name:        "Resident Set Size & Virtual Memory Size" + nametail,
+		Total:       float32(l),
+		TTFormatter: "{a0}: <b>{b0}</b><br>{a1}: <b>{b1}</b>",
+		YFormatter:  "{value} MB",
+		Width:       width,
+	})...)
+	lineMem.SetXAxis(x)
+	lineMem.AddSeries("rss", rss).
+		SetSeriesOptions(SetupLineSOpts(charts.WithAreaStyleOpts(opts.AreaStyle{
+			Opacity: 0.3,
+		}))...)
+	lineMem.AddSeries("vms", vms).
+		SetSeriesOptions(SetupLineSOpts()...)
+	lineMem.Selected = map[string]bool{
+		"rss": true,
+		"vms": false,
+	}
+
+	lineOfd := charts.NewLine()
+	lineOfd.SetGlobalOptions(SetupLineGOpts(&LineOpt{
+		Name:  "Open Files" + nametail,
+		Total: float32(l),
+		// TTFormatter: "<b>{c}</b>",
+		Width: width,
+	})...)
+	lineOfd.SetXAxis(x).
+		AddSeries("ofd", ofd).
+		SetSeriesOptions(SetupLineSOpts(charts.WithAreaStyleOpts(opts.AreaStyle{
+			Opacity: 0.2,
+		}))...)
+
+	lineIO := charts.NewLine()
+	lineIO.SetGlobalOptions(SetupLineGOpts(&LineOpt{
+		Name:        "IO Counts" + nametail,
+		Total:       float32(l),
+		TTFormatter: "{a0}: <b>{b0}</b><br>{a1}: <b>{b1}</b>",
+		YFormatter:  "{value} MB",
+		Width:       width,
+	})...)
+	lineIO.SetXAxis(x)
+	lineIO.AddSeries("read", ior).
+		SetSeriesOptions(SetupLineSOpts(charts.WithAreaStyleOpts(opts.AreaStyle{
+			Opacity: 0.3,
+		}))...)
+	lineIO.AddSeries("write", iow).
+		SetSeriesOptions(SetupLineSOpts(charts.WithAreaStyleOpts(opts.AreaStyle{
+			Opacity: 0.1,
+		}))...)
+	a := components.NewPage()
+	a.PageTitle = "Process Records" + nametail
+	a.AddCharts(line1, lineOfd, lineMem, lineIO)
+	b := &bytes.Buffer{}
+	a.Render(b)
+	return b.Bytes()
 }
 
 func (r *Recorder) GinHandler(c *gin.Context) {
@@ -152,70 +259,7 @@ func (r *Recorder) GinHandler(c *gin.Context) {
 		c.Set("status", 1)
 		c.JSON(200, c.Keys)
 	case "GET":
-		var nametail string
-		if r.opt.Name != "" {
-			nametail = " (" + r.opt.Name + ")"
-		}
-		l := len(js)
-		x := make([]string, 0, l)
-		width := c.Param("width")
-		cpu := make([]opts.LineData, 0, l)
-		mem := make([]opts.LineData, 0, l)
-		rss := make([]opts.LineData, 0, l)
-		vms := make([]opts.LineData, 0, l)
-		for _, v := range js {
-			x = append(x, v.dt)
-			cpu = append(cpu, opts.LineData{Name: fmt.Sprintf("%.2f%%", v.Cpup), Value: v.Cpup, Symbol: "circle"})
-			mem = append(mem, opts.LineData{Name: fmt.Sprintf("%.2f%%", v.Memp), Value: v.Memp, Symbol: "circle"})
-			rss = append(rss, opts.LineData{Name: gopsu.FormatFileSize(v.Memrss), Value: v.Memrss / 1024 / 1024, Symbol: "circle"})
-			vms = append(vms, opts.LineData{Name: gopsu.FormatFileSize(v.Memvms), Value: v.Memvms / 1024 / 1024, Symbol: "circle"})
-		}
-		line1 := charts.NewLine()
-		line1.SetGlobalOptions(SetupLineGOpts(&LineOpt{
-			PageTitle:   "Process Records" + nametail,
-			Name:        "CPU & MEM Use" + nametail,
-			Total:       float32(l),
-			TTFormatter: "{a0}: <b>{b0}</b><br>{a1}: <b>{b1}</b>",
-			YFormatter:  "{value} %",
-			Width:       width,
-		})...)
-		line1.SetXAxis(x)
-		line1.AddSeries("cpu", cpu).SetSeriesOptions(SetupLineSOpts()...)
-		line1.AddSeries("mem", mem).SetSeriesOptions(SetupLineSOpts()...)
-
-		lineRss := charts.NewLine()
-		lineRss.SetGlobalOptions(SetupLineGOpts(&LineOpt{
-			Name:        "Resident Set Size" + nametail,
-			Total:       float32(l),
-			TTFormatter: "<b>{b}</b>",
-			YFormatter:  "{value} MB",
-			Width:       width,
-		})...)
-		lineRss.SetXAxis(x).
-			AddSeries("rss", rss).
-			SetSeriesOptions(SetupLineSOpts(charts.WithAreaStyleOpts(opts.AreaStyle{
-				Opacity: 0.2,
-			}))...)
-
-		lineVms := charts.NewLine()
-		lineVms.SetGlobalOptions(SetupLineGOpts(&LineOpt{
-			Name:        "Virtual Memory Size" + nametail,
-			Total:       float32(l),
-			TTFormatter: "<b>{b}</b>",
-			YFormatter:  "{value} MB",
-			Width:       width,
-		})...)
-		lineVms.SetXAxis(x).
-			AddSeries("vms", vms).
-			SetSeriesOptions(SetupLineSOpts(charts.WithAreaStyleOpts(opts.AreaStyle{
-				Opacity: 0.2,
-			}))...)
-		a := components.NewPage()
-		a.PageTitle = "Process Records" + nametail
-		a.AddCharts(line1, lineRss, lineVms)
-		b := &bytes.Buffer{}
-		a.Render(b)
-		c.Writer.Write(LocalEchartsJS(b.Bytes()))
+		c.Writer.Write(LocalEchartsJS(r.BuildLines(c.Param("width"), js)))
 	}
 }
 
@@ -238,71 +282,7 @@ func (r *Recorder) HTTPHandler(w http.ResponseWriter, req *http.Request) {
 		w.Write(s)
 	case "GET":
 		values := req.URL.Query()
-		var nametail string
-		if r.opt.Name != "" {
-			nametail = " (" + r.opt.Name + ")"
-		}
-		l := len(js)
-		x := make([]string, 0, l)
-		width := values.Get("width")
-		cpu := make([]opts.LineData, 0, l)
-		mem := make([]opts.LineData, 0, l)
-		rss := make([]opts.LineData, 0, l)
-		vms := make([]opts.LineData, 0, l)
-		for _, v := range js {
-			x = append(x, v.dt)
-			cpu = append(cpu, opts.LineData{Name: fmt.Sprintf("%.2f%%", v.Cpup), Value: v.Cpup, Symbol: "circle"})
-			mem = append(mem, opts.LineData{Name: fmt.Sprintf("%.2f%%", v.Memp), Value: v.Memp, Symbol: "circle"})
-			rss = append(rss, opts.LineData{Name: gopsu.FormatFileSize(v.Memrss), Value: v.Memrss / 1024 / 1024, Symbol: "circle"})
-			vms = append(vms, opts.LineData{Name: gopsu.FormatFileSize(v.Memvms), Value: v.Memvms / 1024 / 1024, Symbol: "circle"})
-		}
-		line1 := charts.NewLine()
-		line1.SetGlobalOptions(SetupLineGOpts(&LineOpt{
-			PageTitle:   "Process Records" + nametail,
-			Name:        "CPU & MEM Use" + nametail,
-			Total:       float32(l),
-			TTFormatter: "{a0}: <b>{b0}</b><br>{a1}: <b>{b1}</b>",
-			YFormatter:  "{value} %",
-			Width:       width,
-		})...)
-		line1.SetXAxis(x)
-		line1.AddSeries("cpu", cpu).SetSeriesOptions(SetupLineSOpts()...)
-		line1.AddSeries("mem", mem).SetSeriesOptions(SetupLineSOpts()...)
-
-		lineRss := charts.NewLine()
-		lineRss.SetGlobalOptions(SetupLineGOpts(&LineOpt{
-			Name:        "Resident Set Size" + nametail,
-			Total:       float32(l),
-			TTFormatter: "<b>{b}</b>",
-			YFormatter:  "{value} MB",
-			Width:       width,
-		})...)
-		lineRss.SetXAxis(x).
-			AddSeries("rss", rss).
-			SetSeriesOptions(SetupLineSOpts(charts.WithAreaStyleOpts(opts.AreaStyle{
-				Opacity: 0.2,
-			}))...)
-
-		lineVms := charts.NewLine()
-		lineVms.SetGlobalOptions(SetupLineGOpts(&LineOpt{
-			Name:        "Virtual Memory Size" + nametail,
-			Total:       float32(l),
-			TTFormatter: "<b>{b}</b>",
-			YFormatter:  "{value} MB",
-			Width:       width,
-		})...)
-		lineVms.SetXAxis(x).
-			AddSeries("vms", vms).
-			SetSeriesOptions(SetupLineSOpts(charts.WithAreaStyleOpts(opts.AreaStyle{
-				Opacity: 0.2,
-			}))...)
-
-		a := components.NewPage()
-		a.PageTitle = "Process Records" + nametail
-		a.AddCharts(line1, lineRss, lineVms)
-		b := &bytes.Buffer{}
-		a.Render(b)
-		w.Write(LocalEchartsJS(b.Bytes()))
+		w.Write(LocalEchartsJS(r.BuildLines(values.Get("width"), js)))
 	}
 }
 
