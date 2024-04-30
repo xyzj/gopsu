@@ -207,7 +207,7 @@ func (r *Recorder) BuildLines(width string, js []*procStatus) []byte {
 
 	lineOfd := charts.NewLine()
 	lineOfd.SetGlobalOptions(SetupLineGOpts(&LineOpt{
-		Name:  "Open Files" + nametail,
+		Name:  "Opened File Descriptors" + nametail,
 		Total: float32(l),
 		// TTFormatter: "<b>{c}</b>",
 		Width: width,
