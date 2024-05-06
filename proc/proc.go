@@ -15,6 +15,7 @@ import (
 	"github.com/go-echarts/go-echarts/v2/components"
 	"github.com/go-echarts/go-echarts/v2/opts"
 	"github.com/mohae/deepcopy"
+	"github.com/shirou/gopsutil/net"
 	"github.com/shirou/gopsutil/process"
 	"github.com/tidwall/sjson"
 	"github.com/xyzj/gopsu"
@@ -28,14 +29,15 @@ import (
 var echarts []byte
 
 type procStatus struct {
-	dt      string
 	Memrss  uint64
 	Memvms  uint64
 	IORead  uint64
 	IOWrite uint64
-	Ofd     int32
 	Cpup    float32
 	Memp    float32
+	Ofd     int32
+	Conns   int32
+	dt      string
 }
 
 func (ps *procStatus) String() string {
@@ -104,34 +106,38 @@ func StartRecord(opt *RecordOpt) *Recorder {
 		procCache: cache.NewAnyCache[*procStatus](opt.DataTimeout),
 	}
 	go loopfunc.LoopFunc(func(params ...interface{}) {
-		var proc *process.Process
+		var proce *process.Process
 		var err error
 		var memi *process.MemoryInfoStat
 		var iost *process.IOCountersStat
+		var connst []net.ConnectionStat
+		var cp float64
 		f := func() {
-			if proc == nil {
-				proc, err = process.NewProcess(int32(os.Getpid()))
+			if proce == nil {
+				proce, err = process.NewProcess(int32(os.Getpid()))
 				if err != nil {
 					opt.Logg.Error("[PROC] " + err.Error())
 					return
 				}
 			}
-			v, _ := proc.CPUPercent()
-			r.lastProc.Cpup = float32(v)
-			r.lastProc.Ofd, _ = proc.NumFDs()
-			r.lastProc.Memp, _ = proc.MemoryPercent()
-			memi, _ = proc.MemoryInfo()
+			cp, _ = proce.CPUPercent()
+			r.lastProc.Cpup = float32(cp)
+			r.lastProc.Ofd, _ = proce.NumFDs()
+			r.lastProc.Memp, _ = proce.MemoryPercent()
+			memi, _ = proce.MemoryInfo()
 			if memi == nil {
 				memi = &process.MemoryInfoStat{}
 			}
 			r.lastProc.Memrss = memi.RSS
 			r.lastProc.Memvms = memi.VMS
-			iost, _ = proc.IOCounters()
+			iost, _ = proce.IOCounters()
 			if iost == nil {
 				iost = &process.IOCountersStat{}
 			}
 			r.lastProc.IORead = iost.ReadBytes
 			r.lastProc.IOWrite = iost.WriteBytes
+			connst, _ = proce.Connections()
+			r.lastProc.Conns = int32(len(connst))
 			r.procCache.Store(time.Now().Format("01-02 15:04:05"), deepcopy.Copy(r.lastProc).(*procStatus))
 		}
 		t := time.NewTicker(r.opt.Timer)
@@ -162,6 +168,7 @@ func (r *Recorder) BuildLines(width string, js []*procStatus) []byte {
 	ofd := make([]opts.LineData, 0, l)
 	ior := make([]opts.LineData, 0, l)
 	iow := make([]opts.LineData, 0, l)
+	con := make([]opts.LineData, 0, l)
 	for _, v := range js {
 		x = append(x, v.dt)
 		cpu = append(cpu, opts.LineData{Name: fmt.Sprintf("%.2f%%", v.Cpup), Value: v.Cpup, Symbol: "circle"})
@@ -171,6 +178,7 @@ func (r *Recorder) BuildLines(width string, js []*procStatus) []byte {
 		ofd = append(ofd, opts.LineData{Name: fmt.Sprintf("%d", v.Ofd), Value: v.Ofd, Symbol: "circle"})
 		ior = append(ior, opts.LineData{Name: gopsu.FormatFileSize(v.IORead), Value: v.IORead / 1024 / 1024, Symbol: "circle"})
 		iow = append(iow, opts.LineData{Name: gopsu.FormatFileSize(v.IOWrite), Value: v.IOWrite / 1024 / 1024, Symbol: "circle"})
+		con = append(con, opts.LineData{Name: fmt.Sprintf("%d", v.Conns), Value: v.Conns, Symbol: "circle"})
 	}
 	line1 := charts.NewLine()
 	line1.SetGlobalOptions(SetupLineGOpts(&LineOpt{
@@ -182,8 +190,9 @@ func (r *Recorder) BuildLines(width string, js []*procStatus) []byte {
 		Width:       width,
 	})...)
 	line1.SetXAxis(x)
-	line1.AddSeries("cpu", cpu).SetSeriesOptions(SetupLineSOpts()...)
-	line1.AddSeries("mem", mem).SetSeriesOptions(SetupLineSOpts()...)
+	line1.SetSeriesOptions(SetupLineSOpts()...)
+	line1.AddSeries("cpu", cpu)
+	line1.AddSeries("mem", mem)
 
 	lineMem := charts.NewLine()
 	lineMem.SetGlobalOptions(SetupLineGOpts(&LineOpt{
@@ -193,30 +202,70 @@ func (r *Recorder) BuildLines(width string, js []*procStatus) []byte {
 		YFormatter:  "{value} MB",
 		Width:       width,
 	})...)
-	lineMem.SetXAxis(x)
-	lineMem.AddSeries("rss", rss).
-		SetSeriesOptions(SetupLineSOpts(charts.WithAreaStyleOpts(opts.AreaStyle{
-			Opacity: 0.3,
-		}))...)
-	lineMem.AddSeries("vms", vms).
-		SetSeriesOptions(SetupLineSOpts()...)
-	lineMem.Selected = map[string]bool{
-		"rss": true,
-		"vms": false,
+	lineMem.YAxisList = []opts.YAxis{
+		{
+			Name:        "rss",
+			Show:        true,
+			SplitNumber: 7,
+			SplitLine: &opts.SplitLine{
+				Show: false,
+			},
+			SplitArea: &opts.SplitArea{
+				Show: true,
+			},
+			AxisLabel: &opts.AxisLabel{
+				Show:      true,
+				Formatter: "{value} MB",
+				Align:     "left",
+			},
+		},
+		{
+			Name:        "vms",
+			Show:        true,
+			SplitNumber: 7,
+			SplitLine: &opts.SplitLine{
+				Show: false,
+			},
+			SplitArea: &opts.SplitArea{
+				Show: false,
+			},
+			AxisLabel: &opts.AxisLabel{
+				Show:      true,
+				Formatter: "{value} MB",
+				Align:     "right",
+			},
+		},
 	}
+	lineMem.SetXAxis(x)
+	lineMem.AddSeries("rss", rss, charts.WithLineChartOpts(
+		opts.LineChart{
+			Smooth:     true,
+			YAxisIndex: 0,
+		}),
+		charts.WithLineStyleOpts(opts.LineStyle{
+			Width: 2,
+		}), charts.WithAreaStyleOpts(opts.AreaStyle{
+			Opacity: 0.3,
+		}))
+	lineMem.AddSeries("vms", vms, charts.WithLineChartOpts(
+		opts.LineChart{
+			Smooth:     false,
+			YAxisIndex: 1,
+		}))
 
 	lineOfd := charts.NewLine()
 	lineOfd.SetGlobalOptions(SetupLineGOpts(&LineOpt{
-		Name:  "Opened File Descriptors" + nametail,
-		Total: float32(l),
-		// TTFormatter: "<b>{c}</b>",
-		Width: width,
+		Name:        "Opened File Descriptors & Connections" + nametail,
+		Total:       float32(l),
+		TTFormatter: "{a0}: <b>{b0}</b><br>{a1}: <b>{b1}</b>",
+		Width:       width,
 	})...)
-	lineOfd.SetXAxis(x).
-		AddSeries("ofd", ofd).
-		SetSeriesOptions(SetupLineSOpts(charts.WithAreaStyleOpts(opts.AreaStyle{
-			Opacity: 0.2,
-		}))...)
+	lineOfd.SetXAxis(x)
+	lineOfd.SetSeriesOptions(SetupLineSOpts(charts.WithAreaStyleOpts(opts.AreaStyle{
+		Opacity: 0.2,
+	}))...)
+	lineOfd.AddSeries("ofd", ofd)
+	lineOfd.AddSeries("conn", con)
 
 	lineIO := charts.NewLine()
 	lineIO.SetGlobalOptions(SetupLineGOpts(&LineOpt{
@@ -227,14 +276,11 @@ func (r *Recorder) BuildLines(width string, js []*procStatus) []byte {
 		Width:       width,
 	})...)
 	lineIO.SetXAxis(x)
-	lineIO.AddSeries("read", ior).
-		SetSeriesOptions(SetupLineSOpts(charts.WithAreaStyleOpts(opts.AreaStyle{
-			Opacity: 0.3,
-		}))...)
-	lineIO.AddSeries("write", iow).
-		SetSeriesOptions(SetupLineSOpts(charts.WithAreaStyleOpts(opts.AreaStyle{
-			Opacity: 0.1,
-		}))...)
+	lineIO.SetSeriesOptions(SetupLineSOpts(charts.WithAreaStyleOpts(opts.AreaStyle{
+		Opacity: 0.3,
+	}))...)
+	lineIO.AddSeries("read", ior)
+	lineIO.AddSeries("write", iow)
 	a := components.NewPage()
 	a.PageTitle = "Process Records" + nametail
 	a.AddCharts(line1, lineOfd, lineMem, lineIO)
@@ -354,6 +400,12 @@ func SetupLineGOpts(lopt *LineOpt) []charts.GlobalOpts {
 			},
 		}),
 		charts.WithYAxisOpts(opts.YAxis{
+			SplitLine: &opts.SplitLine{
+				Show: false,
+			},
+			SplitArea: &opts.SplitArea{
+				Show: true,
+			},
 			AxisLabel: &opts.AxisLabel{
 				Show:         true,
 				ShowMinLabel: true,
