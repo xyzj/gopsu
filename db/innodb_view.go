@@ -29,7 +29,7 @@ func (d *Conn) UnionView(dbname, tableName string, maxSubTables, maxTableSize, m
 	if ans.Rows[0].VCells[0].TryInt() < maxTableSize && ans.Rows[0].VCells[1].TryInt() < maxTableRows {
 		return nil
 	}
-	//将主表重命名为日期后缀子表
+	// 将主表重命名为日期后缀子表
 	newTableName := tableName + "_" + time.Now().Format("200601021504")
 	strsql = fmt.Sprintf("rename table %s to %s", tableName, newTableName)
 	_, _, err = d.ExecByDB(dbidx, strsql)
@@ -38,7 +38,7 @@ func (d *Conn) UnionView(dbname, tableName string, maxSubTables, maxTableSize, m
 	}
 
 	// 找到所有以指定命名开头的所有表
-	strsql = "select table_name from information_schema.tables where table_schema=? and table_name like '%" + tableName + "_%' order by table_name desc"
+	strsql = "select table_name from information_schema.tables where table_schema=? and table_type='BASE TABLE' and table_name like '%" + tableName + "_%' order by table_name desc"
 	ans, err = d.QueryByDB(dbidx, strsql, 0, d.defaultDB)
 	if err != nil {
 		return err
@@ -95,7 +95,7 @@ func (d *Conn) MergeTable(dbname, tableName string, maxSubTables, maxTableSize, 
 		return fmt.Errorf("engine " + engine + " is not support")
 	}
 	// 找到所有以指定命名开头的所有表
-	strsql = "select table_name from information_schema.tables where table_schema=? and table_name like '%" + tableName + "_%' order by table_name desc limit ?"
+	strsql = "select table_name from information_schema.tables where table_schema=? and engine='MyISAM' and table_type='BASE TABLE' and table_name like '%" + tableName + "_%' order by table_name desc limit ?"
 	ans, err = d.QueryByDB(dbidx, strsql, 0, dbname, maxSubTables)
 	if err != nil {
 		return err
