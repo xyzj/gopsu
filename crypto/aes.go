@@ -69,7 +69,7 @@ func (w *AES) SetKeyIV(key, iv string) error {
 // Encode aes加密
 func (w *AES) Encode(b []byte) (CValue, error) {
 	if w.block == nil {
-		return CValue([]byte{}), fmt.Errorf("key or iv are not set")
+		return EmptyValue, fmt.Errorf("key or iv are not set")
 	}
 	w.locker.Lock()
 	defer w.locker.Unlock()
@@ -154,7 +154,7 @@ func (w *AES) Encrypt(s string) string {
 func (w *AES) EncryptTo(s string) CValue {
 	x, err := w.Encode(Bytes(s))
 	if err != nil {
-		return CValue([]byte{})
+		return EmptyValue
 	}
 	return x
 }

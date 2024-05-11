@@ -41,7 +41,7 @@ func (w *RSA) Keys() (CValue, CValue) {
 	return w.pubBytes, w.priBytes
 }
 
-// GenerateKey 创建ecc密钥对
+// GenerateKey 创建rsa密钥对
 //
 //	返回，pubkey，prikey，error
 func (w *RSA) GenerateKey(bits RSABits) (CValue, CValue, error) {
@@ -67,24 +67,25 @@ func (w *RSA) GenerateKey(bits RSABits) (CValue, CValue, error) {
 	return w.pubBytes, w.priBytes, nil
 }
 
-// ToFile 创建ecc密钥到文件
+// ToFile 创建rsa密钥到文件
 func (w *RSA) ToFile(pubfile, prifile string) error {
-	block := &pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: w.pubBytes.Bytes(),
+	if pubfile != "" {
+		block := &pem.Block{
+			Type:  "PUBLIC KEY",
+			Bytes: w.pubBytes.Bytes(),
+		}
+		txt := pem.EncodeToMemory(block)
+		return os.WriteFile(pubfile, txt, 0o644)
 	}
-	txt := pem.EncodeToMemory(block)
-	err := os.WriteFile(pubfile, txt, 0o644)
-	if err != nil {
-		return err
+	if prifile != "" {
+		block := &pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: w.priBytes.Bytes(),
+		}
+		txt := pem.EncodeToMemory(block)
+		return os.WriteFile(prifile, txt, 0o644)
 	}
-	block = &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: w.priBytes.Bytes(),
-	}
-	txt = pem.EncodeToMemory(block)
-	err = os.WriteFile(prifile, txt, 0o644)
-	return err
+	return nil
 }
 
 // SetPublicKeyFromFile 从文件获取公钥
@@ -150,7 +151,7 @@ func (w *RSA) SetPrivateKey(key string) error {
 // Encode 编码
 func (w *RSA) Encode(b []byte) (CValue, error) {
 	if w.pubKey == nil {
-		return CValue([]byte{}), fmt.Errorf("no public key found")
+		return EmptyValue, fmt.Errorf("no public key found")
 	}
 	w.locker.Lock()
 	defer w.locker.Unlock()
@@ -162,14 +163,14 @@ func (w *RSA) Encode(b []byte) (CValue, error) {
 		if len(b) <= max {
 			res, err = rsa.EncryptPKCS1v15(rand.Reader, w.pubKey, b)
 			if err != nil {
-				return CValue([]byte{}), err
+				return EmptyValue, err
 			}
 			buf.Write(res)
 			break
 		}
 		res, err = rsa.EncryptPKCS1v15(rand.Reader, w.pubKey, b[:max])
 		if err != nil {
-			return CValue([]byte{}), err
+			return EmptyValue, err
 		}
 		buf.Write(res)
 		b = b[max:]
@@ -219,13 +220,13 @@ func (w *RSA) DecodeBase64(s string) (string, error) {
 // Sign 签名，返回签名，hash值
 func (w *RSA) Sign(b []byte) (CValue, error) {
 	if w.priKey == nil {
-		return CValue([]byte{}), fmt.Errorf("no private key found")
+		return EmptyValue, fmt.Errorf("no private key found")
 	}
 	w.locker.Lock()
 	defer w.locker.Unlock()
 	signature, err := rsa.SignPSS(rand.Reader, w.priKey, crypto.SHA256, w.signHash.Hash(b).Bytes(), nil)
 	if err != nil {
-		return CValue([]byte{}), err
+		return EmptyValue, err
 	}
 	return CValue(signature), nil
 }
@@ -278,7 +279,7 @@ func (w *RSA) Encrypt(s string) string {
 func (w *RSA) EncryptTo(s string) CValue {
 	x, err := w.Encode(Bytes(s))
 	if err != nil {
-		return CValue([]byte{})
+		return EmptyValue
 	}
 	return x
 }

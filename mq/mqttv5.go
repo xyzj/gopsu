@@ -14,7 +14,6 @@ import (
 
 	"github.com/eclipse/paho.golang/autopaho"
 	"github.com/eclipse/paho.golang/paho"
-	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/logger"
 )
 
@@ -123,7 +122,7 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 	conf := autopaho.ClientConfig{
 		ServerUrls:                    []*url.URL{u},
 		KeepAlive:                     40,
-		CleanStartOnInitialConnection: false,
+		CleanStartOnInitialConnection: true,
 		TlsCfg:                        opt.TLSConf,
 		ConnectRetryDelay:             time.Second * time.Duration(rand.Int31n(30)+30),
 		ConnectTimeout:                time.Second * 5,
@@ -150,11 +149,11 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 		ConnectUsername: opt.Username,
 		ConnectPassword: []byte(opt.Passwd),
 		ClientConfig: paho.ClientConfig{
-			ClientID: opt.ClientID + "_" + gopsu.GetRandomString(19, true),
+			ClientID: opt.ClientID, // gopsu.GetRandomString(19, true),
 			OnServerDisconnect: func(d *paho.Disconnect) {
 				st = false
 				if d.ReasonCode == 142 { // client id 重复
-					d.Packet().Properties.AssignedClientID += "__" + gopsu.GetRandomString(19, true)
+					d.Packet().Properties.AssignedClientID += time.Now().Format("_2006-01-02_15:04:05.000000") // "_" + gopsu.GetRandomString(19, true)
 					return
 				}
 				opt.Logg.Error(opt.Name + " server may be down " + strconv.Itoa(int(d.ReasonCode)))

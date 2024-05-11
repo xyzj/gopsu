@@ -997,18 +997,14 @@ func CheckSQLInject(s string) bool {
 // 	}
 // }
 
-// GetServerTLSConfig 获取https配置
-//
-//	certfile: 服务端证书
-//	keyfile: 服务端key
-//	clientca: 双向验证时客户端根证书
-func GetServerTLSConfig(certfile, keyfile, clientca string) (*tls.Config, error) {
-	cliCrt, err := tls.LoadX509KeyPair(certfile, keyfile)
+func TLSConfigFromPEM(certpem, keypem, rootpem []byte) (*tls.Config, error) {
+	cliCrt, err := tls.X509KeyPair(certpem, keypem)
 	if err != nil {
 		return nil, err
 	}
 	tc := &tls.Config{
-		ClientAuth: tls.NoClientCert,
+		InsecureSkipVerify: true,
+		ClientAuth:         tls.NoClientCert,
 		CipherSuites: []uint16{
 			tls.TLS_AES_128_GCM_SHA256,
 			tls.TLS_AES_256_GCM_SHA384,
@@ -1029,21 +1025,77 @@ func GetServerTLSConfig(certfile, keyfile, clientca string) (*tls.Config, error)
 		},
 		Certificates: []tls.Certificate{cliCrt},
 	}
-	if clientca != "" {
-		caCrt, err := os.ReadFile(clientca)
-		if err != nil {
-			return nil, err
-		}
-		pool, err := x509.SystemCertPool()
-		if err != nil {
-			pool = x509.NewCertPool()
-		}
-		if pool.AppendCertsFromPEM(caCrt) {
-			tc.ClientCAs = pool
-			tc.ClientAuth = tls.RequireAndVerifyClientCert
-		}
+	if len(rootpem) == 0 {
+		return tc, nil
+	}
+	pool, err := x509.SystemCertPool()
+	if err != nil {
+		pool = x509.NewCertPool()
+	}
+	tc.ClientCAs = pool
+	if pool.AppendCertsFromPEM(rootpem) {
+		tc.ClientAuth = tls.RequireAndVerifyClientCert
 	}
 	return tc, nil
+}
+
+// GetServerTLSConfig 获取https配置
+//
+//	certfile: 服务端证书
+//	keyfile: 服务端key
+//	clientca: 双向验证时客户端根证书
+func GetServerTLSConfig(certfile, keyfile, rootca string) (*tls.Config, error) {
+	bcert, err := os.ReadFile(certfile)
+	if err != nil {
+		return nil, err
+	}
+	bkey, err := os.ReadFile(keyfile)
+	if err != nil {
+		return nil, err
+	}
+	broot, _ := os.ReadFile(rootca)
+	return TLSConfigFromPEM(bcert, bkey, broot)
+	// cliCrt, err := tls.LoadX509KeyPair(certfile, keyfile)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// tc := &tls.Config{
+	// 	ClientAuth: tls.NoClientCert,
+	// 	CipherSuites: []uint16{
+	// 		tls.TLS_AES_128_GCM_SHA256,
+	// 		tls.TLS_AES_256_GCM_SHA384,
+	// 		tls.TLS_CHACHA20_POLY1305_SHA256,
+	// 		tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+	// 		tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+	// 		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+	// 		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+	// 		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+	// 		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+	// 		tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+	// 		tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+	// 		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+	// 		tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+	// 		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+	// 		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+	// 		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+	// 	},
+	// 	Certificates: []tls.Certificate{cliCrt},
+	// }
+	// if clientca != "" {
+	// 	caCrt, err := os.ReadFile(clientca)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	pool, err := x509.SystemCertPool()
+	// 	if err != nil {
+	// 		pool = x509.NewCertPool()
+	// 	}
+	// 	if pool.AppendCertsFromPEM(caCrt) {
+	// 		tc.ClientCAs = pool
+	// 		tc.ClientAuth = tls.RequireAndVerifyClientCert
+	// 	}
+	// }
+	// return tc, nil
 }
 
 // GetClientTLSConfig 获取https配置
@@ -1052,44 +1104,16 @@ func GetServerTLSConfig(certfile, keyfile, clientca string) (*tls.Config, error)
 //	keyfile: 双向验证时客户端key
 //	rootca: 服务端根证书
 func GetClientTLSConfig(certfile, keyfile, rootca string) (*tls.Config, error) {
-	tc := &tls.Config{
-		InsecureSkipVerify: true,
-		CipherSuites: []uint16{
-			tls.TLS_AES_128_GCM_SHA256,
-			tls.TLS_AES_256_GCM_SHA384,
-			tls.TLS_CHACHA20_POLY1305_SHA256,
-			tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
-			tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
-			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
-			tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
-			tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
-			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
-		},
-	}
-	var err error
-	caCrt, err := os.ReadFile(rootca)
-	if err == nil {
-		pool, err := x509.SystemCertPool()
-		if err != nil {
-			pool = x509.NewCertPool()
-		}
-		if pool.AppendCertsFromPEM(caCrt) {
-			tc.RootCAs = pool
-		}
-	}
-	cliCrt, err := tls.LoadX509KeyPair(certfile, keyfile)
+	bcert, err := os.ReadFile(certfile)
 	if err != nil {
-		return tc, nil
+		return nil, err
 	}
-	tc.Certificates = []tls.Certificate{cliCrt}
-	return tc, nil
+	bkey, err := os.ReadFile(keyfile)
+	if err != nil {
+		return nil, err
+	}
+	broot, _ := os.ReadFile(rootca)
+	return TLSConfigFromPEM(bcert, bkey, broot)
 }
 
 // TrimString 去除字符串末尾的空格，\r\n

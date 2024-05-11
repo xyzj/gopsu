@@ -17,6 +17,8 @@ type (
 	SM4Type  byte
 )
 
+var EmptyValue = CValue([]byte{})
+
 // CValue 加密后的数据，可输出[]byte,hex string,base64string
 type CValue []byte
 

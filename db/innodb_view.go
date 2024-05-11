@@ -20,14 +20,14 @@ func (d *Conn) UnionView(dbname, tableName string, maxSubTables, maxTableSize, m
 	if !d.IsReady() {
 		return fmt.Errorf("sql connection is not ready")
 	}
-	// 检查主表大小或数据量
-	strsql := `select sum(DATA_LENGTH/1000000),sum(table_rows) from information_schema.tables where table_schema=? and table_name=?`
-	ans, err := d.QueryByDB(dbidx, strsql, 0, dbname, tableName)
+	// view只能按照数据条数
+	strsql := `select count(*) from ` + tableName
+	ans, err := d.QueryByDB(dbidx, strsql, 0)
 	if err != nil {
 		return err
 	}
-	if ans.Rows[0].VCells[0].TryInt() < maxTableSize && ans.Rows[0].VCells[1].TryInt() < maxTableRows {
-		return nil
+	if ans.Rows[0].VCells[0].TryInt() < maxTableRows {
+		return fmt.Errorf("nothing to do")
 	}
 	// 将主表重命名为日期后缀子表
 	newTableName := tableName + "_" + time.Now().Format("200601021504")
@@ -38,8 +38,8 @@ func (d *Conn) UnionView(dbname, tableName string, maxSubTables, maxTableSize, m
 	}
 
 	// 找到所有以指定命名开头的所有表
-	strsql = "select table_name from information_schema.tables where table_schema=? and table_type='BASE TABLE' and table_name like '%" + tableName + "_%' order by table_name desc"
-	ans, err = d.QueryByDB(dbidx, strsql, 0, d.defaultDB)
+	strsql = "select table_name from information_schema.tables where table_schema=? and table_type='BASE TABLE' and table_name like '%" + tableName + "_%' order by table_name desc limit ?"
+	ans, err = d.QueryByDB(dbidx, strsql, 0, dbname, maxSubTables)
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,6 @@ func (d *Conn) UnionView(dbname, tableName string, maxSubTables, maxTableSize, m
 			break
 		}
 	}
-
 	// 创建新的空主表
 	strsql = fmt.Sprintf("create table %s like %s", tableName, newTableName)
 	_, _, err = d.ExecByDB(dbidx, strsql)
@@ -108,7 +107,7 @@ func (d *Conn) MergeTable(dbname, tableName string, maxSubTables, maxTableSize, 
 		return fmt.Errorf("no sub tables found")
 	}
 	// 检查子表大小
-	strsql = `select sum(DATA_LENGTH/1000000),sum(table_rows) from information_schema.tables where table_schema=? and table_name=?`
+	strsql = `select round(sum(DATA_LENGTH/1000000)),sum(table_rows) from information_schema.tables where table_schema=? and table_name=?`
 	ans, err = d.QueryByDB(dbidx, strsql, 1, dbname, subTablelist[0])
 	if err != nil {
 		return err

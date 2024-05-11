@@ -133,13 +133,13 @@ func (w *SM2) SetPrivateKey(key string) error {
 // Encode sm2加密
 func (w *SM2) Encode(b []byte) (CValue, error) {
 	if w.pubKey == nil {
-		return CValue([]byte{}), fmt.Errorf("no public key found")
+		return EmptyValue, fmt.Errorf("no public key found")
 	}
 	w.locker.Lock()
 	defer w.locker.Unlock()
 	res, err := w.pubKey.EncryptAsn1(b, rand.Reader)
 	if err != nil {
-		return CValue([]byte{}), err
+		return EmptyValue, err
 	}
 	return CValue(res), nil
 }
@@ -171,13 +171,13 @@ func (w *SM2) DecodeBase64(s string) (string, error) {
 // Sign 签名
 func (w *SM2) Sign(b []byte) (CValue, error) {
 	if w.priKey == nil {
-		return CValue([]byte{}), fmt.Errorf("no private key found")
+		return EmptyValue, fmt.Errorf("no private key found")
 	}
 	w.locker.Lock()
 	defer w.locker.Unlock()
 	signature, err := w.priKey.Sign(rand.Reader, b, nil)
 	if err != nil {
-		return CValue([]byte{}), err
+		return EmptyValue, err
 	}
 	return CValue(signature), nil
 }
@@ -230,7 +230,7 @@ func (w *SM2) Encrypt(s string) string {
 func (w *SM2) EncryptTo(s string) CValue {
 	x, err := w.Encode(Bytes(s))
 	if err != nil {
-		return CValue([]byte{})
+		return EmptyValue
 	}
 	return x
 }
@@ -281,7 +281,7 @@ func (w *SM4) Encode(b []byte) (CValue, error) {
 	case SM4OFB:
 		return sm4.Sm4OFB(w.key, b, true)
 	}
-	return CValue([]byte{}), nil
+	return EmptyValue, nil
 }
 
 // Decode sm4解密
@@ -329,7 +329,7 @@ func (w *SM4) Encrypt(s string) string {
 func (w *SM4) EncryptTo(s string) CValue {
 	x, err := w.Encode(Bytes(s))
 	if err != nil {
-		return CValue([]byte{})
+		return EmptyValue
 	}
 	return x
 }

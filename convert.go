@@ -650,3 +650,59 @@ func Seconds2String(sec int64) string {
 	}
 	return strings.Join(out, ", ")
 }
+
+// Days2StringCHS 将天数转换为年月日显示
+func Days2StringCHS(days int) string {
+	t1, _ := time.Parse("2006-01-02", "0001-01-01")
+	t2 := t1.Add(time.Hour * time.Duration(24*days))
+	y := t2.Year() - 1
+	if y < 0 {
+		y = 0
+	}
+	m := int(t2.Month()) - 1
+	if m < 0 {
+		m = 0
+	}
+	d := t2.Day() - 1
+	if d < 0 {
+		d = 0
+	}
+	out := []string{}
+	if y > 0 {
+		out = append(out, fmt.Sprintf("%d年", y))
+	}
+	if m > 0 {
+		out = append(out, fmt.Sprintf("%d个月", m))
+	}
+	if d == 0 {
+		out = append(out, "不到1天")
+	} else {
+		out = append(out, fmt.Sprintf("%d天", d))
+	}
+	return strings.Join(out, ", ")
+}
+
+// Seconds2StringCHS 秒数转换成天，小时，分钟
+func Seconds2StringCHS(sec int64) string {
+	var days, hours, minutes int64
+	days = sec / 60 / 60 / 24
+	if a := sec - days*60*60*24; a > 0 {
+		hours = a / 60 / 60
+	}
+	if a := sec - days*60*60*24 - hours*60*60; a > 0 {
+		minutes = a / 60
+	}
+	out := []string{}
+	if days > 0 {
+		out = append(out, fmt.Sprintf("%d天", days))
+	}
+	if hours > 0 {
+		out = append(out, fmt.Sprintf("%d小时", hours))
+	}
+	if minutes == 0 && hours == 0 && days == 0 {
+		out = append(out, "不到一分钟")
+	} else {
+		out = append(out, fmt.Sprintf("%d分钟", minutes))
+	}
+	return strings.Join(out, ", ")
+}

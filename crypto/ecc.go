@@ -173,13 +173,13 @@ func (w *ECC) SetPrivateKey(key string) error {
 // Encode ecc加密
 func (w *ECC) Encode(b []byte) (CValue, error) {
 	if w.pubEcies == nil {
-		return CValue([]byte{}), fmt.Errorf("no public key found")
+		return EmptyValue, fmt.Errorf("no public key found")
 	}
 	w.locker.Lock()
 	defer w.locker.Unlock()
 	res, err := ecies.Encrypt(rand.Reader, w.pubEcies, b, nil, nil)
 	if err != nil {
-		return CValue([]byte{}), err
+		return EmptyValue, err
 	}
 	return CValue(res), nil
 }
@@ -210,13 +210,13 @@ func (w *ECC) DecodeBase64(s string) (string, error) {
 // Sign 签名
 func (w *ECC) Sign(b []byte) (CValue, error) {
 	if w.priKey == nil {
-		return CValue([]byte{}), fmt.Errorf("no private key found")
+		return EmptyValue, fmt.Errorf("no private key found")
 	}
 	w.locker.Lock()
 	defer w.locker.Unlock()
 	signature, err := ecdsa.SignASN1(rand.Reader, w.priKey, w.signHash.Hash(b).Bytes())
 	if err != nil {
-		return CValue([]byte{}), err
+		return EmptyValue, err
 	}
 	return CValue(signature), nil
 }
@@ -269,7 +269,7 @@ func (w *ECC) Encrypt(s string) string {
 func (w *ECC) EncryptTo(s string) CValue {
 	x, err := w.Encode(Bytes(s))
 	if err != nil {
-		return CValue([]byte{})
+		return EmptyValue
 	}
 	return x
 }
