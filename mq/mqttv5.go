@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/eclipse/paho.golang/autopaho"
@@ -22,15 +23,23 @@ var (
 	messageExpiry uint32 = 600
 )
 
+var EmptyMQTTClientV5 = &MqttClientV5{
+	empty: true,
+}
+
 // MqttClientV5 mqtt客户端 5.0
 type MqttClientV5 struct {
 	opt    *MqttOpt
 	client *autopaho.ConnectionManager
-	st     *bool
+	st     *atomic.Bool
+	empty  bool
 }
 
 // Close close the mqtt client
 func (m *MqttClientV5) Close() error {
+	if m.empty {
+		return nil
+	}
 	if m.client == nil {
 		return fmt.Errorf("not connect to the server")
 	}
@@ -41,15 +50,21 @@ func (m *MqttClientV5) Close() error {
 
 // Client return autopaho.ConnectionManager
 func (m *MqttClientV5) Client() *autopaho.ConnectionManager {
+	if m.empty {
+		return nil
+	}
 	return m.client
 }
 
 // IsConnectionOpen 返回在线状态
 func (m *MqttClientV5) IsConnectionOpen() bool {
-	if m.client == nil {
+	if m.empty {
 		return false
 	}
-	return *m.st
+	if m.st == nil {
+		return false
+	}
+	return m.st.Load()
 }
 
 // Write 以qos0发送消息
@@ -59,7 +74,10 @@ func (m *MqttClientV5) Write(topic string, body []byte) error {
 
 // WriteWithQos 发送消息，可自定义qos
 func (m *MqttClientV5) WriteWithQos(topic string, body []byte, qos byte) error {
-	if m.client == nil {
+	if m.empty {
+		return nil
+	}
+	if !m.st.Load() || m.client == nil {
 		return fmt.Errorf("not connect to the server")
 	}
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*3)
@@ -88,7 +106,7 @@ func (m *MqttClientV5) WriteWithQos(topic string, body []byte, qos byte) error {
 // NewMQTTClientV5 创建一个5.0的mqtt client
 func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte)) (*MqttClientV5, error) {
 	if opt == nil {
-		return nil, fmt.Errorf("mqtt opt error")
+		return EmptyMQTTClientV5, fmt.Errorf("mqtt opt error")
 	}
 	if opt.SendTimeo == 0 {
 		opt.SendTimeo = time.Second * 5
@@ -116,9 +134,9 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 	}
 	u, err := url.Parse(opt.Addr)
 	if err != nil {
-		return nil, err
+		return EmptyMQTTClientV5, err
 	}
-	st := false
+	st := &atomic.Bool{}
 	conf := autopaho.ClientConfig{
 		ServerUrls:                    []*url.URL{u},
 		KeepAlive:                     40,
@@ -140,18 +158,18 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 					Subscriptions: x,
 				})
 			}
-			st = true
+			st.Store(true)
 		},
 		OnConnectError: func(err error) {
 			opt.Logg.Error(opt.Name + " connect error: " + err.Error())
-			st = false
+			st.Store(false)
 		},
 		ConnectUsername: opt.Username,
 		ConnectPassword: []byte(opt.Passwd),
 		ClientConfig: paho.ClientConfig{
 			ClientID: opt.ClientID, // gopsu.GetRandomString(19, true),
 			OnServerDisconnect: func(d *paho.Disconnect) {
-				st = false
+				st.Store(false)
 				if d.ReasonCode == 142 { // client id 重复
 					d.Packet().Properties.AssignedClientID += time.Now().Format("_2006-01-02_15:04:05.000000") // "_" + gopsu.GetRandomString(19, true)
 					return
@@ -160,7 +178,7 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 			},
 			OnClientError: func(err error) {
 				opt.Logg.Error(opt.Name + " client error: " + err.Error())
-				st = false
+				st.Store(false)
 			},
 			OnPublishReceived: []func(paho.PublishReceived) (bool, error){
 				func(pr paho.PublishReceived) (bool, error) {
@@ -174,18 +192,18 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 	cm, err := autopaho.NewConnection(context.Background(), conf)
 	if err != nil {
 		opt.Logg.Error(opt.Name + " connect to server error: " + err.Error())
-		return nil, err
+		return EmptyMQTTClientV5, err
 	}
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*3)
 	defer cancel()
 	err = cm.AwaitConnection(ctx)
 	if err != nil {
-		return nil, err
+		return EmptyMQTTClientV5, err
 	}
 
 	return &MqttClientV5{
 		client: cm,
-		st:     &st,
+		st:     st,
 		opt:    opt,
 	}, nil
 }

@@ -112,6 +112,8 @@ type CertOpt struct {
 	RootKey string `json:"root-key"`
 	// 根证书，当私钥配置错误时，该参数无效
 	RootCa string `json:"root-ca"`
+	// 输出目录
+	OutPut string `json:"-"`
 }
 
 // String 内存地址转换[]byte

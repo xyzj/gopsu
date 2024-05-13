@@ -14,9 +14,12 @@ import (
 	"math/big"
 	"net"
 	"os"
+	"path/filepath"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/xyzj/gopsu/pathtool"
 )
 
 type RSABits byte
@@ -293,6 +296,9 @@ func (w *RSA) CreateCert(opt *CertOpt) error {
 			IP:  []string{},
 		}
 	}
+	if opt.OutPut == "" {
+		opt.OutPut = pathtool.GetExecDir()
+	}
 	if len(opt.DNS) == 0 {
 		opt.DNS = []string{"localhost"}
 	}
@@ -382,7 +388,7 @@ func (w *RSA) CreateCert(opt *CertOpt) error {
 		Type:  "CERTIFICATE",
 		Bytes: certDer,
 	})
-	err = os.WriteFile("cert.rsa.pem", txt, 0o664)
+	err = os.WriteFile(filepath.Join(opt.OutPut, "cert.rsa.pem"), txt, 0o664)
 	if err != nil {
 		return err
 	}
@@ -395,7 +401,7 @@ func (w *RSA) CreateCert(opt *CertOpt) error {
 		Type:  "RSA PRIVATE KEY",
 		Bytes: txt,
 	})
-	err = os.WriteFile("cert-key.rsa.pem", txt, 0o664)
+	err = os.WriteFile(filepath.Join(opt.OutPut, "cert-key.rsa.pem"), txt, 0o664)
 	if err != nil {
 		return err
 	}
@@ -406,11 +412,11 @@ func (w *RSA) CreateCert(opt *CertOpt) error {
 			Type:  "CERTIFICATE",
 			Bytes: rootDer,
 		})
-		err = os.WriteFile("root.rsa.pem", txt, 0o664)
+		err = os.WriteFile(filepath.Join(opt.OutPut, "root.rsa.pem"), txt, 0o664)
 		if err != nil {
 			return err
 		}
-		w.ToFile("", "root-key.rsa.pem")
+		w.ToFile("", filepath.Join(opt.OutPut, "root-key.rsa.pem"))
 	}
 	return nil
 }

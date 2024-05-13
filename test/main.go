@@ -13,10 +13,10 @@ import (
 	"errors"
 	"flag"
 	"io"
-	"net/http"
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -298,13 +298,12 @@ func chtest(ch chan string) {
 }
 
 func main() {
-	req, _ := http.NewRequest("GET", "http://127.0.0.1", nil)
-	b, err := gopsu.DumpReqBody(req)
-	if err != nil {
-		println(err.Error())
-		return
-	}
-	println(string(b))
+	a := &atomic.Bool{}
+	b := a
+	a.Store(true)
+	println(b.Load())
+	a.Store(false)
+	println(b.Load())
 }
 
 var georep = strings.NewReplacer("(", "", ")", "", "POINT ", "", "POLYGON ", "", "LINESTRING ", "") // 经纬度字符串处理替换器

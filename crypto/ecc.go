@@ -13,12 +13,14 @@ import (
 	"math/big"
 	"net"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto/ecies"
+	"github.com/xyzj/gopsu/pathtool"
 )
 
 type ECShortName byte
@@ -283,6 +285,9 @@ func (w *ECC) CreateCert(opt *CertOpt) error {
 			IP:  []string{},
 		}
 	}
+	if opt.OutPut == "" {
+		opt.OutPut = pathtool.GetExecDir()
+	}
 	if len(opt.DNS) == 0 {
 		opt.DNS = []string{"localhost"}
 	}
@@ -372,7 +377,7 @@ func (w *ECC) CreateCert(opt *CertOpt) error {
 		Type:  "CERTIFICATE",
 		Bytes: certDer,
 	})
-	err = os.WriteFile("cert.ec.pem", txt, 0o664)
+	err = os.WriteFile(filepath.Join(opt.OutPut, "cert.ec.pem"), txt, 0o664)
 	if err != nil {
 		return err
 	}
@@ -385,7 +390,7 @@ func (w *ECC) CreateCert(opt *CertOpt) error {
 		Type:  "EC PRIVATE KEY",
 		Bytes: txt,
 	})
-	err = os.WriteFile("cert-key.ec.pem", txt, 0o664)
+	err = os.WriteFile(filepath.Join(opt.OutPut, "cert-key.ec.pem"), txt, 0o664)
 	if err != nil {
 		return err
 	}
@@ -396,11 +401,11 @@ func (w *ECC) CreateCert(opt *CertOpt) error {
 			Type:  "CERTIFICATE",
 			Bytes: rootDer,
 		})
-		err = os.WriteFile("root.ec.pem", txt, 0o664)
+		err = os.WriteFile(filepath.Join(opt.OutPut, "root.ec.pem"), txt, 0o664)
 		if err != nil {
 			return err
 		}
-		w.ToFile("", "root-key.ec.pem")
+		w.ToFile("", filepath.Join(opt.OutPut, "root-key.ec.pem"))
 	}
 	return nil
 }
