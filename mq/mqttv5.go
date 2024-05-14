@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/eclipse/paho.golang/autopaho"
@@ -21,6 +20,8 @@ import (
 var (
 	payloadFormat byte   = 1
 	messageExpiry uint32 = 600
+	ctxClose      context.Context
+	funClose      context.CancelFunc
 )
 
 var EmptyMQTTClientV5 = &MqttClientV5{
@@ -29,10 +30,11 @@ var EmptyMQTTClientV5 = &MqttClientV5{
 
 // MqttClientV5 mqtt客户端 5.0
 type MqttClientV5 struct {
-	opt    *MqttOpt
-	client *autopaho.ConnectionManager
-	st     *atomic.Bool
-	empty  bool
+	opt       *MqttOpt
+	client    *autopaho.ConnectionManager
+	st        *bool
+	empty     bool
+	ctxCancel context.CancelFunc
 }
 
 // Close close the mqtt client
@@ -41,11 +43,16 @@ func (m *MqttClientV5) Close() error {
 		return nil
 	}
 	if m.client == nil {
-		return fmt.Errorf("not connect to the server")
+		return nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	return m.client.Disconnect(ctx)
+	err := m.client.Disconnect(ctx)
+	if err != nil {
+		return err
+	}
+	m.ctxCancel()
+	return nil
 }
 
 // Client return autopaho.ConnectionManager
@@ -64,7 +71,7 @@ func (m *MqttClientV5) IsConnectionOpen() bool {
 	if m.st == nil {
 		return false
 	}
-	return m.st.Load()
+	return *m.st
 }
 
 // Write 以qos0发送消息
@@ -77,7 +84,7 @@ func (m *MqttClientV5) WriteWithQos(topic string, body []byte, qos byte) error {
 	if m.empty {
 		return nil
 	}
-	if !m.st.Load() || m.client == nil {
+	if !*m.st || m.client == nil {
 		return fmt.Errorf("not connect to the server")
 	}
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*3)
@@ -136,16 +143,16 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 	if err != nil {
 		return EmptyMQTTClientV5, err
 	}
-	st := &atomic.Bool{}
+	st := false
 	conf := autopaho.ClientConfig{
 		ServerUrls:                    []*url.URL{u},
-		KeepAlive:                     40,
+		KeepAlive:                     55,
 		CleanStartOnInitialConnection: true,
 		TlsCfg:                        opt.TLSConf,
 		ConnectRetryDelay:             time.Second * time.Duration(rand.Int31n(30)+30),
 		ConnectTimeout:                time.Second * 5,
 		OnConnectionUp: func(cm *autopaho.ConnectionManager, c *paho.Connack) {
-			opt.Logg.System(opt.Name + " Success connect to " + opt.Addr)
+			st = true
 			if len(opt.Subscribe) > 0 {
 				x := make([]paho.SubscribeOptions, 0, len(opt.Subscribe))
 				for k, v := range opt.Subscribe {
@@ -158,18 +165,18 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 					Subscriptions: x,
 				})
 			}
-			st.Store(true)
+			opt.Logg.System(opt.Name + " Success connect to " + opt.Addr)
 		},
 		OnConnectError: func(err error) {
+			st = false
 			opt.Logg.Error(opt.Name + " connect error: " + err.Error())
-			st.Store(false)
 		},
 		ConnectUsername: opt.Username,
 		ConnectPassword: []byte(opt.Passwd),
 		ClientConfig: paho.ClientConfig{
 			ClientID: opt.ClientID, // gopsu.GetRandomString(19, true),
 			OnServerDisconnect: func(d *paho.Disconnect) {
-				st.Store(false)
+				st = false
 				if d.ReasonCode == 142 { // client id 重复
 					d.Packet().Properties.AssignedClientID += time.Now().Format("_2006-01-02_15:04:05.000000") // "_" + gopsu.GetRandomString(19, true)
 					return
@@ -177,8 +184,8 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 				opt.Logg.Error(opt.Name + " server may be down " + strconv.Itoa(int(d.ReasonCode)))
 			},
 			OnClientError: func(err error) {
+				st = false
 				opt.Logg.Error(opt.Name + " client error: " + err.Error())
-				st.Store(false)
 			},
 			OnPublishReceived: []func(paho.PublishReceived) (bool, error){
 				func(pr paho.PublishReceived) (bool, error) {
@@ -189,9 +196,10 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 			},
 		},
 	}
-	cm, err := autopaho.NewConnection(context.Background(), conf)
+	ctxClose, funClose = context.WithCancel(context.TODO())
+	cm, err := autopaho.NewConnection(ctxClose, conf)
 	if err != nil {
-		opt.Logg.Error(opt.Name + " connect to server error: " + err.Error())
+		opt.Logg.Error(opt.Name + " new connection error: " + err.Error())
 		return EmptyMQTTClientV5, err
 	}
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*3)
@@ -202,8 +210,9 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 	}
 
 	return &MqttClientV5{
-		client: cm,
-		st:     st,
-		opt:    opt,
+		client:    cm,
+		st:        &st,
+		opt:       opt,
+		ctxCancel: funClose,
 	}, nil
 }
