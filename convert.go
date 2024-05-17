@@ -674,7 +674,7 @@ func Days2StringCHS(days int) string {
 	if m > 0 {
 		out = append(out, fmt.Sprintf("%d个月", m))
 	}
-	if d == 0 {
+	if m+y+d == 0 {
 		out = append(out, "不到1天")
 	} else {
 		out = append(out, fmt.Sprintf("%d天", d))
@@ -699,7 +699,7 @@ func Seconds2StringCHS(sec int64) string {
 	if hours > 0 {
 		out = append(out, fmt.Sprintf("%d小时", hours))
 	}
-	if minutes == 0 && hours == 0 && days == 0 {
+	if minutes+hours+days == 0 {
 		out = append(out, "不到一分钟")
 	} else {
 		out = append(out, fmt.Sprintf("%d分钟", minutes))

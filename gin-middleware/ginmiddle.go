@@ -351,13 +351,6 @@ func BasicAuth(accountpairs ...string) gin.HandlerFunc {
 	for _, v := range accountpairs {
 		accounts = append(accounts, "Basic "+base64.StdEncoding.EncodeToString([]byte(v)))
 	}
-	if len(accounts) == 0 {
-		accounts = []string{
-			"Basic " + base64.StdEncoding.EncodeToString([]byte("luwak:programs33810")),
-			"Basic " + base64.StdEncoding.EncodeToString([]byte("iamarat:mynameisjerry")),
-		}
-	}
-
 	return func(c *gin.Context) {
 		if v := c.Request.Header.Get("Authorization"); v != "" {
 			for _, account := range accounts {
