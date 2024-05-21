@@ -17,6 +17,7 @@ import (
 	"github.com/mohae/deepcopy"
 	"github.com/shirou/gopsutil/net"
 	"github.com/shirou/gopsutil/process"
+	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/cache"
@@ -29,15 +30,15 @@ import (
 var echarts []byte
 
 type procStatus struct {
-	Memrss  uint64
-	Memvms  uint64
-	IORead  uint64
-	IOWrite uint64
-	Cpup    float32
-	Memp    float32
-	Ofd     int32
-	Conns   int32
-	dt      string
+	Memrss  uint64  `json:"rss"`
+	Memvms  uint64  ` json:"vms"`
+	IORead  uint64  `json:"ior"`
+	IOWrite uint64  `json:"iow"`
+	Dt      int64   `json:"dt"`
+	Cpup    float32 `json:"cpu"`
+	Memp    float32 `json:"mem"`
+	Ofd     int32   `json:"ofd"`
+	Conns   int32   `json:"conn"`
 }
 
 func (ps *procStatus) String() string {
@@ -49,13 +50,11 @@ func (ps *procStatus) HTML() string {
 }
 
 func (ps *procStatus) JSON() string {
-	js, _ := sjson.Set("", "cpu", fmt.Sprintf("%.2f", ps.Cpup))
-	js, _ = sjson.Set(js, "mem", fmt.Sprintf("%.2f", ps.Memp))
-	js, _ = sjson.Set(js, "rss", fmt.Sprintf("%d", ps.Memrss))
-	js, _ = sjson.Set(js, "vms", fmt.Sprintf("%d", ps.Memvms))
-	js, _ = sjson.Set(js, "ofd", fmt.Sprintf("%d", ps.Ofd))
-	js, _ = sjson.Set(js, "ior", fmt.Sprintf("%d", ps.IORead))
-	js, _ = sjson.Set(js, "iow", fmt.Sprintf("%d", ps.IOWrite))
+	js, err := json.MarshalToString(ps)
+	if err != nil {
+		return ""
+	}
+	// js, _ = sjson.Set(js, "dt", gopsu.Stamp2Time(ps.Dt))
 	return js
 }
 
@@ -138,6 +137,7 @@ func StartRecord(opt *RecordOpt) *Recorder {
 			r.lastProc.IOWrite = iost.WriteBytes
 			connst, _ = proce.Connections()
 			r.lastProc.Conns = int32(len(connst))
+			r.lastProc.Dt = time.Now().Unix()
 			r.procCache.Store(time.Now().Format("01-02 15:04:05"), deepcopy.Copy(r.lastProc).(*procStatus))
 		}
 		t := time.NewTicker(r.opt.Timer)
@@ -152,6 +152,44 @@ func StartRecord(opt *RecordOpt) *Recorder {
 		}
 	}, "proc", opt.Logg.DefaultWriter())
 	return r
+}
+
+func (r *Recorder) Import(s string) {
+	gjson.Parse(s).Get("data").ForEach(func(key, value gjson.Result) bool {
+		ls := &procStatus{
+			Dt:      value.Get("dt").Int(),
+			Cpup:    float32(value.Get("cpu").Float()),
+			Memp:    float32(value.Get("mem").Float()),
+			Memrss:  value.Get("rss").Uint(),
+			Memvms:  value.Get("vms").Uint(),
+			Ofd:     int32(value.Get("ofd").Int()),
+			IORead:  value.Get("ior").Uint(),
+			IOWrite: value.Get("iow").Uint(),
+		}
+		r.procCache.Store(gopsu.Stamp2Time(ls.Dt, "01-02 15:04:05"), ls)
+		return true
+	})
+}
+
+func (r *Recorder) Export() string {
+	s := ""
+	for _, v := range r.allData() {
+		s, _ = sjson.Set(s, "data.-1", v)
+	}
+	return s
+}
+
+// allData 返回所有数据
+func (r *Recorder) allData() []*procStatus {
+	js := make([]*procStatus, 0, r.procCache.Len())
+	r.procCache.ForEach(func(key string, value *procStatus) bool {
+		js = append(js, value)
+		return true
+	})
+	sort.Slice(js, func(i, j int) bool {
+		return js[i].Dt < js[j].Dt
+	})
+	return js
 }
 
 func (r *Recorder) BuildLines(width string, js []*procStatus) []byte {
@@ -170,7 +208,7 @@ func (r *Recorder) BuildLines(width string, js []*procStatus) []byte {
 	iow := make([]opts.LineData, 0, l)
 	con := make([]opts.LineData, 0, l)
 	for _, v := range js {
-		x = append(x, v.dt)
+		x = append(x, gopsu.Stamp2Time(v.Dt, "01-02 15:04:05"))
 		cpu = append(cpu, opts.LineData{Name: fmt.Sprintf("%.2f%%", v.Cpup), Value: v.Cpup, Symbol: "circle"})
 		mem = append(mem, opts.LineData{Name: fmt.Sprintf("%.2f%%", v.Memp), Value: v.Memp, Symbol: "circle"})
 		rss = append(rss, opts.LineData{Name: gopsu.FormatFileSize(v.Memrss), Value: v.Memrss / 1024 / 1024, Symbol: "circle"})
@@ -290,15 +328,7 @@ func (r *Recorder) BuildLines(width string, js []*procStatus) []byte {
 }
 
 func (r *Recorder) GinHandler(c *gin.Context) {
-	js := make([]*procStatus, 0, r.procCache.Len())
-	r.procCache.ForEach(func(key string, value *procStatus) bool {
-		value.dt = key
-		js = append(js, value)
-		return true
-	})
-	sort.Slice(js, func(i, j int) bool {
-		return js[i].dt < js[j].dt
-	})
+	js := r.allData()
 	switch c.Request.Method {
 	case "POST":
 		c.Set("data", js)
@@ -310,15 +340,7 @@ func (r *Recorder) GinHandler(c *gin.Context) {
 }
 
 func (r *Recorder) HTTPHandler(w http.ResponseWriter, req *http.Request) {
-	js := make([]*procStatus, 0, r.procCache.Len())
-	r.procCache.ForEach(func(key string, value *procStatus) bool {
-		value.dt = key
-		js = append(js, value)
-		return true
-	})
-	sort.Slice(js, func(i, j int) bool {
-		return js[i].dt < js[j].dt
-	})
+	js := r.allData()
 	switch req.Method {
 	case "POST":
 		s, _ := sjson.SetBytes([]byte{}, "status", 1)
