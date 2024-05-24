@@ -30,6 +30,11 @@ func IsExist(p string) bool {
 	return err == nil || os.IsExist(err)
 }
 
+// GetExecFullpath get current file path
+func GetExecFullpath() string {
+	return JoinPathFromHere(GetExecName())
+}
+
 // GetExecDir get current file path
 func GetExecDir() string {
 	a, _ := os.Executable()

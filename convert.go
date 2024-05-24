@@ -597,7 +597,7 @@ func SignedBytes2Int64(b []byte) int64 {
 
 // Days2String 将天数转换为年月日显示
 func Days2String(days int) string {
-	t1, _ := time.Parse("2006-01-02", "0001-01-01")
+	t1, _ := time.Parse("2006-01-02", "0000-00-00")
 	t2 := t1.Add(time.Hour * time.Duration(24*days))
 	y := t2.Year() - 1
 	if y < 0 {
@@ -621,7 +621,9 @@ func Days2String(days int) string {
 	if d == 0 {
 		out = append(out, "less than a day")
 	} else {
-		out = append(out, fmt.Sprintf("%d Days", d))
+		if d > 0 {
+			out = append(out, fmt.Sprintf("%d Days", d))
+		}
 	}
 	return strings.Join(out, ", ")
 }
@@ -643,17 +645,19 @@ func Seconds2String(sec int64) string {
 	if hours > 0 {
 		out = append(out, fmt.Sprintf("%d Hours", hours))
 	}
-	if minutes == 0 && hours == 0 && days == 0 {
+	if minutes+hours+days == 0 {
 		out = append(out, "less than a minute")
 	} else {
-		out = append(out, fmt.Sprintf("%d Minutes", minutes))
+		if minutes > 0 {
+			out = append(out, fmt.Sprintf("%d Minutes", minutes))
+		}
 	}
 	return strings.Join(out, ", ")
 }
 
 // Days2StringCHS 将天数转换为年月日显示
 func Days2StringCHS(days int) string {
-	t1, _ := time.Parse("2006-01-02", "0001-01-01")
+	t1, _ := time.Parse("2006-01-02", "0000-00-00")
 	t2 := t1.Add(time.Hour * time.Duration(24*days))
 	y := t2.Year() - 1
 	if y < 0 {
@@ -677,7 +681,9 @@ func Days2StringCHS(days int) string {
 	if m+y+d == 0 {
 		out = append(out, "不到1天")
 	} else {
-		out = append(out, fmt.Sprintf("%d天", d))
+		if d > 0 {
+			out = append(out, fmt.Sprintf("%d天", d))
+		}
 	}
 	return strings.Join(out, ", ")
 }
@@ -702,7 +708,9 @@ func Seconds2StringCHS(sec int64) string {
 	if minutes+hours+days == 0 {
 		out = append(out, "不到一分钟")
 	} else {
-		out = append(out, fmt.Sprintf("%d分钟", minutes))
+		if minutes > 0 {
+			out = append(out, fmt.Sprintf("%d分钟", minutes))
+		}
 	}
 	return strings.Join(out, ", ")
 }
