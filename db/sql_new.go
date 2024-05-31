@@ -136,9 +136,9 @@ func New(opt *Opt) (*Conn, error) {
 	var connstr string
 	var orm *gorm.DB
 	var err error
-	var reConn = 0
+	reConn := 0
 CONN:
-	var dbidx = 1
+	dbidx := 1
 	for k, dbname := range opt.DBNames {
 		dbname = strings.TrimSpace(dbname)
 		if dbname == "" {
@@ -300,6 +300,18 @@ func (d *Conn) IsReady() bool {
 		return false
 	}
 	return true
+}
+
+// GetName 获取数据库名字
+func (d *Conn) GetName(dbidx int) string {
+	if dbidx > len(d.dbs) {
+		return ""
+	}
+	sql, ok := d.dbs[dbidx]
+	if !ok {
+		return ""
+	}
+	return sql.name
 }
 
 // checkSQL 检查sql语句是否存在注入攻击风险

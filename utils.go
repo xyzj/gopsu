@@ -1444,17 +1444,17 @@ func FormatFileSize(byteSize uint64) (size string) {
 	fileSize := float64(byteSize)
 	if fileSize < 1024 {
 		// return strconv.FormatInt(fileSize, 10) + "B"
-		return fmt.Sprintf("%.2f B", fileSize/1)
+		return fmt.Sprintf("%.2fB", fileSize/1)
 	} else if fileSize < (1024 * 1024) {
-		return fmt.Sprintf("%.2f KB", fileSize/1024)
+		return fmt.Sprintf("%.2fK", fileSize/1024)
 	} else if fileSize < (1024 * 1024 * 1024) {
-		return fmt.Sprintf("%.2f MB", fileSize/(1024*1024))
+		return fmt.Sprintf("%.2fM", fileSize/(1024*1024))
 	} else if fileSize < (1024 * 1024 * 1024 * 1024) {
-		return fmt.Sprintf("%.2f GB", fileSize/(1024*1024*1024))
+		return fmt.Sprintf("%.2fG", fileSize/(1024*1024*1024))
 	} else if fileSize < (1024 * 1024 * 1024 * 1024 * 1024) {
-		return fmt.Sprintf("%.2f TB", fileSize/(1024*1024*1024*1024))
+		return fmt.Sprintf("%.2fT", fileSize/(1024*1024*1024*1024))
 	} else { // if fileSize < (1024 * 1024 * 1024 * 1024 * 1024 * 1024)
-		return fmt.Sprintf("%.2f EB", fileSize/(1024*1024*1024*1024*1024))
+		return fmt.Sprintf("%.2fE", fileSize/(1024*1024*1024*1024*1024))
 	}
 }
 
