@@ -31,7 +31,7 @@ var echarts []byte
 
 type procStatus struct {
 	Memrss  uint64  `json:"rss"`
-	Memvms  uint64  ` json:"vms"`
+	Memvms  uint64  `json:"vms"`
 	IORead  uint64  `json:"ior"`
 	IOWrite uint64  `json:"iow"`
 	Dt      int64   `json:"dt"`
@@ -163,6 +163,7 @@ func (r *Recorder) Import(s string) {
 			Memrss:  value.Get("rss").Uint(),
 			Memvms:  value.Get("vms").Uint(),
 			Ofd:     int32(value.Get("ofd").Int()),
+			Conns:   int32(value.Get("conn").Int()),
 			IORead:  value.Get("ior").Uint(),
 			IOWrite: value.Get("iow").Uint(),
 		}

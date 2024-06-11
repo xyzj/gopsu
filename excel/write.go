@@ -3,6 +3,7 @@ package excel
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"os"
@@ -13,6 +14,13 @@ import (
 	"github.com/tealeg/xlsx/v3"
 )
 
+var errSheetNotFound = func(sheetname string) error {
+	if sheetname == "" {
+		return nil
+	}
+	return errors.New("sheet " + sheetname + " not found")
+}
+
 // FileData Excel文件结构
 type FileData struct {
 	fileName   string
@@ -21,9 +29,22 @@ type FileData struct {
 	writeSheet *xlsx.Sheet
 }
 
+// GetCell 获取单元格，可进行合等操作
+func (fd *FileData) GetCell(sheetname string, row, col int) (*xlsx.Cell, error) {
+	sheet, ok := fd.writeFile.Sheet[sheetname]
+	if !ok {
+		return nil, errSheetNotFound((sheetname))
+	}
+	return sheet.Cell(row, col)
+}
+
+// GetRows 获取制定sheet的所有行
 func (fd *FileData) GetRows(sheetname string) [][]string {
-	sheet := fd.writeFile.Sheet[sheetname]
-	var ss = make([][]string, 0, sheet.MaxRow)
+	sheet, ok := fd.writeFile.Sheet[sheetname]
+	if !ok {
+		return make([][]string, 0)
+	}
+	ss := make([][]string, 0, sheet.MaxRow)
 	l := sheet.MaxCol
 	sheet.ForEachRow(func(r *xlsx.Row) error {
 		rs := make([]string, 0, l)
@@ -52,14 +73,18 @@ func (fd *FileData) AddSheet(sheetname string) (*xlsx.Sheet, error) {
 
 // AddRowInSheet 在指定sheet添加行
 // cells： 每个单元格的数据，任意格式
-func (fd *FileData) AddRowInSheet(sheetname string, cells ...interface{}) {
-	sheet := fd.writeFile.Sheet[sheetname]
+func (fd *FileData) AddRowInSheet(sheetname string, cells ...interface{}) error {
+	sheet, ok := fd.writeFile.Sheet[sheetname]
+	if !ok {
+		return fmt.Errorf("sheet " + sheetname + " not found")
+	}
 	row := sheet.AddRow()
 	row.SetHeight(15)
 	// row.WriteSlice(cells, -1)
 	for _, v := range cells {
 		row.AddCell().SetValue(v)
 	}
+	return nil
 }
 
 // AddRow 在当前sheet添加行
@@ -105,7 +130,7 @@ func (fd *FileData) Save() (string, error) {
 		fn += ".xlsx"
 	}
 	if !isExist(filepath.Dir(fn)) {
-		os.MkdirAll(filepath.Dir(fn), 0775)
+		os.MkdirAll(filepath.Dir(fn), 0o775)
 	}
 
 	err := fd.writeFile.Save(fn)
@@ -171,6 +196,7 @@ func NewExcelFromUpload(file multipart.File, filename string) (*FileData, error)
 	}
 	return NewExcelFromBinary(fb, filename)
 }
+
 func isExist(p string) bool {
 	if p == "" {
 		return false

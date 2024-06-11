@@ -35,6 +35,8 @@ func (d *Conn) QueryCache(cacheTag string, startRow, rowsCount int) *QueryData {
 				query.Rows = msg.Rows[startRow:endRow]
 			}
 		}
+	} else {
+		query.CacheTag = ""
 	}
 	return query
 }
