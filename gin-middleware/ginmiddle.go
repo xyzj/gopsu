@@ -24,17 +24,9 @@ import (
 
 // GetSocketTimeout 获取超时时间
 func GetSocketTimeout() time.Duration {
-	return getSocketTimeout()
-}
-
-func getSocketTimeout() time.Duration {
-	t := 300
-	b, err := os.ReadFile(".sockettimeout")
-	if err == nil {
-		t = gopsu.String2Int(gopsu.TrimString(gopsu.String(b)), 10)
-	}
-	if t < 300 {
-		t = 300
+	t, err := strconv.ParseInt(os.Getenv("GO_SERVER_SOCKET_TIMEOUT"), 10, 64)
+	if err != nil || t < 200 {
+		return time.Second * 200
 	}
 	return time.Second * time.Duration(t)
 }
