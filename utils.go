@@ -106,20 +106,17 @@ var (
 	DefaultConfDir = filepath.Join(pathtool.GetExecDir(), "..", "conf")
 )
 
-var (
-	trimReplacer = strings.NewReplacer("\r", "", "\n", "", "\000", "", "\t", " ")
-	httpClient   = &http.Client{
-		Transport: &http.Transport{
-			IdleConnTimeout:     time.Second * 10,
-			MaxConnsPerHost:     777,
-			MaxIdleConns:        1,
-			MaxIdleConnsPerHost: 1,
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
+var httpClient = &http.Client{
+	Transport: &http.Transport{
+		IdleConnTimeout:     time.Second * 10,
+		MaxConnsPerHost:     777,
+		MaxIdleConns:        1,
+		MaxIdleConnsPerHost: 1,
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
 		},
-	}
-)
+	},
+}
 
 // DoRequestWithTimeout 发起请求
 func DoRequestWithTimeout(req *http.Request, timeo time.Duration) (int, []byte, map[string]string, error) {
@@ -1118,7 +1115,7 @@ func GetClientTLSConfig(certfile, keyfile, rootca string) (*tls.Config, error) {
 
 // TrimString 去除字符串末尾的空格，\r\n
 func TrimString(s string) string {
-	return trimReplacer.Replace(strings.TrimSpace(s))
+	return strings.TrimPrefix(strings.TrimSpace(s), "\000")
 }
 
 // ZIPFiles 压缩多个文件

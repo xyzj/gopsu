@@ -62,7 +62,7 @@ func CFConnectingIP() gin.HandlerFunc {
 func CheckRequired(params ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		for _, v := range params {
-			if gopsu.TrimString(v) == "" {
+			if strings.TrimSpace(v) == "" {
 				continue
 			}
 			if c.Param(v) == "" {
@@ -133,8 +133,8 @@ func ReadParams() gin.HandlerFunc {
 					bodyjs = ans.String()
 				} else { // body不是json，按urlencode处理
 					if len(b)+len(c.Request.URL.RawQuery) > 0 {
-						bodyjs = strings.Join([]string{c.Request.URL.RawQuery, gopsu.String(b)}, "&")
-						xbody, _ := url.ParseQuery(gopsu.String(b))
+						bodyjs = strings.Join([]string{c.Request.URL.RawQuery, json.String(b)}, "&")
+						xbody, _ := url.ParseQuery(json.String(b))
 						for k := range xbody {
 							x.Set(k, xbody.Get(k))
 						}
@@ -168,7 +168,7 @@ func ReadParams() gin.HandlerFunc {
 				if b, err := json.Marshal(mf.Value); err == nil {
 					c.Params = append(c.Params, gin.Param{
 						Key:   "_body",
-						Value: gopsu.String(b),
+						Value: json.String(b),
 					})
 				}
 				for k, v := range mf.Value {
@@ -215,7 +215,7 @@ func Delay() gin.HandlerFunc {
 		c.Next()
 		b, err := os.ReadFile(".performance")
 		if err == nil {
-			t, _ := strconv.Atoi(gopsu.TrimString(gopsu.String(b)))
+			t, _ := strconv.Atoi(strings.TrimSpace(json.String(b)))
 			if t > 5000 || t < 0 {
 				t = 5000
 			}
@@ -287,7 +287,7 @@ func ReadCachePB2(mydb db.SQLInterface) gin.HandlerFunc {
 				if ans.Total > 0 {
 					var s string
 					if b, err := json.Marshal(ans); err != nil {
-						s = gopsu.String(b)
+						s = json.String(b)
 					}
 					// s, _ := json.MarshalToString(ans)
 					c.Params = append(c.Params, gin.Param{

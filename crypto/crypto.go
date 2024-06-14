@@ -13,13 +13,6 @@ import (
 	"unsafe"
 )
 
-type (
-	HashType byte
-	AESType  byte
-	RSAType  byte
-	SM4Type  byte
-)
-
 var EmptyValue = CValue([]byte{})
 
 // CValue 加密后的数据，可输出[]byte,hex string,base64string
@@ -55,47 +48,60 @@ func (v CValue) URLBase64String() string {
 	return base64.URLEncoding.EncodeToString(v)
 }
 
+type (
+	HashType byte
+	AESType  byte
+	RSAType  byte
+	SM4Type  byte
+)
+
 const (
 	// HashMD5 md5算法
-	HashMD5 HashType = 1
+	HashMD5 HashType = iota
 	// HashSHA256 sha256算法
-	HashSHA256 HashType = 2
+	HashSHA256
 	// HashSHA512 sha512算法
-	HashSHA512 HashType = 3
+	HashSHA512
 	// HashHMACSHA1 hmacsha1摘要算法
-	HashHMACSHA1 HashType = 4
+	HashHMACSHA1
 	// HashHMACSHA256 hmacsha256摘要算法
-	HashHMACSHA256 HashType = 5
+	HashHMACSHA256
 	// HashSHA1 sha1算法
-	HashSHA1 HashType = 6
+	HashSHA1
 	// HashSM3 国密sm3
-	HashSM3 = 7
+	HashSM3
+)
+
+const (
 	// AES128CBC aes128cbc算法
-	AES128CBC AESType = 1
+	AES128CBC AESType = iota
 	// AES192CBC aes192cbc算法
-	AES192CBC AESType = 2
+	AES192CBC
 	// AES256CBC aes256cbc算法
-	AES256CBC AESType = 3
+	AES256CBC
 	// AES128CFB aes128cfb算法
-	AES128CFB AESType = 4
+	AES128CFB
 	// AES192CFB aes192cfb算法
-	AES192CFB AESType = 5
+	AES192CFB
 	// AES256CFB aes256cfb算法
-	AES256CFB AESType = 6
+	AES256CFB
 	// AES128ECB aes128ecb算法
-	AES128ECB AESType = 7
+	AES128ECB
 	// AES192ECB aes192ecb算法
-	AES192ECB AESType = 8
+	AES192ECB
 	// AES256ECB aes256ecb算法
-	AES256ECB AESType = 9
+	AES256ECB
+)
+
+const (
 	// SM4CBC SM4 CBC算法
-	SM4CBC SM4Type = 1
+	SM4CBC SM4Type = iota
 	// SM4CFB SM4 CFB算法
-	SM4CFB SM4Type = 2
+	SM4CFB
 	// SM4OFB SM4 CBC算法
-	SM4OFB SM4Type = 3
+	SM4OFB
 	// SM4ECB SM4 CFB算法
-	SM4ECB SM4Type = 4
+	SM4ECB
 )
 
 var (

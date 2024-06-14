@@ -16,7 +16,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -298,12 +297,9 @@ func chtest(ch chan string) {
 }
 
 func main() {
-	a := &atomic.Bool{}
-	b := a
-	a.Store(true)
-	println(b.Load())
-	a.Store(false)
-	println(b.Load())
+	s := "\000dadf\t "
+	println(s, len(s))
+	println(strings.TrimSpace(s), len(strings.TrimSpace(s)))
 }
 
 var georep = strings.NewReplacer("(", "", ")", "", "POINT ", "", "POLYGON ", "", "LINESTRING ", "") // 经纬度字符串处理替换器
