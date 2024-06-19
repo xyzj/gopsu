@@ -6,19 +6,19 @@ import (
 	"unsafe"
 )
 
+type LogLevel byte
+
 const (
-	logDebug            = 10
-	logInfo             = 20
-	logWarning          = 30
-	logError            = 40
-	logSystem           = 90
-	logformater         = "%s %s"
-	logformaterWithName = "%s [%s] %s"
+	LogDebug            LogLevel = 10
+	LogInfo             LogLevel = 20
+	LogWarning          LogLevel = 30
+	LogError            LogLevel = 40
+	LogSystem           LogLevel = 90
+	logformater                  = "%s %s"
+	logformaterWithName          = "%s [%s] %s"
 )
 
-var (
-	lineend = []byte{10}
-)
+var lineend = []byte{10}
 
 // Logger 日志接口
 type Logger interface {
@@ -108,8 +108,8 @@ func (l *NilLogger) DefaultWriter() io.Writer { return nil }
 type StdLogger struct {
 	cout     io.Writer
 	out      io.Writer
-	clevel   map[byte]struct{}
-	logLevel byte
+	clevel   map[LogLevel]struct{}
+	logLevel LogLevel
 }
 
 // DefaultWriter out
@@ -118,7 +118,7 @@ func (l *StdLogger) DefaultWriter() io.Writer {
 }
 
 // WriteLog 写日志
-func (l *StdLogger) writeLog(msg string, level byte) {
+func (l *StdLogger) writeLog(msg string, level LogLevel) {
 	// 写日志
 	if level >= l.logLevel && l.out != nil {
 		l.out.Write(toBytes(msg))
@@ -133,27 +133,27 @@ func (l *StdLogger) writeLog(msg string, level byte) {
 
 // Debug writelog with level 10
 func (l *StdLogger) Debug(msg string) {
-	l.writeLog(msg, logDebug)
+	l.writeLog(msg, LogDebug)
 }
 
 // Info writelog with level 20
 func (l *StdLogger) Info(msg string) {
-	l.writeLog(msg, logInfo)
+	l.writeLog(msg, LogInfo)
 }
 
 // Warning writelog with level 30
 func (l *StdLogger) Warning(msg string) {
-	l.writeLog(msg, logWarning)
+	l.writeLog(msg, LogWarning)
 }
 
 // Error writelog with level 40
 func (l *StdLogger) Error(msg string) {
-	l.writeLog(msg, logError)
+	l.writeLog(msg, LogError)
 }
 
 // System writelog with level 90
 func (l *StdLogger) System(msg string) {
-	l.writeLog(msg, logSystem)
+	l.writeLog(msg, LogSystem)
 }
 
 // // DebugFormat writelog with level 10
@@ -187,31 +187,35 @@ func (l *StdLogger) System(msg string) {
 // logDays 日志文件保留天数
 //
 // delayWrite 是否延迟写入，在日志密集时，可减少磁盘io，但可能导致日志丢失
-func NewLogger(d, f string, logLevel, logDays int, delayWrite bool, consoleLevels ...byte) Logger {
-	var ll byte
-	switch logLevel {
-	case 10, 20, 30, 40, 90:
-		ll = byte(logLevel)
-	default:
-		ll = 10
-	}
-	if f == "" {
+func NewLogger(opt *OptLog) Logger {
+	if opt.Filename == "" {
 		return NewConsoleLogger()
 	}
-	opt := &OptLog{
-		FileDir:    d,
-		Filename:   f,
-		AutoRoll:   ll >= 10,
-		MaxDays:    logDays,
-		ZipFile:    logDays > 7,
-		DelayWrite: delayWrite,
-	}
-	cl := make(map[byte]struct{})
-	for _, v := range consoleLevels {
+	// func NewLogger(d, f string, logLevel, logDays int, delayWrite bool, consoleLevels ...byte) Logger {
+	// var ll byte
+	// switch logLevel {
+	// case 10, 20, 30, 40, 90:
+	// 	ll = byte(logLevel)
+	// default:
+	// 	ll = 10
+	// }
+	// if f == "" {
+	// 	return NewConsoleLogger()
+	// }
+	// opt := &OptLog{
+	// 	FileDir:    d,
+	// 	Filename:   f,
+	// 	AutoRoll:   ll >= 10,
+	// 	MaxDays:    logDays,
+	// 	ZipFile:    logDays > 7,
+	// 	DelayWrite: delayWrite,
+	// }
+	cl := make(map[LogLevel]struct{})
+	for _, v := range opt.ConsoleLevels {
 		cl[v] = struct{}{}
 	}
 	return &StdLogger{
-		logLevel: ll,
+		logLevel: opt.FileLevel,
 		out:      NewWriter(opt),
 		cout:     NewConsoleWriter(),
 		clevel:   cl,
@@ -224,7 +228,7 @@ func NewConsoleLogger() Logger {
 		// out:      NewWriter(nil),
 		// logLevel: 10,
 		cout: NewConsoleWriter(),
-		clevel: map[byte]struct{}{
+		clevel: map[LogLevel]struct{}{
 			10: {},
 			20: {},
 			30: {},
@@ -233,6 +237,7 @@ func NewConsoleLogger() Logger {
 		},
 	}
 }
+
 func toBytes(s string) []byte {
 	return *(*[]byte)(unsafe.Pointer(
 		&struct {

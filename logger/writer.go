@@ -13,20 +13,21 @@ import (
 	"strings"
 	"time"
 
-	"github.com/xyzj/gopsu/json"
+	"github.com/xyzj/gopsu/crypto"
 	"github.com/xyzj/gopsu/loopfunc"
 	"github.com/xyzj/gopsu/pathtool"
 )
 
 const (
-	fileTimeFormat = "060102"   // 日志文件命名格式
-	maxFileSize    = 1048576000 // 1G
+	fileTimeFormat = "060102"    // 日志文件命名格式
+	maxFileSize    = 1024 * 1024 // 100mb
 	// ShortTimeFormat 日志事件戳格式
 	ShortTimeFormat = "15:04:05.000 "
 )
 
 var (
 	lineEnd = []byte{10}
+	comp    = crypto.NewCompressor(crypto.CompressZstd)
 )
 
 // OptLog OptLog
@@ -41,12 +42,25 @@ type OptLog struct {
 	MaxDays int
 	// MaxSize 单个日志文件最大大小，AutoRoll==true时有效
 	MaxSize int64
-	// ZipFile 是否压缩旧日志文件，AutoRoll==true时有效
-	ZipFile bool
+	// CompressFile 是否压缩旧日志文件，AutoRoll==true时有效
+	CompressFile bool
 	// SyncToConsole 同步输出到控制台
 	// SyncToConsole bool
 	// DelayWrite 延迟写入，每秒检查写入缓存，并写入文件，非实时写入
 	DelayWrite bool
+	// 需要输出到控制台的level
+	ConsoleLevels []LogLevel
+	// 日志等级
+	FileLevel LogLevel
+}
+
+func (o *OptLog) ensureDefaults() {
+	if o.MaxDays > 0 || o.MaxSize > 0 {
+		o.AutoRoll = true
+	}
+	if o.MaxSize < maxFileSize {
+		o.MaxSize = maxFileSize
+	}
 }
 
 func NewConsoleWriter() io.Writer {
@@ -62,17 +76,7 @@ func NewWriter(opt *OptLog) io.Writer {
 	if opt == nil || opt.Filename == "" {
 		return NewConsoleWriter()
 	}
-	if opt.AutoRoll { // 检查关联参数
-		if opt.MaxDays < 1 {
-			opt.MaxDays = 1
-		}
-		if opt.MaxSize > 0 && opt.MaxSize < 10485760 {
-			opt.MaxSize = 10485760
-		}
-		if opt.MaxSize == 0 {
-			opt.MaxSize = maxFileSize
-		}
-	}
+	opt.ensureDefaults()
 	t := time.Now()
 	mylog := &Writer{
 		out:         os.Stdout,
@@ -84,18 +88,24 @@ func NewWriter(opt *OptLog) io.Writer {
 		fileHour:    t.Hour(),
 		logDir:      opt.FileDir,
 		chanGoWrite: make(chan []byte, 2000),
-		enablegz:    opt.ZipFile,
+		enablegz:    opt.CompressFile,
 		withFile:    opt.Filename != "",
 		delayWrite:  opt.DelayWrite,
 	}
 	if opt.Filename != "" && opt.AutoRoll {
 		ymd := t.Format(fileTimeFormat)
-		for i := 1; i < 255; i++ {
-			if !pathtool.IsExist(filepath.Join(mylog.logDir, fmt.Sprintf("%s.%s.%d.log", mylog.fname, ymd, i))) {
-				mylog.fileIndex = byte(i) - 1
+		for i := byte(255); i > 0; i-- {
+			if pathtool.IsExist(filepath.Join(mylog.logDir, fmt.Sprintf("%s.%s.%d.log", mylog.fname, ymd, i))) {
+				mylog.fileIndex = i
 				break
 			}
 		}
+		// for i := 1; i < 255; i++ {
+		// 	if !pathtool.IsExist(filepath.Join(mylog.logDir, fmt.Sprintf("%s.%s.%d.log", mylog.fname, ymd, i))) {
+		// 		mylog.fileIndex = byte(i) - 1
+		// 		break
+		// 	}
+		// }
 	}
 	mylog.newFile()
 	mylog.startWrite()
@@ -125,7 +135,7 @@ type Writer struct {
 
 // Write 异步写入日志，返回固定为 0, nil
 func (w *Writer) Write(p []byte) (n int, err error) {
-	xp := json.Bytes(time.Now().Format(ShortTimeFormat))
+	xp := crypto.Bytes(time.Now().Format(ShortTimeFormat))
 	xp = append(xp, p...)
 	if !bytes.HasSuffix(xp, lineEnd) {
 		xp = append(xp, lineEnd...)
@@ -199,14 +209,14 @@ func (w *Writer) newFile() {
 		w.fno.Close()
 	}
 	if !pathtool.IsExist(w.logDir) {
-		os.MkdirAll(w.logDir, 0755)
+		os.MkdirAll(w.logDir, 0o755)
 	}
 	w.pathNow = filepath.Join(w.logDir, w.nameNow)
 	// 直接写入当日日志
 	var err error
-	w.fno, err = os.OpenFile(w.pathNow, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0664)
+	w.fno, err = os.OpenFile(w.pathNow, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o664)
 	if err != nil {
-		os.WriteFile("logerr.log", json.Bytes("log file open error: "+err.Error()), 0664)
+		os.WriteFile("logerr.log", crypto.Bytes("log file open error: "+err.Error()), 0o664)
 		w.withFile = false
 		return
 	}
@@ -220,9 +230,10 @@ func (w *Writer) newFile() {
 
 // 检查文件大小,返回是否需要切分文件
 func (w *Writer) rolledWithFileSize() bool {
-	if w.fileHour == time.Now().Hour() {
-		return false
-	}
+	// if w.fileHour == time.Now().Hour() {
+	// 	return false
+	// }
+	w.nameOld = w.nameNow
 	w.fileHour = time.Now().Hour()
 	fs, ex := os.Stat(w.pathNow)
 	if ex == nil {
@@ -258,16 +269,31 @@ func (w *Writer) rollingFileNoLock() bool {
 
 // 压缩旧日志
 func (w *Writer) zipFile(s string) {
-	if !w.enablegz || len(s) == 0 || !pathtool.IsExist(filepath.Join(w.logDir, s)) {
+	if !w.enablegz || len(s) == 0 {
 		return
 	}
-	go func(s string) {
-		err := zipFile(w.logDir, s, true)
-		if err != nil {
-			println("zip log file error: " + s + " " + err.Error())
-			return
-		}
-	}(s)
+	if xs := filepath.Join(w.logDir, s); pathtool.IsExist(xs) {
+		go func(s string) {
+			b, err := os.ReadFile(s)
+			if err != nil {
+				w.Write([]byte("read log file error: " + s + " " + err.Error()))
+				return
+			}
+			bb, err := comp.Encode(b)
+			if err != nil {
+				w.Write([]byte("compress log file error: " + s + " " + err.Error()))
+				return
+			}
+			os.WriteFile(s+".zst", bb, 0o664)
+			time.Sleep(time.Second * 5)
+			os.Remove(s)
+			// err := zipFile(w.logDir, s, true)
+			// if err != nil {
+			// 	println("zip log file error: " + s + " " + err.Error())
+			// 	return
+			// }
+		}(xs)
+	}
 }
 
 // 清理旧日志
@@ -281,10 +307,10 @@ func (w *Writer) clearFile() {
 		// 遍历文件夹
 		lstfno, ex := os.ReadDir(w.logDir)
 		if ex != nil {
-			println(fmt.Sprintf("clear log files error: %s", ex.Error()))
+			w.Write([]byte("clear log files error: " + ex.Error()))
 			return
 		}
-		t := time.Now()
+		t := time.Now().Unix()
 		for _, d := range lstfno {
 			if d.IsDir() { // 忽略目录，不含日志名的文件，以及当前文件
 				continue
@@ -297,7 +323,7 @@ func (w *Writer) clearFile() {
 				continue
 			}
 			// 比对文件生存期
-			if t.Unix()-fno.ModTime().Unix() >= w.expired {
+			if t-fno.ModTime().Unix() >= w.expired {
 				os.Remove(filepath.Join(w.logDir, fno.Name()))
 			}
 		}
