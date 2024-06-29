@@ -87,9 +87,10 @@ func (d *QueryData) JSON() string {
 }
 
 type dbs struct {
-	ormdb *gorm.DB
-	sqldb *sql.DB
-	name  string
+	ormdb  *gorm.DB
+	sqldb  *sql.DB
+	name   string
+	dbtype string
 }
 
 // Conn sql连接池
@@ -139,6 +140,7 @@ func New(opt *Opt) (*Conn, error) {
 	reConn := 0
 CONN:
 	dbidx := 1
+	var name, value, dbtype string
 	for k, dbname := range opt.DBNames {
 		dbname = strings.TrimSpace(dbname)
 		if dbname == "" {
@@ -227,10 +229,26 @@ CONN:
 		if err = sqldb.PingContext(ctx); err != nil {
 			return nil, err
 		}
+		if dbtype == "" {
+			err = sqldb.QueryRow("show variables like 'version_comment';").Scan(&name, &value)
+			if err != nil {
+				dbtype = "unknow"
+			} else {
+				switch {
+				case strings.Contains(strings.ToLower(value), "mariadb"):
+					dbtype = "mariadb"
+				case strings.Contains(strings.ToLower(value), "mysql"):
+					dbtype = "mysql"
+				case strings.Contains(strings.ToLower(value), "greatsql"):
+					dbtype = "greatsql"
+				}
+			}
+		}
 		d.dbs[dbidx] = &dbs{
-			name:  dbname,
-			ormdb: orm,
-			sqldb: sqldb,
+			name:   dbname,
+			ormdb:  orm,
+			sqldb:  sqldb,
+			dbtype: dbtype,
 		}
 		dbidx++
 		d.cacheHead = gopsu.CalcCRC32String([]byte(connstr))
@@ -261,6 +279,17 @@ func (d *Conn) SetDefaultDB(dbidx int) error {
 	}
 	d.defaultDB = dbidx
 	return nil
+}
+
+func (d *Conn) DBType() string {
+	if len(d.dbs) == 0 {
+		return "unknow"
+	}
+	return d.dbs[1].dbtype
+}
+
+func (d *Conn) MaxDBIdx() int {
+	return len(d.dbs)
 }
 
 // ORM 指定要返回的gorm.db实例

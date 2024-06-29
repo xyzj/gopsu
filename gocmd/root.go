@@ -160,6 +160,7 @@ func (p *Program) ExecuteDefault(cmd string) {
 	}
 	p.Execute()
 }
+
 func (p *Program) Exit(code int) {
 	p.pinfo.sigc.SendSignalQuit()
 }
