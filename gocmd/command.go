@@ -13,6 +13,29 @@ import (
 	"github.com/xyzj/gopsu/pathtool"
 )
 
+type commandList struct {
+	data map[string]*Command
+}
+
+func (cl *commandList) Slice() []*Command {
+	cs := make([]*Command, 0)
+	for _, v := range cl.data {
+		cs = append(cs, v)
+	}
+	return cs
+}
+
+func (cl *commandList) Store(name string, cmd *Command) error {
+	if name == "" {
+		return fmt.Errorf("name can not be empty")
+	}
+	if _, ok := cl.data[name]; ok {
+		return fmt.Errorf("name already exist")
+	}
+	cl.data[name] = cmd
+	return nil
+}
+
 // Command a command struct
 type Command struct {
 	// RunWithExitCode When the exitcode != -1, the framework will call the os.Exit(exitcode) method to exit the program

@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/pathtool"
 )
 
@@ -36,7 +35,7 @@ func QueryProcess(name string) []*ProcessInfo {
 		if err != nil {
 			continue
 		}
-		if name != json.String(bytes.TrimSpace(b)) {
+		if name != string(bytes.TrimSpace(b)) {
 			continue
 		}
 		pid, _ := strconv.ParseInt(proc.Name(), 10, 32)
@@ -50,7 +49,7 @@ func QueryProcess(name string) []*ProcessInfo {
 		pi = append(pi, &ProcessInfo{
 			Name:    name,
 			Pid:     int(pid),
-			CmdLine: json.String(bytes.ReplaceAll(cmd, []byte{0}, []byte{32})),
+			CmdLine: string(bytes.ReplaceAll(cmd, []byte{0}, []byte{32})),
 		})
 	}
 	return pi

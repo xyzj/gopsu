@@ -7,13 +7,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/xyzj/gopsu/mapfx"
 	"github.com/xyzj/gopsu/pathtool"
 )
 
-var (
-	pidfile = flag.String("pid-file", "", "set the pid file path (from gocmd)")
-)
+var pidfile = flag.String("pid-file", "", "set the pid file path (from gocmd)")
 
 // DefaultProgram Create a default console program, this program contains commands: `start`, `stop`, `restart`, `run`, `status`, `version`, `help`
 func DefaultProgram(info *Info) *Program {
@@ -74,7 +71,7 @@ func NewProgram(info *Info) *Program {
 	}
 	return &Program{
 		info:  info,
-		cmds:  mapfx.NewUniqueSlice[*Command](),
+		cmds:  &commandList{data: make(map[string]*Command)},
 		pinfo: pinfo,
 	}
 }

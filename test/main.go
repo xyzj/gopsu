@@ -14,6 +14,7 @@ import (
 	"flag"
 	"io"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/config"
+	"github.com/xyzj/gopsu/gocmd"
 	"github.com/xyzj/gopsu/json"
 )
 
@@ -296,12 +298,6 @@ func chtest(ch chan string) {
 	println("chtest done")
 }
 
-func main() {
-	s := "\000dadf\t "
-	println(s, len(s))
-	println(strings.TrimSpace(s), len(strings.TrimSpace(s)))
-}
-
 var georep = strings.NewReplacer("(", "", ")", "", "POINT ", "", "POLYGON ", "", "LINESTRING ", "") // 经纬度字符串处理替换器
 
 func text2Geo(s string) []*assetGeo {
@@ -321,4 +317,28 @@ type assetGeo struct {
 	Lng  float64 `json:"lng"`
 	Lat  float64 `json:"lat"`
 	Name string  `json:"aid,omitempty"`
+}
+
+func main() {
+	a := &gocmd.Command{
+		Name:     "aaa",
+		Descript: "bbb aaa",
+		HelpMsg: `123545asdafd
+		asafd`,
+		RunWithExitCode: func(pi *gocmd.ProcInfo) int {
+			println("ddd")
+			return 0
+		},
+	}
+	b := &gocmd.Command{
+		Name:     "aaa",
+		Descript: "bbb aaa",
+		HelpMsg: `123545asdafd
+		asafd`,
+		RunWithExitCode: func(pi *gocmd.ProcInfo) int {
+			println("ddd")
+			return 0
+		},
+	}
+	println(reflect.DeepEqual(a, b))
 }

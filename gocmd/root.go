@@ -27,14 +27,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/xyzj/gopsu/mapfx"
 )
 
 type Program struct {
 	info  *Info
 	pinfo *ProcInfo
-	cmds  *mapfx.UniqueSlice[*Command]
+	cmds  *commandList
 }
 
 func (p *Program) printHelp() {
@@ -70,9 +68,7 @@ Flags:`, p.info.Title, p.info.Descript, p.pinfo.name, strings.Join(s, "")))
 
 // AddCommand add a command
 func (p *Program) AddCommand(cmd *Command) *Program {
-	if !p.cmds.Has(cmd) {
-		p.cmds.Store(cmd)
-	}
+	p.cmds.Store(cmd.Name, cmd)
 	return p
 }
 

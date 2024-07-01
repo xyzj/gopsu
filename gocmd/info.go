@@ -1,10 +1,9 @@
 package gocmd
 
 import (
+	"encoding/json"
 	"os"
 	"strings"
-
-	"github.com/xyzj/gopsu/json"
 )
 
 // Info program information
@@ -47,7 +46,7 @@ func (p *ProcInfo) Clean() {
 // Save 保存pid信息
 func (p *ProcInfo) Save() {
 	b, _ := json.Marshal(p)
-	os.WriteFile(p.Pfile, b, 0664)
+	os.WriteFile(p.Pfile, b, 0o664)
 }
 
 // Load 读取pid信息和启动参数
@@ -98,7 +97,7 @@ func (v *VersionInfo) String() string {
 		v.StartWith = strings.Join(os.Args[1:], " ")
 	}
 	b, _ := json.MarshalIndent(v, "", "  ")
-	return json.String(b)
+	return string(b)
 }
 
 // PrintVersion show something
@@ -114,5 +113,5 @@ func PrintVersion(v *VersionInfo) string {
 		v.StartWith = strings.Join(os.Args[1:], " ")
 	}
 	b, _ := json.MarshalIndent(v, "", "  ")
-	return json.String(b)
+	return string(b)
 }
