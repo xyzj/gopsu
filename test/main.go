@@ -12,9 +12,9 @@ import (
 	"encoding/pem"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -320,25 +320,9 @@ type assetGeo struct {
 }
 
 func main() {
-	a := &gocmd.Command{
-		Name:     "aaa",
-		Descript: "bbb aaa",
-		HelpMsg: `123545asdafd
-		asafd`,
-		RunWithExitCode: func(pi *gocmd.ProcInfo) int {
-			println("ddd")
-			return 0
-		},
+	println(string([]byte{0}) == "\x00")
+	ss := gocmd.QueryProcess("node")
+	for _, v := range ss {
+		println(fmt.Sprintf("%+v", v))
 	}
-	b := &gocmd.Command{
-		Name:     "aaa",
-		Descript: "bbb aaa",
-		HelpMsg: `123545asdafd
-		asafd`,
-		RunWithExitCode: func(pi *gocmd.ProcInfo) int {
-			println("ddd")
-			return 0
-		},
-	}
-	println(reflect.DeepEqual(a, b))
 }

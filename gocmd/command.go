@@ -143,7 +143,7 @@ func start(pinfo *ProcInfo) int {
 }
 
 func stop(pinfo *ProcInfo) int {
-	id, err := pinfo.Load(true)
+	id, err := pinfo.Load(false)
 	if err != nil {
 		return 1
 	}
@@ -152,7 +152,7 @@ func stop(pinfo *ProcInfo) int {
 		println(fmt.Sprintf("failed to find process by pid: %d, reason: %v", id, process))
 		return 1
 	}
-	err = process.Signal(syscall.SIGINT)
+	err = process.Signal(syscall.SIGTERM)
 	if err != nil {
 		println(fmt.Sprintf("failed to stop process %d: %v", id, err))
 		return 1

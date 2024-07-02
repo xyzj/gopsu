@@ -65,7 +65,7 @@ func (s *SignalQuit) SignalCapture(onSignalQuit func()) {
 // SendSignalQuit 发送关闭信号
 func (s *SignalQuit) SendSignalQuit() {
 	println("\nthe program ask to quit")
-	s.sigc <- syscall.SIGINT
+	s.sigc <- syscall.SIGTERM
 	select {
 	case <-time.After(time.Second * 3):
 		println("waiting for quit timeout")

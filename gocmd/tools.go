@@ -1,10 +1,11 @@
 package gocmd
 
 import (
-	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/xyzj/gopsu/pathtool"
 )
@@ -31,13 +32,6 @@ func QueryProcess(name string) []*ProcessInfo {
 		if !proc.IsDir() {
 			continue
 		}
-		b, err := os.ReadFile("/proc/" + proc.Name() + "/comm")
-		if err != nil {
-			continue
-		}
-		if name != string(bytes.TrimSpace(b)) {
-			continue
-		}
 		pid, _ := strconv.ParseInt(proc.Name(), 10, 32)
 		if pid == 0 {
 			continue
@@ -46,10 +40,14 @@ func QueryProcess(name string) []*ProcessInfo {
 		if len(cmd) == 0 {
 			continue
 		}
+		cl := strings.Split(string(cmd), "\x00")
+		if name != filepath.Base(cl[0]) {
+			continue
+		}
 		pi = append(pi, &ProcessInfo{
 			Name:    name,
 			Pid:     int(pid),
-			CmdLine: string(bytes.ReplaceAll(cmd, []byte{0}, []byte{32})),
+			CmdLine: strings.Join(cl, " "),
 		})
 	}
 	return pi
