@@ -162,9 +162,11 @@ func stop(pinfo *ProcInfo) int {
 		time.Sleep(time.Millisecond * 300)
 		err = process.Signal(syscall.Signal(0))
 		if err != nil {
-			break
+			return 0
 		}
 	}
+	// try kill
+	process.Signal(syscall.SIGKILL)
 	// pinfo.Clean()
 	return 0
 }
@@ -183,7 +185,7 @@ func status(pinfo *ProcInfo) int {
 		println("process " + pinfo.name + " is running by pid " + strconv.Itoa(id))
 		return 0
 	}
-	s := []string{"-p", strconv.Itoa(id), "-o", "user=", "-o", "pid=", "-o", `%cpu=`, "-o", `%mem=`, "-o", "stat=", "-o", "start=", "-o", "time=", "-o", "cmd="}
+	s := []string{"-p", strconv.Itoa(id), "-o", "pid=", "-o", "user=", "-o", `%cpu=`, "-o", `%mem=`, "-o", "stat=", "-o", "start=", "-o", "time=", "-o", "cmd="}
 	cmd := exec.Command("ps", s...)
 	b, err := cmd.CombinedOutput()
 	if err != nil {

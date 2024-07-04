@@ -16,13 +16,13 @@ type ProcessInfo struct {
 	CmdLine string
 }
 
-// ProcessExist only for linux
-func ProcessExist(pid int) bool {
+// LinuxProcessExist only for linux
+func LinuxProcessExist(pid int) bool {
 	return pathtool.IsExist(fmt.Sprintf("/proc/%d", pid))
 }
 
-// QueryProcess only for linux
-func QueryProcess(name string) []*ProcessInfo {
+// LinuxQueryProcess only for linux
+func LinuxQueryProcess(name string) []*ProcessInfo {
 	pi := make([]*ProcessInfo, 0)
 	procs, err := os.ReadDir("/proc")
 	if err != nil {
