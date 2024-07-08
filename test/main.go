@@ -12,7 +12,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"flag"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -22,7 +21,7 @@ import (
 
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/config"
-	"github.com/xyzj/gopsu/gocmd"
+	"github.com/xyzj/gopsu/db"
 	"github.com/xyzj/gopsu/json"
 )
 
@@ -320,9 +319,25 @@ type assetGeo struct {
 }
 
 func main() {
-	println(string([]byte{0}) == "\x00")
-	ss := gocmd.QueryProcess("node")
-	for _, v := range ss {
-		println(fmt.Sprintf("%+v", v))
+	conn, err := db.New(&db.Opt{
+		DriverType: db.DriveMySQL,
+		DBNames:    []string{"v5db_eventlog"},
+		User:       "root",
+		Passwd:     "lp1234xy",
+		Server:     "192.168.50.83:3306",
+	})
+	if err != nil {
+		println(err.Error())
+		return
+	}
+	err = conn.AlterMergeTable("v5db_eventlog", "event_record", "ALTER table event_record add column mesh_data55 varchar(200) DEFAULT '' NOT NULL COMMENT '模型详细信息'", 10)
+	if err != nil {
+		println(err.Error())
+		// return
+	}
+	err = conn.AlterMergeTable("v5db_eventlog", "event_record", "ALTER table event_record add column mesh_data15 varchar(200) DEFAULT '' NOT NULL COMMENT '模型详细信息'", 10)
+	if err != nil {
+		println(err.Error())
+		return
 	}
 }

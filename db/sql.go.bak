@@ -1,6 +1,3 @@
-/*
-Package db : 数据库模块，封装了常用方法，可缓存数据，可依据配置自动创建myisam引擎的子表，支持mysql和sqlserver
-*/
 package db
 
 import (

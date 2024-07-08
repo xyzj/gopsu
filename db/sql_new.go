@@ -1,3 +1,6 @@
+/*
+Package db : 数据库模块，封装了常用方法，可缓存数据，可依据配置自动创建myisam引擎的子表，支持mysql和sqlserver
+*/
 package db
 
 // for greatsql ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'root';
@@ -7,6 +10,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	mydsn "github.com/go-sql-driver/mysql"
@@ -20,6 +24,8 @@ import (
 	mssql "gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
 )
+
+var codeGzip = gopsu.GetNewArchiveWorker(gopsu.ArchiveGZip)
 
 // SQLInterface 数据库接口
 type SQLInterface interface {
@@ -36,6 +42,8 @@ const (
 	DriveMySQL     Drive = "mysql"
 	DriveSQLServer Drive = "sqlserver"
 	DrivePostgre   Drive = "postgre"
+
+	emptyCacheTag = "00000-0"
 )
 
 type Opt struct {
@@ -60,6 +68,14 @@ type Opt struct {
 	// 执行超时
 	Timeout     time.Duration
 	enableCache bool
+}
+
+// QueryDataChan chan方式返回首页数据
+type QueryDataChan struct {
+	Locker *sync.WaitGroup
+	Data   *QueryData
+	Total  *int
+	Err    error
 }
 
 // QueryDataRow 数据行
