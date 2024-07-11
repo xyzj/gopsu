@@ -154,8 +154,8 @@ func StartRecord(opt *RecordOpt) *Recorder {
 	return r
 }
 
-func (r *Recorder) Import(s string) {
-	gjson.Parse(s).Get("data").ForEach(func(key, value gjson.Result) bool {
+func (r *Recorder) Import(s []byte) {
+	gjson.ParseBytes(s).Get("data").ForEach(func(key, value gjson.Result) bool {
 		ls := &procStatus{
 			Dt:      value.Get("dt").Int(),
 			Cpup:    float32(value.Get("cpu").Float()),
@@ -172,10 +172,10 @@ func (r *Recorder) Import(s string) {
 	})
 }
 
-func (r *Recorder) Export() string {
-	s := ""
+func (r *Recorder) Export() []byte {
+	s := []byte{}
 	for _, v := range r.allData() {
-		s, _ = sjson.Set(s, "data.-1", v)
+		s, _ = sjson.SetBytes(s, "data.-1", v)
 	}
 	return s
 }

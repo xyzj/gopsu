@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/config"
 	"github.com/xyzj/gopsu/crypto"
+	"github.com/xyzj/gopsu/json"
 )
 
 // QueryMultirowPage 执行查询语句，返回QueryData结构，检测多个字段进行换行计数
@@ -72,16 +72,14 @@ func (d *Conn) QueryMultirowPage(dbidx int, s string, rowsCount int, keyColumeID
 		if err != nil {
 			return query, err
 		}
-		row := &QueryDataRow{
-			Cells: make([]string, count),
-		}
+		row := newDataRow(count)
 		for k, v := range values {
 			if v == nil {
 				row.Cells[k] = ""
 			} else {
 				b, ok := v.([]byte)
 				if ok {
-					row.Cells[k] = gopsu.String(b)
+					row.Cells[k] = json.String(b)
 				} else {
 					row.Cells[k] = fmt.Sprintf("%v", v)
 				}
@@ -316,24 +314,20 @@ func (d *Conn) queryDataChan(ctx context.Context, done context.CancelFunc, sqldb
 			}
 			return 0
 		}
-		row := &QueryDataRow{
-			VCells: make([]config.VString, count),
-			Cells:  make([]string, count),
-		}
+		row := newDataRow(count)
 		for k, v := range values {
 			if v == nil {
-				row.VCells[k] = ""
 				continue
 			}
 			if b, ok := v.([]uint8); ok {
+				row.Cells[k] = json.String(b)
 				row.VCells[k] = config.VString(b)
-				row.Cells[k] = gopsu.String(b)
 			} else if b, ok := v.(time.Time); ok {
-				row.VCells[k] = config.VString(b.Format("2006-01-02 15:04:05"))
-				row.Cells[k] = row.VCells[k].String()
+				row.Cells[k] = b.Format("2006-01-02 15:04:05")
+				row.VCells[k] = config.VString(row.Cells[k])
 			} else {
-				row.VCells[k] = config.VString(fmt.Sprintf("%v", v))
-				row.Cells[k] = row.VCells[k].String()
+				row.Cells[k] = fmt.Sprintf("%v", v)
+				row.VCells[k] = config.VString(row.Cells[k])
 			}
 		}
 		queryCache.Rows = append(queryCache.Rows, row)

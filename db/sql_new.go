@@ -78,11 +78,34 @@ type QueryDataChan struct {
 	Err    error
 }
 
+func newDataRow(cols int) *QueryDataRow {
+	return &QueryDataRow{
+		Cells:  make([]string, cols),
+		VCells: make([]config.VString, cols),
+		// vCell:  make([]*VCell, cols),
+	}
+}
+
 // QueryDataRow 数据行
 type QueryDataRow struct {
 	Cells  []string         `json:"cells,omitempty"`
 	VCells []config.VString `json:"vcells,omitempty"`
+	// vCell  []*VCell         `json:"-"`
 }
+
+// func (d *QueryDataRow) VCell(idx int) *VCell {
+// 	if idx >= len(d.Cells) {
+// 		return &VCell{}
+// 	}
+// 	if x := d.vCell[idx]; x != nil {
+// 		return x
+// 	}
+// 	s := d.Cells[idx]
+// 	d.vCell[idx] = &VCell{
+// 		nstr: s,
+// 	}
+// 	return d.vCell[idx]
+// }
 
 func (d *QueryDataRow) JSON() string {
 	s, _ := json.MarshalToString(d)

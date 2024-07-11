@@ -85,12 +85,14 @@ func (p *PwdString) UnmarshalJSON(data []byte) error {
 	*p = PwdString(gopsu.DecodeString(s))
 	return nil
 }
+
 func (p *PwdString) MarshalJSON() ([]byte, error) {
 	if string(*p) == "" {
 		return []byte("\"\""), nil
 	}
 	return []byte("\"" + gopsu.CodeString(string(*p)) + "\""), nil
 }
+
 func (p *PwdString) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var s string
 	if err := unmarshal(&s); err != nil {
@@ -99,6 +101,7 @@ func (p *PwdString) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	*p = PwdString(gopsu.DecodeString(s))
 	return nil
 }
+
 func (p PwdString) MarshalYAML() (interface{}, error) {
 	if string(p) == "" {
 		return "", nil

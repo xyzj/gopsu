@@ -103,7 +103,7 @@ func (b *BoltDB) ForEach(f func(k, v string) error, bucket ...string) {
 			buc = json.Bytes(bucket[0])
 		}
 	}
-	var data = make(map[string]string)
+	data := make(map[string]string)
 	b.db.View(func(tx *bbolt.Tx) error {
 		t := tx.Bucket(buc)
 		if t == nil {
@@ -128,7 +128,7 @@ func (b *BoltDB) ForEach(f func(k, v string) error, bucket ...string) {
 
 // NewBolt 创建一个新的bolt数据文件
 func NewBolt(f string) (*BoltDB, error) {
-	db, err := bbolt.Open(f, 0664, &bbolt.Options{Timeout: time.Second * 2})
+	db, err := bbolt.Open(f, 0o664, &bbolt.Options{Timeout: time.Second * 2})
 	if err != nil {
 		return nil, err
 	}

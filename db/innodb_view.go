@@ -38,7 +38,7 @@ func (d *Conn) UnionView(dbname, tableName string, maxSubTables, maxTableSize, m
 	}
 
 	// 找到所有以指定命名开头的所有表
-	strsql = "select table_name from information_schema.tables where table_schema=? and table_type='BASE TABLE' and table_name like '%" + tableName + "_%' order by table_name desc limit ?"
+	strsql = "select table_name from information_schema.tables where table_schema=? and table_type='BASE TABLE' and table_name like '" + tableName + "_%' order by table_name desc limit ?"
 	ans, err = d.QueryByDB(dbidx, strsql, 0, dbname, maxSubTables)
 	if err != nil {
 		return err
@@ -97,7 +97,7 @@ func (d *Conn) MergeTable(dbname, tableName string, maxSubTables, maxTableSize, 
 		return fmt.Errorf(dbname + "." + tableName + "'s engine is not 'mrg-myisam'")
 	}
 	// 找到所有以指定命名开头的所有表
-	strsql = "select table_name from information_schema.tables where table_schema=? and engine='MyISAM' and table_type='BASE TABLE' and table_name like '%" + tableName + "_%' order by table_name desc limit ?"
+	strsql = "select table_name from information_schema.tables where table_schema=? and engine='MyISAM' and table_type='BASE TABLE' and table_name like '" + tableName + "_%' order by table_name desc limit ?"
 	ans, err = d.QueryByDB(dbidx, strsql, 0, dbname, maxSubTables)
 	if err != nil {
 		return err
@@ -170,7 +170,7 @@ func (d *Conn) AlterMergeTable(dbname, tableName, alterStr string, maxSubTables 
 	}
 TODO:
 	// 找到所有以指定命名开头的所有表
-	strsql = "select table_name from information_schema.tables where table_schema=? and engine='MyISAM' and table_type='BASE TABLE' and table_name like '%" + tableName + "_%' order by table_name desc"
+	strsql = "select table_name from information_schema.tables where table_schema=? and engine='MyISAM' and table_type='BASE TABLE' and table_name like '" + tableName + "_%' order by table_name desc"
 	ans, err = d.QueryByDB(dbidx, strsql, 0, dbname)
 	if err != nil {
 		return err
@@ -183,7 +183,7 @@ TODO:
 		return fmt.Errorf("no sub tables found")
 	}
 	if maxSubTables > len(subTablelist) {
-		maxSubTables = len(subTablelist) - 1
+		maxSubTables = len(subTablelist)
 	}
 	// 获取主表语句，用于结尾恢复
 	strMrgTail := ""
