@@ -181,6 +181,9 @@ func Stamp2Time(t int64, fmt ...string) string {
 //	 hour：15，minute：04，second：05
 //	 tz：0～12,超范围时使用本地时区
 func Time2Stampf(s, fmt string, tz float32) int64 {
+	if s == "" {
+		return 0
+	}
 	if fmt == "" {
 		fmt = DateTimeFormat
 	}

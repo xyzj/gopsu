@@ -82,91 +82,94 @@ func TestQueryA(t *testing.T) {
 		Server:     "192.168.50.83:13306",
 		User:       "root",
 		Passwd:     "lp1234xy",
-		DBNames:    []string{"v5db_assetdatacenter"},
+		DBNames:    []string{"v5db_test_mrg"},
 		DriverType: DriveMySQL,
 		Logger:     logger.NewConsoleLogger(),
+		QueryCache: cache.NewAnyCache[*QueryData](time.Minute * 30),
 	}
 	a, err := New(opt)
 	if err != nil {
 		t.Fatal(err)
 		return
 	}
-	ans, err := a.Query(`select a.aid,a.hash,a.name,a.gid,a.pid,a.phyid,a.imei,a.sim,a.loc,a.pole_code,
-	a.region,a.road,ifnull(st_astext(a.geo),'POINT(0 0)'),a.st,a.dev_attr,a.dev_type,a.sys,a.lc,a.ord,a.imgs,
-	a.gids,unix_timestamp(a.dt_create),a.barcode,a.mesh_id,a.iccid,a.contractor,a.dev_id,a.mesh_data,a.line_id,a.grid,
-	a.region_id,a.road_id,a.grid_id,a.sout,a.dt_setup,a.contractor_id,a.imsi,a.ip,a.max_age,a.isfac,a.property
-	from asset_info_view as a`, 0)
+	ans, err := a.Query(`select f1,f2,f3,i1,t1,t2,t4,s1,s2,td1,td2 from test_table`, 0)
 	if err != nil {
 		t.Fatal(err)
 		return
 	}
 	am := make(map[int]*assetManager)
 	for k, row := range ans.Rows {
-		am[k] = &assetManager{
-			Aid:      row.Cells[0],
-			Name:     row.Cells[2],
-			Gid:      row.VCells[3].TryInt32(),
-			Pid:      row.Cells[4],
-			Phyid:    row.VCells[5].TryInt64(),
-			Imei:     row.Cells[6],
-			Sim:      row.Cells[7],
-			Loc:      row.Cells[8],
-			PoleCode: row.Cells[9],
-			Region:   row.Cells[10],
-			Road:     row.Cells[11],
-			// Geo:       text2Geo(row.Cells[12]), // make([]*coord.Point, 0), // row.Cells[12]
-			St:        row.VCells[13].TryInt32(),
-			DevAttr:   row.VCells[14].TryInt32(),
-			DevType:   row.Cells[15],
-			Sys:       row.Cells[16],
-			LampCount: row.VCells[17].TryInt32(),
-			Ord:       fmt.Sprintf("%03s%s", row.Cells[18], row.Cells[0][:6]),
-			Imgs:      row.Cells[19],
-			Hash:      row.Cells[1],
-			// Gids:      string2IntSlice(row.Cells[20]),
-			DtCreate: row.VCells[21].TryInt64(),
-			DtC: func(dtsetup string) string {
-				if dtsetup == "" {
-					return gopsu.Stamp2Time(row.VCells[21].TryInt64())[:10]
-				}
-				return dtsetup
-			}(row.Cells[34]),
-			BarCode:    row.Cells[22],
-			MeshID:     row.Cells[23],
-			ICCID:      row.Cells[24],
-			Contractor: row.Cells[25],
-			DevID:      row.Cells[26],
-			MeshData:   row.Cells[27],
-			LineID:     row.Cells[28],
-			Grid:       row.Cells[29],
-			RegionID:   row.VCells[30].TryInt32(),
-			RoadID:     row.VCells[31].TryInt32(),
-			GridID:     row.VCells[32].TryInt32(),
-			Sout:       row.Cells[33],
-			IconType: func(atype string) int32 {
-				switch atype {
-				case "010101", "030114": // 灯杆，控制柜用attr确定图标
-					if a := row.VCells[14].TryInt32(); a > 0 {
-						return a
-					}
-					return 1
-				case "030111", "010109", "010111": // 终端/控制器用attr确定图标
-					return row.VCells[14].TryInt32() + 1
-				case "030117": // 上海路灯用厂家
-					return row.VCells[35].TryInt32()
-				default:
-					return 0
-				}
-			}(row.Cells[0][:6]),
-			ContractorID: row.VCells[35].TryInt32(),
-			Imsi:         row.Cells[36],
-			IP:           row.Cells[37],
-			MaxAge:       row.VCells[38].TryInt32(),
-			IsFac:        row.VCells[39].TryInt32(),
-			Property:     row.Cells[40],
+		for _, cell := range row.Cells {
+			println(k, cell)
 		}
+		// am[k] = &assetManager{
+		// 	Aid:      row.Cells[0],
+		// 	Name:     row.Cells[2],
+		// 	Gid:      row.VCells[3].TryInt32(),
+		// 	Pid:      row.Cells[4],
+		// 	Phyid:    row.VCells[5].TryInt64(),
+		// 	Imei:     row.Cells[6],
+		// 	Sim:      row.Cells[7],
+		// 	Loc:      row.Cells[8],
+		// 	PoleCode: row.Cells[9],
+		// 	Region:   row.Cells[10],
+		// 	Road:     row.Cells[11],
+		// 	// Geo:       text2Geo(row.Cells[12]), // make([]*coord.Point, 0), // row.Cells[12]
+		// 	St:        row.VCells[13].TryInt32(),
+		// 	DevAttr:   row.VCells[14].TryInt32(),
+		// 	DevType:   row.Cells[15],
+		// 	Sys:       row.Cells[16],
+		// 	LampCount: row.VCells[17].TryInt32(),
+		// 	Ord:       fmt.Sprintf("%03s%s", row.Cells[18], row.Cells[0][:6]),
+		// 	Imgs:      row.Cells[19],
+		// 	Hash:      row.Cells[1],
+		// 	// Gids:      string2IntSlice(row.Cells[20]),
+		// 	DtCreate: row.VCells[21].TryInt64(),
+		// 	DtC: func(dtsetup string) string {
+		// 		if dtsetup == "" {
+		// 			return gopsu.Stamp2Time(row.VCells[21].TryInt64())[:10]
+		// 		}
+		// 		return dtsetup
+		// 	}(row.Cells[34]),
+		// 	BarCode:    row.Cells[22],
+		// 	MeshID:     row.Cells[23],
+		// 	ICCID:      row.Cells[24],
+		// 	Contractor: row.Cells[25],
+		// 	DevID:      row.Cells[26],
+		// 	MeshData:   row.Cells[27],
+		// 	LineID:     row.Cells[28],
+		// 	Grid:       row.Cells[29],
+		// 	RegionID:   row.VCells[30].TryInt32(),
+		// 	RoadID:     row.VCells[31].TryInt32(),
+		// 	GridID:     row.VCells[32].TryInt32(),
+		// 	Sout:       row.Cells[33],
+		// 	IconType: func(atype string) int32 {
+		// 		switch atype {
+		// 		case "010101", "030114": // 灯杆，控制柜用attr确定图标
+		// 			if a := row.VCells[14].TryInt32(); a > 0 {
+		// 				return a
+		// 			}
+		// 			return 1
+		// 		case "030111", "010109", "010111": // 终端/控制器用attr确定图标
+		// 			return row.VCells[14].TryInt32() + 1
+		// 		case "030117": // 上海路灯用厂家
+		// 			return row.VCells[35].TryInt32()
+		// 		default:
+		// 			return 0
+		// 		}
+		// 	}(row.Cells[0][:6]),
+		// 	ContractorID: row.VCells[35].TryInt32(),
+		// 	Imsi:         row.Cells[36],
+		// 	IP:           row.Cells[37],
+		// 	MaxAge:       row.VCells[38].TryInt32(),
+		// 	IsFac:        row.VCells[39].TryInt32(),
+		// 	Property:     row.Cells[40],
+		// }
 	}
-	println("done", len(am))
+	println("done", len(am), ans.CacheTag)
+	time.Sleep(time.Second)
+	zz := a.QueryCache(ans.CacheTag, 3, 20)
+	println(fmt.Sprintf("%+v", zz))
 }
 
 func BenchmarkQueryB(t *testing.B) {

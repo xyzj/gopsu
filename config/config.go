@@ -27,10 +27,10 @@ type File struct {
 
 // Item 配置内容，包含注释，key,value,是否加密value
 type Item struct {
-	Key          string  `json:"-" yaml:"-"`
-	Value        VString `json:"value" yaml:"value"`
-	Comment      string  `json:"comment" yaml:"comment"`
-	EncryptValue bool    `json:"-" yaml:"-"`
+	Value        *Value `json:"value" yaml:"value"`
+	Key          string `json:"-" yaml:"-"`
+	Comment      string `json:"comment" yaml:"comment"`
+	EncryptValue bool   `json:"-" yaml:"-"`
 }
 
 // String 把配置项格式化成字符串
@@ -84,7 +84,7 @@ func (f *File) DelItem(key string) {
 // PutItem 添加配置项
 func (f *File) PutItem(item *Item) {
 	if item.EncryptValue {
-		item.Value = VString(gopsu.CodeString(item.Value.String()))
+		item.Value = NewValue(gopsu.CodeString(item.Value.String()))
 	}
 	if v, ok := f.items.Load(item.Key); ok {
 		if item.Comment == "" {
@@ -95,7 +95,7 @@ func (f *File) PutItem(item *Item) {
 }
 
 // GetDefault 读取一个配置，若不存在，则添加这个配置
-func (f *File) GetDefault(item *Item) VString {
+func (f *File) GetDefault(item *Item) *Value {
 	if v, ok := f.items.Load(item.Key); ok {
 		return v.Value
 	}
@@ -104,15 +104,15 @@ func (f *File) GetDefault(item *Item) VString {
 }
 
 // GetItem 获取一个配置值
-func (f *File) GetItem(key string) VString {
+func (f *File) GetItem(key string) *Value {
 	if v, ok := f.items.Load(key); ok {
 		return v.Value
 	}
-	return ""
+	return &Value{}
 }
 
 // ForEach 遍历所有值
-func (f *File) ForEach(do func(key string, value VString) bool) {
+func (f *File) ForEach(do func(key string, value *Value) bool) {
 	f.items.ForEach(func(key string, value *Item) bool {
 		return do(key, value.Value)
 	})
@@ -215,7 +215,7 @@ func (f *File) FromFile(configfile string) error {
 		if len(it) != 2 {
 			continue
 		}
-		f.items.Store(it[0], &Item{Key: it[0], Value: VString(it[1]), Comment: strings.Join(tip, "\n")})
+		f.items.Store(it[0], &Item{Key: it[0], Value: NewValue(it[1]), Comment: strings.Join(tip, "\n")})
 		tip = []string{}
 	}
 	return nil

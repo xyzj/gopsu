@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -21,8 +22,8 @@ import (
 
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/config"
-	"github.com/xyzj/gopsu/db"
 	"github.com/xyzj/gopsu/json"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -313,31 +314,88 @@ func text2Geo(s string) []*assetGeo {
 }
 
 type assetGeo struct {
-	Lng  float64 `json:"lng"`
-	Lat  float64 `json:"lat"`
-	Name string  `json:"aid,omitempty"`
+	Lng    float64       `json:"lng" yaml:"lng"`
+	Lat    float64       `json:"lat" yaml:"lat"`
+	Name   string        `json:"aid,omitempty" yaml:"aid"`
+	Value  *config.Value `json:"value" yaml:"value"`
+	EValue *config.Value `json:"value1" yaml:"value1"`
 }
+type aaaa byte
+
+var bbb aaaa = 23
 
 func main() {
-	conn, err := db.New(&db.Opt{
-		DriverType: db.DriveMySQL,
-		DBNames:    []string{"v5db_eventlog"},
-		User:       "root",
-		Passwd:     "lp1234xy",
-		Server:     "192.168.50.83:3306",
+	x := make([]*assetGeo, 0)
+	y := make([]*assetGeo, 0)
+	z := make([]*assetGeo, 0)
+	x = append(x, &assetGeo{
+		Lng:    12.3048,
+		Lat:    334.3234,
+		Name:   "1231jksdfhksdf",
+		Value:  config.NewFloat64Value(1235.215653132131),
+		EValue: config.EmptyValue,
 	})
+	x = append(x, &assetGeo{
+		Lng:    122.3048,
+		Lat:    34.3234,
+		Name:   "sfasdf4e",
+		Value:  config.NewBoolValue(true),
+		EValue: config.EmptyValue,
+	})
+	s, err := json.Marshal(x)
 	if err != nil {
 		println(err.Error())
 		return
 	}
-	err = conn.AlterMergeTable("v5db_eventlog", "event_record", "ALTER table event_record add column mesh_data55 varchar(200) DEFAULT '' NOT NULL COMMENT '模型详细信息'", 10)
-	if err != nil {
-		println(err.Error())
-		// return
-	}
-	err = conn.AlterMergeTable("v5db_eventlog", "event_record", "ALTER table event_record add column mesh_data15 varchar(200) DEFAULT '' NOT NULL COMMENT '模型详细信息'", 10)
+	println(string(s))
+	os.WriteFile("a.json", s, 0o664)
+	s1, err := yaml.Marshal(x)
 	if err != nil {
 		println(err.Error())
 		return
 	}
+	println(string(s1))
+	os.WriteFile("a.yaml", s1, 0o664)
+
+	err = json.Unmarshal(s, &y)
+	if err != nil {
+		println(err.Error())
+		return
+	}
+	for _, vv := range y {
+		println(fmt.Sprintf("%+v", vv), fmt.Sprintf("%+v", vv.Value.TryFloat64()))
+	}
+	println("--- yaml")
+	err = yaml.Unmarshal(s1, &z)
+	if err != nil {
+		println(err.Error())
+		return
+	}
+	s1, err = yaml.Marshal(z)
+	if err != nil {
+		println(err.Error())
+		return
+	}
+	os.WriteFile("a1.yaml", s1, 0o664)
+	// conn, err := db.New(&db.Opt{
+	// 	DriverType: db.DriveMySQL,
+	// 	DBNames:    []string{"v5db_eventlog"},
+	// 	User:       "root",
+	// 	Passwd:     "lp1234xy",
+	// 	Server:     "192.168.50.83:3306",
+	// })
+	// if err != nil {
+	// 	println(err.Error())
+	// 	return
+	// }
+	// err = conn.AlterMergeTable("v5db_eventlog", "event_record", "ALTER table event_record add column mesh_data55 varchar(200) DEFAULT '' NOT NULL COMMENT '模型详细信息'", 10)
+	// if err != nil {
+	// 	println(err.Error())
+	// 	// return
+	// }
+	// err = conn.AlterMergeTable("v5db_eventlog", "event_record", "ALTER table event_record add column mesh_data15 varchar(200) DEFAULT '' NOT NULL COMMENT '模型详细信息'", 10)
+	// if err != nil {
+	// 	println(err.Error())
+	// 	return
+	// }
 }
