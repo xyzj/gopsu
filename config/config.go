@@ -3,7 +3,6 @@ package config
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
-	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/mapfx"
 	"gopkg.in/yaml.v3"
@@ -27,10 +25,10 @@ type File struct {
 
 // Item 配置内容，包含注释，key,value,是否加密value
 type Item struct {
-	Value        *Value `json:"value" yaml:"value"`
-	Key          string `json:"-" yaml:"-"`
-	Comment      string `json:"comment" yaml:"comment"`
-	EncryptValue bool   `json:"-" yaml:"-"`
+	Value   *Value `json:"value" yaml:"value"`
+	Comment string `json:"comment" yaml:"comment"`
+	Key     string `json:"-" yaml:"-"`
+	// EncryptValue bool   `json:"-" yaml:"-"`
 }
 
 // String 把配置项格式化成字符串
@@ -44,7 +42,7 @@ func (i *Item) String() string {
 			xcom = "# " + v + "\n"
 		}
 	}
-	return fmt.Sprintf("\n%s%s=%s\n", xcom, i.Key, i.Value)
+	return "\n" + xcom + i.Key + "=" + i.Value.String() + "\n" // fmt.Sprintf("\n%s%s=%s\n", xcom, i.Key, i.Value)
 }
 
 // NewConfig 创建一个key:value格式的配置文件
@@ -83,9 +81,9 @@ func (f *File) DelItem(key string) {
 
 // PutItem 添加配置项
 func (f *File) PutItem(item *Item) {
-	if item.EncryptValue {
-		item.Value = NewValue(gopsu.CodeString(item.Value.String()))
-	}
+	// if item.EncryptValue {
+	// 	item.Value = NewValue(gopsu.CodeString(item.Value.String()))
+	// }
 	if v, ok := f.items.Load(item.Key); ok {
 		if item.Comment == "" {
 			item.Comment = v.Comment

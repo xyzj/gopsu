@@ -127,7 +127,7 @@ func (d *Conn) QueryPB2(s string, rowsCount int, params ...interface{}) (query *
 //
 // Deprecated: use Query() or QueryFirstPage() or QueryBig()
 func (d *Conn) QueryPB2Chan(s string, rowsCount int, params ...interface{}) <-chan *QueryDataChan {
-	var ch = make(chan *QueryDataChan, 1)
+	ch := make(chan *QueryDataChan, 1)
 	ctx, cancel := context.WithTimeout(context.Background(), d.cfg.Timeout)
 	go d.queryDataChan(ctx, cancel, d.dbs[d.defaultDB].sqldb, ch, s, rowsCount, params...)
 	return ch

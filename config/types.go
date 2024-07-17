@@ -2,6 +2,7 @@ package config
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/json"
@@ -30,7 +31,6 @@ func NewValue(s string) *Value {
 // NewInt64Value return a value
 func NewInt64Value(n int64) *Value {
 	return &Value{
-		// nstr:   strconv.FormatInt(n, 10),
 		t:      tint64,
 		nint64: n,
 	}
@@ -39,7 +39,6 @@ func NewInt64Value(n int64) *Value {
 // NewUint64Value return a value
 func NewUint64Value(n uint64) *Value {
 	return &Value{
-		// nstr:    strconv.FormatUint(n, 10),
 		t:       tuint64,
 		nuint64: n,
 	}
@@ -48,7 +47,6 @@ func NewUint64Value(n uint64) *Value {
 // NewFloat64Value return a value
 func NewFloat64Value(n float64) *Value {
 	return &Value{
-		// nstr:    strconv.FormatUint(n, 10),
 		t:        tfloat64,
 		nfloat64: n,
 	}
@@ -69,6 +67,7 @@ func NewCodeValue(s string) *Value {
 	}
 }
 
+// Value config value
 type Value struct {
 	nstr     string
 	nint64   int64
@@ -137,18 +136,33 @@ func (v *Value) MarshalYAML() (any, error) {
 }
 
 func (v *Value) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + v.String() + "\""), nil
+	switch v.t {
+	case tint64:
+		return strconv.AppendInt([]byte{}, v.nint64, 10), nil // []byte(fmt.Sprintf("%d", v.nint64)), nil
+	case tuint64:
+		return strconv.AppendUint([]byte{}, v.nuint64, 10), nil // []byte(fmt.Sprintf("%d", v.nuint64)), nil
+	case tfloat64:
+		return strconv.AppendFloat([]byte{}, v.nfloat64, 'g', -1, 64), nil // []byte(fmt.Sprintf("%g", v.nfloat64)), nil
+	case tbool:
+		return strconv.AppendBool([]byte{}, v.nbool), nil // return []byte(fmt.Sprintf("%t", v.nbool)), nil
+	default:
+		return []byte("\"" + strings.ReplaceAll(v.nstr, `"`, `\"`) + "\""), nil
+	}
 }
 
 // String reutrn string
 func (v *Value) String() string {
 	switch v.t {
+	case tstr:
+		return v.nstr
 	case tint64:
 		v.nstr = strconv.FormatInt(v.nint64, 10)
 	case tuint64:
 		v.nstr = strconv.FormatUint(v.nuint64, 10)
 	case tfloat64:
 		v.nstr = strconv.FormatFloat(v.nfloat64, 'f', -1, 64)
+	case tbool:
+		v.nstr = strconv.FormatBool(v.nbool)
 	}
 	return v.nstr
 }
@@ -160,13 +174,22 @@ func (v *Value) Bytes() []byte {
 
 // TryBool reutrn bool
 func (v *Value) TryBool() bool {
-	if v.t == tbool {
+	switch v.t {
+	case tbool:
 		return v.nbool
+	case tint64:
+		return v.nint64 != 0
+	case tuint64:
+		return v.nuint64 != 0
+	case tfloat64:
+		return v.nfloat64 != 0
 	}
 	var err error
 	v.nbool, err = strconv.ParseBool(v.nstr)
 	if err == nil {
-		v.t = tbool
+		if v.t == tstr {
+			v.t = tbool
+		}
 		return v.nbool
 	}
 	return false

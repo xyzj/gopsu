@@ -78,16 +78,23 @@ func (d *Conn) QueryMultirowPage(dbidx int, s string, rowsCount int, keyColumeID
 				row.VCells[k] = config.EmptyValue
 				continue
 			}
-			if b, ok := v.([]uint8); ok {
-				row.Cells[k] = json.String(b)
-				row.VCells[k] = config.NewValue(row.Cells[k])
+			if b, ok := v.(int64); ok {
+				row.VCells[k] = config.NewInt64Value(b)
+			} else if b, ok := v.(float32); ok {
+				row.VCells[k] = config.NewFloat64Value(float64(b))
+			} else if b, ok := v.([]uint8); ok {
+				row.VCells[k] = config.NewValue(json.String(b))
 			} else if b, ok := v.(time.Time); ok {
-				row.Cells[k] = b.Format("2006-01-02 15:04:05")
-				row.VCells[k] = config.NewValue(row.Cells[k])
+				row.VCells[k] = config.NewValue(b.Format("2006-01-02 15:04:05"))
+			} else if b, ok := v.(uint64); ok {
+				row.VCells[k] = config.NewUint64Value(b)
+			} else if b, ok := v.(float64); ok {
+				row.VCells[k] = config.NewFloat64Value(b)
 			} else {
-				row.Cells[k] = fmt.Sprintf("%v", v)
-				row.VCells[k] = config.NewValue(row.Cells[k])
+				row.VCells[k] = config.NewValue(fmt.Sprintf("%v", v))
 			}
+			// will be removed in the future
+			row.Cells[k] = row.VCells[k].String()
 		}
 		queryCache.Rows = append(queryCache.Rows, row)
 		if keyItem == "" {
@@ -324,28 +331,23 @@ func (d *Conn) queryDataChan(ctx context.Context, done context.CancelFunc, sqldb
 				row.VCells[k] = config.EmptyValue
 				continue
 			}
-			if b, ok := v.([]uint8); ok {
-				row.Cells[k] = json.String(b)
-				row.VCells[k] = config.NewValue(row.Cells[k])
-			} else if b, ok := v.(int64); ok {
+			if b, ok := v.(int64); ok {
 				row.VCells[k] = config.NewInt64Value(b)
-				row.Cells[k] = row.VCells[k].String()
 			} else if b, ok := v.(float32); ok {
 				row.VCells[k] = config.NewFloat64Value(float64(b))
-				row.Cells[k] = row.VCells[k].String()
+			} else if b, ok := v.([]uint8); ok {
+				row.VCells[k] = config.NewValue(json.String(b))
 			} else if b, ok := v.(time.Time); ok {
-				row.Cells[k] = b.Format("2006-01-02 15:04:05")
-				row.VCells[k] = config.NewValue(row.Cells[k])
+				row.VCells[k] = config.NewValue(b.Format("2006-01-02 15:04:05"))
 			} else if b, ok := v.(uint64); ok {
 				row.VCells[k] = config.NewUint64Value(b)
-				row.Cells[k] = row.VCells[k].String()
 			} else if b, ok := v.(float64); ok {
 				row.VCells[k] = config.NewFloat64Value(b)
-				row.Cells[k] = row.VCells[k].String()
 			} else {
-				row.Cells[k] = fmt.Sprintf("%v", v)
-				row.VCells[k] = config.NewValue(row.Cells[k])
+				row.VCells[k] = config.NewValue(fmt.Sprintf("%v", v))
 			}
+			// will be removed in the future
+			row.Cells[k] = row.VCells[k].String()
 		}
 		queryCache.Rows = append(queryCache.Rows, row)
 		rowIdx++

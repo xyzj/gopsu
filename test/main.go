@@ -12,7 +12,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"flag"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -23,7 +22,6 @@ import (
 	"github.com/xyzj/gopsu"
 	"github.com/xyzj/gopsu/config"
 	"github.com/xyzj/gopsu/json"
-	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -325,58 +323,61 @@ type aaaa byte
 var bbb aaaa = 23
 
 func main() {
-	x := make([]*assetGeo, 0)
-	y := make([]*assetGeo, 0)
-	z := make([]*assetGeo, 0)
-	x = append(x, &assetGeo{
-		Lng:    12.3048,
-		Lat:    334.3234,
-		Name:   "1231jksdfhksdf",
-		Value:  config.NewFloat64Value(1235.215653132131),
-		EValue: config.EmptyValue,
-	})
-	x = append(x, &assetGeo{
-		Lng:    122.3048,
-		Lat:    34.3234,
-		Name:   "sfasdf4e",
-		Value:  config.NewBoolValue(true),
-		EValue: config.EmptyValue,
-	})
-	s, err := json.Marshal(x)
-	if err != nil {
-		println(err.Error())
-		return
-	}
-	println(string(s))
-	os.WriteFile("a.json", s, 0o664)
-	s1, err := yaml.Marshal(x)
-	if err != nil {
-		println(err.Error())
-		return
-	}
-	println(string(s1))
-	os.WriteFile("a.yaml", s1, 0o664)
+	a := config.NewConfig("a.conf")
+	a.PutItem(&config.Item{Key: "1234", Value: config.NewValue("true")})
+	a.Save()
+	// x := make([]*assetGeo, 0)
+	// y := make([]*assetGeo, 0)
+	// z := make([]*assetGeo, 0)
+	// x = append(x, &assetGeo{
+	// 	Lng:    12.3048,
+	// 	Lat:    334.3234,
+	// 	Name:   "1231jksdfhksdf",
+	// 	Value:  config.NewFloat64Value(-1235.215653132131),
+	// 	EValue: config.NewValue(`{sdfe:d3d'dd{}`),
+	// })
+	// x = append(x, &assetGeo{
+	// 	Lng:    122.3048,
+	// 	Lat:    34.3234,
+	// 	Name:   "sfasdf4e",
+	// 	Value:  config.NewValue("true"),
+	// 	EValue: config.NewValue(`{"sdfe:d3d'dd{}`),
+	// })
+	// s, err := json.Marshal(x)
+	// if err != nil {
+	// 	println(err.Error())
+	// 	return
+	// }
+	// println(string(s))
+	// os.WriteFile("a.json", s, 0o664)
+	// s1, err := yaml.Marshal(x)
+	// if err != nil {
+	// 	println(err.Error())
+	// 	return
+	// }
+	// println(string(s1))
+	// os.WriteFile("a.yaml", s1, 0o664)
 
-	err = json.Unmarshal(s, &y)
-	if err != nil {
-		println(err.Error())
-		return
-	}
-	for _, vv := range y {
-		println(fmt.Sprintf("%+v", vv), fmt.Sprintf("%+v", vv.Value.TryFloat64()))
-	}
-	println("--- yaml")
-	err = yaml.Unmarshal(s1, &z)
-	if err != nil {
-		println(err.Error())
-		return
-	}
-	s1, err = yaml.Marshal(z)
-	if err != nil {
-		println(err.Error())
-		return
-	}
-	os.WriteFile("a1.yaml", s1, 0o664)
+	// err = json.Unmarshal(s, &y)
+	// if err != nil {
+	// 	println(err.Error())
+	// 	return
+	// }
+	// for _, vv := range y {
+	// 	println(fmt.Sprintf("%+v", vv), fmt.Sprintf("%+v", vv.Value.TryFloat64()))
+	// }
+	// println("--- yaml")
+	// err = yaml.Unmarshal(s1, &z)
+	// if err != nil {
+	// 	println(err.Error())
+	// 	return
+	// }
+	// s1, err = yaml.Marshal(z)
+	// if err != nil {
+	// 	println(err.Error())
+	// 	return
+	// }
+	// os.WriteFile("a1.yaml", s1, 0o664)
 	// conn, err := db.New(&db.Opt{
 	// 	DriverType: db.DriveMySQL,
 	// 	DBNames:    []string{"v5db_eventlog"},

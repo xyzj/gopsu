@@ -520,23 +520,32 @@ func STime2Bcd(t int32) []byte {
 	return []byte{Int82Bcd(byte(t / 60)), Int82Bcd(byte(t % 60))}
 }
 
-// Byte2SignedInt32 转有符号整型
-func Byte2SignedInt32(b byte) int32 {
-	if b > 127 {
-		return (int32(b) - 128) * -1
-	}
-	return int32(b)
+// SignedInt322Byte 有符号整形转byte
+//
+// Deprecated: use Int82Byte()
+func SignedInt322Byte(i int32) byte {
+	return Int82Byte(int8(i))
 }
 
-// SignedInt322Byte 有符号整型转byte
-func SignedInt322Byte(i int32) byte {
-	if i > 127 || i < -127 {
-		return byte(0)
-	}
-	if i < 0 {
-		return byte(i*-1 + 128)
-	}
-	return byte(i)
+// Byte2SignedInt32 byte转有符号整型
+//
+// Deprecated: use Byte2Int8()
+func Byte2SignedInt32(b byte) int32 {
+	return int32(Byte2Int8(b))
+}
+
+// Int82Byte 有符号整型转byte
+func Int82Byte(i int8) byte {
+	return uint8(i)
+}
+
+// Byte2Int8 byte转有符号整型
+func Byte2Int8(b byte) int8 {
+	return int8(b)
+	// if b <= 127 {
+	// 	return int32(b)
+	// }
+	// return 0 - (int32(^b<<1>>1) + 1)
 }
 
 // BcdDT2Stamp bcd时间戳转unix
