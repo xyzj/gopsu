@@ -146,7 +146,7 @@ func (v *Value) MarshalJSON() ([]byte, error) {
 	case tbool:
 		return strconv.AppendBool([]byte{}, v.nbool), nil // return []byte(fmt.Sprintf("%t", v.nbool)), nil
 	default:
-		return []byte("\"" + strings.ReplaceAll(v.nstr, `"`, `\"`) + "\""), nil
+		return json.Bytes("\"" + strings.ReplaceAll(v.nstr, `"`, `\"`) + "\""), nil
 	}
 }
 
@@ -213,8 +213,18 @@ func (v *Value) TryInt32() int32 {
 
 // TryInt64 reutrn int64
 func (v *Value) TryInt64() int64 {
-	if v.t == tint64 {
+	switch v.t {
+	case tint64:
 		return v.nint64
+	case tuint64:
+		return int64(v.nuint64)
+	case tfloat64:
+		return int64(v.nfloat64)
+	case tbool:
+		if v.nbool {
+			return 1
+		}
+		return 0
 	}
 	var err error
 	v.nint64, err = strconv.ParseInt(v.nstr, 10, 64)
@@ -227,8 +237,18 @@ func (v *Value) TryInt64() int64 {
 
 // TryUint64 reutrn uint64
 func (v *Value) TryUint64() uint64 {
-	if v.t == tuint64 {
+	switch v.t {
+	case tuint64:
 		return v.nuint64
+	case tint64:
+		return uint64(v.nint64)
+	case tfloat64:
+		return uint64(v.nfloat64)
+	case tbool:
+		if v.nbool {
+			return 1
+		}
+		return 0
 	}
 	var err error
 	v.nuint64, err = strconv.ParseUint(v.nstr, 10, 64)
@@ -242,15 +262,25 @@ func (v *Value) TryUint64() uint64 {
 // TryFloat32 reutrn float32
 func (v *Value) TryFloat32() float32 {
 	if v.t == tfloat64 {
-		return float32(v.nint64)
+		return float32(v.nfloat64)
 	}
 	return float32(v.TryFloat64())
 }
 
 // TryFloat64 reutrn fl
 func (v *Value) TryFloat64() float64 {
-	if v.t == tfloat64 {
+	switch v.t {
+	case tfloat64:
 		return v.nfloat64
+	case tuint64:
+		return float64(v.nuint64)
+	case tint64:
+		return float64(v.nint64)
+	case tbool:
+		if v.nbool {
+			return 1
+		}
+		return 0
 	}
 	var err error
 	v.nfloat64, err = strconv.ParseFloat(v.nstr, 64)

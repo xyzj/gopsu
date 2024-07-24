@@ -323,9 +323,12 @@ type aaaa byte
 var bbb aaaa = 23
 
 func main() {
-	a := config.NewConfig("a.conf")
-	a.PutItem(&config.Item{Key: "1234", Value: config.NewValue("true")})
-	a.Save()
+	a := float64(-18446744051610.09821344313131237)
+	b := uint64(a)
+	println(b)
+	// a := config.NewConfig("a.conf")
+	// a.PutItem(&config.Item{Key: "1234", Value: config.NewValue("true")})
+	// a.Save()
 	// x := make([]*assetGeo, 0)
 	// y := make([]*assetGeo, 0)
 	// z := make([]*assetGeo, 0)
@@ -340,7 +343,7 @@ func main() {
 	// 	Lng:    122.3048,
 	// 	Lat:    34.3234,
 	// 	Name:   "sfasdf4e",
-	// 	Value:  config.NewValue("true"),
+	// 	Value:  config.NewBoolValue(true),
 	// 	EValue: config.NewValue(`{"sdfe:d3d'dd{}`),
 	// })
 	// s, err := json.Marshal(x)
@@ -378,6 +381,7 @@ func main() {
 	// 	return
 	// }
 	// os.WriteFile("a1.yaml", s1, 0o664)
+
 	// conn, err := db.New(&db.Opt{
 	// 	DriverType: db.DriveMySQL,
 	// 	DBNames:    []string{"v5db_eventlog"},
