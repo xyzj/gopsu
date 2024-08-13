@@ -42,9 +42,9 @@ func LogToWriter(w io.Writer, skippath ...string) gin.HandlerFunc {
 			}
 			if a.token != "" {
 				if a.username != "" {
-					a.path = "(" + a.username + "-" + gopsu.CalcCRC32String(gopsu.Bytes(a.token)) + ")" + a.path
+					a.path = "(" + a.username + "-" + gopsu.CalcCRC32String(json.Bytes(a.token)) + ")" + a.path
 				} else {
-					a.path = "(" + gopsu.CalcCRC32String(gopsu.Bytes(a.token)) + ")" + a.path
+					a.path = "(" + gopsu.CalcCRC32String(json.Bytes(a.token)) + ")" + a.path
 				}
 			}
 			if a.body != "" {

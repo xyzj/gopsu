@@ -118,16 +118,30 @@ func (w *SM2) SetPrivateKey(key string) error {
 	w.priKey = priKey
 	w.priBytes = bb
 
-	// if len(w.pubBytes) == 0 {
-	// 	// 没有载入pubkey，生成新的pubkey
-	// 	txt, err := x509.MarshalSm2PublicKey(&priKey.PublicKey)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	w.pubBytes = txt
-	// 	w.pubKey = &priKey.PublicKey
-	// }
+	if len(w.pubBytes) == 0 {
+		// 没有载入pubkey，生成新的pubkey
+		txt, err := x509.MarshalSm2PublicKey(&priKey.PublicKey)
+		if err != nil {
+			return err
+		}
+		w.pubBytes = txt
+		w.pubKey = &priKey.PublicKey
+	}
 	return nil
+}
+
+// EncodeAsn1 sm2加密
+func (w *SM2) EncodeAsn1(b []byte) (CValue, error) {
+	if w.pubKey == nil {
+		return EmptyValue, fmt.Errorf("no public key found")
+	}
+	w.locker.Lock()
+	defer w.locker.Unlock()
+	res, err := w.pubKey.EncryptAsn1(b, rand.Reader)
+	if err != nil {
+		return EmptyValue, err
+	}
+	return CValue(res), nil
 }
 
 // Encode sm2加密
@@ -137,7 +151,8 @@ func (w *SM2) Encode(b []byte) (CValue, error) {
 	}
 	w.locker.Lock()
 	defer w.locker.Unlock()
-	res, err := w.pubKey.EncryptAsn1(b, rand.Reader)
+	res, err := sm2.Encrypt(w.pubKey, b, rand.Reader, sm2.C1C3C2)
+	// res, err := w.pubKey.EncryptAsn1(b, rand.Reader)
 	if err != nil {
 		return EmptyValue, err
 	}
@@ -151,10 +166,12 @@ func (w *SM2) Decode(b []byte) (string, error) {
 	}
 	w.locker.Lock()
 	defer w.locker.Unlock()
-	c, err := w.priKey.DecryptAsn1(b)
-	// c, err := w.priKey.Decrypt(nil, b, nil)
+	c, err := w.priKey.Decrypt(nil, b, nil)
 	if err != nil {
-		return "", err
+		c, err = w.priKey.DecryptAsn1(b)
+		if err != nil {
+			return "", err
+		}
 	}
 	return String(c), nil
 }

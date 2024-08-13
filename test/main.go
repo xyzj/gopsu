@@ -1,406 +1,146 @@
 package main
 
 import (
-	"bytes"
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
+	"crypto/subtle"
 	"encoding/base64"
-	"encoding/hex"
-	"encoding/pem"
 	"errors"
-	"flag"
-	"io"
-	"os"
+	"fmt"
+	"log"
 	"strings"
-	"sync"
-	"time"
-	"unicode"
 
-	"github.com/xyzj/gopsu"
-	"github.com/xyzj/gopsu/config"
-	"github.com/xyzj/gopsu/json"
+	"golang.org/x/crypto/argon2"
 )
 
 var (
-	version     = "0.0.0"
-	goVersion   = ""
-	buildDate   = ""
-	platform    = ""
-	author      = "Xu Yuan"
-	programName = "Asset Data Center"
+	ErrInvalidHash         = errors.New("the encoded hash is not in the correct format")
+	ErrIncompatibleVersion = errors.New("incompatible version of argon2")
 )
 
-// 结构定义
-// 设备型号信息
-type devmod struct {
-	ID     string `json:"id,omitempty"`
-	Name   string `json:"name,omitempty"`
-	Sys    string `json:"-"`
-	Remark string `json:"remark,omitempty"`
-	pinyin string
-}
-
-func (d devmod) DoNoting() {
-}
-
-type BaseMap struct {
-	sync.RWMutex
-	data map[string]string
-}
-
-func FormatMQBody(d []byte) string {
-	if json.Valid(d) {
-		return gopsu.String(d)
-	}
-	return strings.Map(func(r rune) rune {
-		if unicode.IsPrint(r) {
-			return r
-		}
-		return -1
-	}, gopsu.String(d))
-	// return base64.StdEncoding.EncodeToString(d)
-}
-
-func test(a bool, b ...string) {
-	if len(b) == 0 {
-		println("no b")
-	} else {
-		if b[0] == "" {
-			println("nadadadf")
-		} else {
-			println("123123123")
-		}
-	}
-	if a {
-		defer println("defer")
-	}
-	println("done")
+type params struct {
+	memory      uint32
+	iterations  uint32
+	parallelism uint8
+	saltLength  uint32
+	keyLength   uint32
 }
 
 var (
-	conf  = flag.String("conf", "", "usage")
-	conf1 = flag.String("conf1", "", "usage")
-	conf2 = flag.String("conf2", "", "usage")
+	strcode  = "$argon2id$v=19$m=19456,t=2,p=1$HAK3hf4VULj3XiUH7tUwyg$ZfIQN8T4r8WdVCgIIWus8KmTMe+2ma22LQyWowECoGc"
+	strplain = "affine"
 )
-
-func mqttcb(topic string, body []byte) {
-	println("---", topic, string(body))
-}
-
-type aaa struct {
-	Username string           `json:"username" yaml:"username"`
-	Password config.PwdString `json:"pwd" yaml:"pwd"`
-}
-
-type serviceParams struct {
-	Params     []string `yaml:"params"`
-	Exec       string   `yaml:"exec"`
-	Enable     bool     `yaml:"enable"`
-	manualStop bool     `yaml:"-"`
-}
-
-func RSAGenKey(bits int) error {
-	/*
-		生成私钥
-	*/
-	//1、使用RSA中的GenerateKey方法生成私钥
-	privateKey, err := rsa.GenerateKey(rand.Reader, bits)
-	if err != nil {
-		return err
-	}
-	// 2、通过X509标准将得到的RAS私钥序列化为：ASN.1 的DER编码字符串
-	privateStream := x509.MarshalPKCS1PrivateKey(privateKey)
-	// 3、将私钥字符串设置到pem格式块中
-	block1 := pem.Block{
-		Type:  "private key",
-		Bytes: privateStream,
-	}
-	// 4、通过pem将设置的数据进行编码，并写入磁盘文件
-	fPrivate, err := os.Create("privateKey.pem")
-	if err != nil {
-		return err
-	}
-	defer fPrivate.Close()
-	err = pem.Encode(fPrivate, &block1)
-	if err != nil {
-		return err
-	}
-
-	/*
-		生成公钥
-	*/
-	publicKey := privateKey.PublicKey
-	publicStream, err := x509.MarshalPKIXPublicKey(&publicKey)
-	// publicStream:=x509.MarshalPKCS1PublicKey(&publicKey)
-	block2 := pem.Block{
-		Type:  "public key",
-		Bytes: publicStream,
-	}
-	fPublic, err := os.Create("publicKey.pem")
-	if err != nil {
-		return err
-	}
-	defer fPublic.Close()
-	pem.Encode(fPublic, &block2)
-	return nil
-}
-
-// 对数据进行加密操作
-func EncyptogRSA(src []byte, path string) (res []byte, err error) {
-	// 1.获取秘钥（从本地磁盘读取）
-	f, err := os.Open(path)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	fileInfo, _ := f.Stat()
-	b := make([]byte, fileInfo.Size())
-	f.Read(b)
-	// 2、将得到的字符串解码
-	block, _ := pem.Decode(b)
-	println(base64.StdEncoding.EncodeToString(block.Bytes))
-	bb, _ := base64.StdEncoding.DecodeString(`MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAzi1j6RjsQ/l0sSsR+SV5WVjl6QPRtd9X9flVwOS1pmRtpoEgvHSM6Q1tgdih/wXaFylgbNquULZ0Ld/8XPLHXY3nhW6fHmpd9O4oE4prGX7CKPLiQTatTy/S3vMbjR3lQP3mn+DAq4ygIWnnE4ZWCh4BvULuNp4ZPNUb8k2OX0wkidG+oAHmNqcRhvXWIFv3v80etgeOxjZXwLZjmMB+ZFWNaA4Ut8OCxXnxdNBt61EAxJsjWAWQ0aVLt8ZBp7yVolCz6thYPybNkjc3N/Oejt8pzpSgi5ZTBIBWRVJOhDC45okUCDXgXW6X5+UL7qFC54QGYcuKNcSgTIML+ZwGE/68G6mvIdUHG44nxbz9rfno02KNdFSxG0gTDNCqr/ifommR+nE/ggjvpJI6avrTldeyhzgUY/Q9/nuIdTyDYXWSbumE6iFaDagxQ8ay6EOCPE/bAdhsL99nT+v9xBG+FaHY9EOdi0TQsNmteu9L8l3+v6BDqn2Mt79tRob6nJu9zlbu8XFE5ASqRWUzLZ5Nxdr8eFHZGF3gHR/abVyNG8j4HAmFkkHlANg5nQnODukkyAWTJoYGcpqjSqOaJkyFk4mxmEf2SkXfI8reY8yx7niAbacy3DHhs6F9VF7M3GRMtymneQsqAihdQ2B8y9qT6KreEKmrCi/k9CmKLhrzFg8CAwEAAQ==`)
-	// 使用X509将解码之后的数据 解析出来
-	// x509.MarshalPKCS1PublicKey(block):解析之后无法用，所以采用以下方法：ParsePKIXPublicKey
-	keyInit, err := x509.ParsePKIXPublicKey(bb) // 对应于生成秘钥的x509.MarshalPKIXPublicKey(&publicKey)
-	// keyInit, err := x509.ParsePKCS1PublicKey(bb)
-	if err != nil {
-		return
-	}
-	// 4.使用公钥加密数据
-	// pubKey := keyInit
-	pubKey := keyInit.(*rsa.PublicKey)
-	res, err = rsa.EncryptPKCS1v15(rand.Reader, pubKey, src)
-	return
-}
-
-// 对数据进行解密操作
-func DecrptogRSA(src []byte, path string) (res []byte, err error) {
-	// 1.获取秘钥（从本地磁盘读取）
-	f, err := os.Open(path)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	fileInfo, _ := f.Stat()
-	b := make([]byte, fileInfo.Size())
-	f.Read(b)
-	block, _ := pem.Decode(b)                                 // 解码
-	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes) // 还原数据
-	res, err = rsa.DecryptPKCS1v15(rand.Reader, privateKey, src)
-	return
-}
-
-func addBase64Padding(value string) string {
-	m := len(value) % 4
-	if m != 0 {
-		value += strings.Repeat("=", 4-m)
-	}
-
-	return value
-}
-
-func removeBase64Padding(value string) string {
-	return strings.Replace(value, "=", "", -1)
-}
-
-func Pad(src []byte) []byte {
-	padding := aes.BlockSize - len(src)%aes.BlockSize
-	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
-	return append(src, padtext...)
-}
-
-func Unpad(src []byte) ([]byte, error) {
-	length := len(src)
-	unpadding := int(src[length-1])
-
-	if unpadding > length {
-		return nil, errors.New("unpad error. This could happen when incorrect encryption key is used")
-	}
-
-	return src[:(length - unpadding)], nil
-}
-
-func encrypt(key, iv []byte, text string) (string, error) {
-	block, err := aes.NewCipher(key[:32])
-	if err != nil {
-		return "", err
-	}
-
-	msg := Pad([]byte(text))
-	ciphertext := make([]byte, aes.BlockSize+len(msg))
-	// iv = ciphertext[:aes.BlockSize]
-	// println(fmt.Sprintf("===========%+v", iv))
-	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		return "", err
-	}
-	// println(fmt.Sprintf("===========%+v", iv))
-	// io.ReadFull(rand.Reader, iv)
-	cfb := cipher.NewCFBEncrypter(block, iv)
-	cfb.XORKeyStream(ciphertext[aes.BlockSize:], []byte(msg))
-	finalMsg := hex.EncodeToString(ciphertext)
-	return finalMsg, nil
-}
-
-func decrypt(key []byte, text string) (string, error) {
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return "", err
-	}
-
-	decodedMsg, err := base64.StdEncoding.DecodeString(text)
-	if err != nil {
-		return "", err
-	}
-	println("=====", hex.EncodeToString(decodedMsg))
-	if (len(decodedMsg) % aes.BlockSize) != 0 {
-		return "", errors.New("blocksize must be multipe of decoded message length")
-	}
-
-	// iv := decodedMsg[:aes.BlockSize]
-	iv := []byte("4qzB9DK6eFuSOMfB")
-	msg := decodedMsg //[aes.BlockSize:]
-
-	cfb := cipher.NewCFBDecrypter(block, iv)
-	cfb.XORKeyStream(msg, msg)
-	println("===++++++++++", len(msg))
-
-	// unpadMsg, err := Unpad(msg)
-	// if err != nil {
-	// 	return "", err
-	// }
-
-	return string(msg), nil
-}
-
-// QueryDataRow 数据行
-type QueryDataRow struct {
-	Cells []config.VString `json:"cells,omitempty"`
-}
-
-// QueryData 数据集
-type QueryData struct {
-	Total    int32           `json:"total,omitempty"`
-	CacheTag string          `json:"cache_tag,omitempty"`
-	Rows     []*QueryDataRow `json:"rows,omitempty"`
-	Columns  []string        `json:"columns,omitempty"`
-}
-
-func chtest(ch chan string) {
-	time.Sleep(time.Second)
-	ch <- gopsu.GetRandomString(10, true)
-	time.Sleep(time.Second * 5)
-	println("chtest done")
-}
-
-var georep = strings.NewReplacer("(", "", ")", "", "POINT ", "", "POLYGON ", "", "LINESTRING ", "") // 经纬度字符串处理替换器
-
-func text2Geo(s string) []*assetGeo {
-	geostr := strings.Split(georep.Replace(s), ", ")
-	gp := make([]*assetGeo, 0)
-	for _, v := range geostr {
-		vv := strings.Split(v, " ")
-		gp = append(gp, &assetGeo{
-			Lng: gopsu.String2Float64(vv[0]),
-			Lat: gopsu.String2Float64(vv[1]),
-		})
-	}
-	return gp
-}
-
-type assetGeo struct {
-	Lng    float64       `json:"lng" yaml:"lng"`
-	Lat    float64       `json:"lat" yaml:"lat"`
-	Name   string        `json:"aid,omitempty" yaml:"aid"`
-	Value  *config.Value `json:"value" yaml:"value"`
-	EValue *config.Value `json:"value1" yaml:"value1"`
-}
-type aaaa byte
-
-var bbb aaaa = 23
 
 func main() {
-	a := float64(-18446744051610.09821344313131237)
-	b := uint64(a)
-	println(b)
-	// a := config.NewConfig("a.conf")
-	// a.PutItem(&config.Item{Key: "1234", Value: config.NewValue("true")})
-	// a.Save()
-	// x := make([]*assetGeo, 0)
-	// y := make([]*assetGeo, 0)
-	// z := make([]*assetGeo, 0)
-	// x = append(x, &assetGeo{
-	// 	Lng:    12.3048,
-	// 	Lat:    334.3234,
-	// 	Name:   "1231jksdfhksdf",
-	// 	Value:  config.NewFloat64Value(-1235.215653132131),
-	// 	EValue: config.NewValue(`{sdfe:d3d'dd{}`),
-	// })
-	// x = append(x, &assetGeo{
-	// 	Lng:    122.3048,
-	// 	Lat:    34.3234,
-	// 	Name:   "sfasdf4e",
-	// 	Value:  config.NewBoolValue(true),
-	// 	EValue: config.NewValue(`{"sdfe:d3d'dd{}`),
-	// })
-	// s, err := json.Marshal(x)
-	// if err != nil {
-	// 	println(err.Error())
-	// 	return
-	// }
-	// println(string(s))
-	// os.WriteFile("a.json", s, 0o664)
-	// s1, err := yaml.Marshal(x)
-	// if err != nil {
-	// 	println(err.Error())
-	// 	return
-	// }
-	// println(string(s1))
-	// os.WriteFile("a.yaml", s1, 0o664)
+	p := &params{
+		memory:      19 * 1024,
+		iterations:  2,
+		parallelism: 1,
+		saltLength:  16,
+		keyLength:   32,
+	}
 
-	// err = json.Unmarshal(s, &y)
-	// if err != nil {
-	// 	println(err.Error())
-	// 	return
-	// }
-	// for _, vv := range y {
-	// 	println(fmt.Sprintf("%+v", vv), fmt.Sprintf("%+v", vv.Value.TryFloat64()))
-	// }
-	// println("--- yaml")
-	// err = yaml.Unmarshal(s1, &z)
-	// if err != nil {
-	// 	println(err.Error())
-	// 	return
-	// }
-	// s1, err = yaml.Marshal(z)
-	// if err != nil {
-	// 	println(err.Error())
-	// 	return
-	// }
-	// os.WriteFile("a1.yaml", s1, 0o664)
+	encodedHash, err := generateFromPassword("moffice", p)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	println(encodedHash)
+	match, err := comparePasswordAndHash(strplain, encodedHash)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
 
-	// conn, err := db.New(&db.Opt{
-	// 	DriverType: db.DriveMySQL,
-	// 	DBNames:    []string{"v5db_eventlog"},
-	// 	User:       "root",
-	// 	Passwd:     "lp1234xy",
-	// 	Server:     "192.168.50.83:3306",
-	// })
-	// if err != nil {
-	// 	println(err.Error())
-	// 	return
-	// }
-	// err = conn.AlterMergeTable("v5db_eventlog", "event_record", "ALTER table event_record add column mesh_data55 varchar(200) DEFAULT '' NOT NULL COMMENT '模型详细信息'", 10)
-	// if err != nil {
-	// 	println(err.Error())
-	// 	// return
-	// }
-	// err = conn.AlterMergeTable("v5db_eventlog", "event_record", "ALTER table event_record add column mesh_data15 varchar(200) DEFAULT '' NOT NULL COMMENT '模型详细信息'", 10)
-	// if err != nil {
-	// 	println(err.Error())
-	// 	return
-	// }
+	fmt.Printf("Match: %v\n", match)
+	_, b1, b2, err := decodeHash(encodedHash)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	println(string(b1), string(b2))
+}
+
+func generateFromPassword(password string, p *params) (encodedHash string, err error) {
+	salt, err := generateRandomBytes(p.saltLength)
+	if err != nil {
+		return "", err
+	}
+
+	hash := argon2.IDKey([]byte(password), salt, p.iterations, p.memory, p.parallelism, p.keyLength)
+
+	// Base64 encode the salt and hashed password.
+	b64Salt := base64.RawStdEncoding.EncodeToString(salt)
+	b64Hash := base64.RawStdEncoding.EncodeToString(hash)
+
+	// Return a string using the standard encoded hash representation.
+	encodedHash = fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s", argon2.Version, p.memory, p.iterations, p.parallelism, b64Salt, b64Hash)
+
+	return encodedHash, nil
+}
+
+func generateRandomBytes(n uint32) ([]byte, error) {
+	// return []byte("1234567890123456"), nil
+	b := make([]byte, n)
+	_, err := rand.Read(b)
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
+}
+
+func comparePasswordAndHash(password, encodedHash string) (match bool, err error) {
+	// Extract the parameters, salt and derived key from the encoded password
+	// hash.
+	p, salt, hash, err := decodeHash(encodedHash)
+	if err != nil {
+		return false, err
+	}
+
+	// Derive the key from the other password using the same parameters.
+	otherHash := argon2.IDKey([]byte(password), salt, p.iterations, p.memory, p.parallelism, p.keyLength)
+
+	// Check that the contents of the hashed passwords are identical. Note
+	// that we are using the subtle.ConstantTimeCompare() function for this
+	// to help prevent timing attacks.
+	if subtle.ConstantTimeCompare(hash, otherHash) == 1 {
+		return true, nil
+	}
+	return false, nil
+}
+
+func decodeHash(encodedHash string) (p *params, salt, hash []byte, err error) {
+	vals := strings.Split(encodedHash, "$")
+	if len(vals) != 6 {
+		return nil, nil, nil, ErrInvalidHash
+	}
+
+	var version int
+	_, err = fmt.Sscanf(vals[2], "v=%d", &version)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if version != argon2.Version {
+		return nil, nil, nil, ErrIncompatibleVersion
+	}
+
+	p = &params{}
+	_, err = fmt.Sscanf(vals[3], "m=%d,t=%d,p=%d", &p.memory, &p.iterations, &p.parallelism)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	salt, err = base64.RawStdEncoding.Strict().DecodeString(vals[4])
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	p.saltLength = uint32(len(salt))
+
+	hash, err = base64.RawStdEncoding.Strict().DecodeString(vals[5])
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	p.keyLength = uint32(len(hash))
+
+	return p, salt, hash, nil
 }
