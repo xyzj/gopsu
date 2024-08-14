@@ -18,14 +18,14 @@ func RSAGenKey(bits int) error {
 	if err != nil {
 		return err
 	}
-	//2、通过X509标准将得到的RAS私钥序列化为：ASN.1 的DER编码字符串
+	// 2、通过X509标准将得到的RAS私钥序列化为：ASN.1 的DER编码字符串
 	privateStream := x509.MarshalPKCS1PrivateKey(privateKey)
-	//3、将私钥字符串设置到pem格式块中
+	// 3、将私钥字符串设置到pem格式块中
 	block1 := pem.Block{
 		Type:  "private key",
 		Bytes: privateStream,
 	}
-	//4、通过pem将设置的数据进行编码，并写入磁盘文件
+	// 4、通过pem将设置的数据进行编码，并写入磁盘文件
 	fPrivate, err := os.Create("privateKey.pem")
 	if err != nil {
 		return err
@@ -41,7 +41,7 @@ func RSAGenKey(bits int) error {
 	*/
 	publicKey := privateKey.PublicKey
 	publicStream, _ := x509.MarshalPKIXPublicKey(&publicKey)
-	//publicStream:=x509.MarshalPKCS1PublicKey(&publicKey)
+	// publicStream:=x509.MarshalPKCS1PublicKey(&publicKey)
 	block2 := pem.Block{
 		Type:  "public key",
 		Bytes: publicStream,
@@ -54,6 +54,7 @@ func RSAGenKey(bits int) error {
 	pem.Encode(fPublic, &block2)
 	return nil
 }
+
 func TestRSA(t *testing.T) {
 	// RSAGenKey(4096)
 	// sss := `{"token": "604213a4-9e4e-11ee-8e42-0242ac110004", "ts": 1711704865}`
@@ -88,7 +89,7 @@ func TestRSA(t *testing.T) {
 }
 
 func TestSign(t *testing.T) {
-	sss := "1267312shfskdfadfaf" //gopsu.GetRandomString(30002, true) // "1267312shfskdfadfaf"
+	sss := "1267312shfskdfadfaf" // gopsu.GetRandomString(30002, true) // "1267312shfskdfadfaf"
 	c := NewRSA()
 	c.SetPublicKeyFromFile("publicKey.pem")
 	c.SetPrivateKeyFromFile("privateKey.pem")

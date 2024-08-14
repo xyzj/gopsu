@@ -3,6 +3,7 @@ package pathtool
 
 import (
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 )
@@ -70,4 +71,23 @@ func JoinPathFromHere(path ...string) string {
 		return sp
 	}
 	return p
+}
+
+// AddPathEnvFromHere add `pwd` to PATH env
+func AddPathEnvFromHere() error {
+	p := GetExecDir()
+	if strings.Contains(os.Getenv("PATH"), p) {
+		return nil
+	}
+	u, err := user.Current()
+	if err != nil {
+		return err
+	}
+	b, err := os.OpenFile(filepath.Join(u.HomeDir, ".bashrc"), os.O_WRONLY|os.O_APPEND, 0o664)
+	if err != nil {
+		return err
+	}
+	b.WriteString(`export PATH="$PATH:` + p + "\"")
+	b.Close()
+	return nil
 }
