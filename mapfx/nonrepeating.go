@@ -3,6 +3,8 @@ package mapfx
 import (
 	"reflect"
 	"sync"
+
+	"github.com/xyzj/gopsu/json"
 )
 
 // 使用示例
@@ -125,6 +127,7 @@ func (u *UniqueSlice[T]) has(item T) (int, bool) {
 	}
 	return -1, false
 }
+
 func (u *UniqueSlice[T]) Store(item T) bool {
 	u.locker.Lock()
 	defer u.locker.Unlock()
@@ -134,6 +137,7 @@ func (u *UniqueSlice[T]) Store(item T) bool {
 	u.data = append(u.data, item)
 	return true
 }
+
 func (u *UniqueSlice[T]) StoreMany(items ...T) {
 	u.locker.Lock()
 	defer u.locker.Unlock()
@@ -143,16 +147,19 @@ func (u *UniqueSlice[T]) StoreMany(items ...T) {
 		}
 	}
 }
+
 func (u *UniqueSlice[T]) Clean() {
 	u.locker.Lock()
 	defer u.locker.Unlock()
 	u.data = make([]T, 0)
 }
+
 func (u *UniqueSlice[T]) Len() int {
 	u.locker.RLock()
 	defer u.locker.RUnlock()
 	return len(u.data)
 }
+
 func (u *UniqueSlice[T]) Slice() []T {
 	u.locker.RLock()
 	defer u.locker.RUnlock()
@@ -160,6 +167,7 @@ func (u *UniqueSlice[T]) Slice() []T {
 	x = append(x, u.data...)
 	return x
 }
+
 func (u *UniqueSlice[T]) Has(item T) bool {
 	u.locker.RLock()
 	defer u.locker.RUnlock()
@@ -173,6 +181,10 @@ func (u *UniqueSlice[T]) Delete(item T) {
 	if idx, ok := u.has(item); ok {
 		u.data = append(u.data[:idx], u.data[idx+1:]...)
 	}
+}
+
+func (u *UniqueSlice[T]) MarshalJSON() ([]byte, error) {
+	return json.Marshal(u.Slice())
 }
 
 // Keys 把map的key转为slice

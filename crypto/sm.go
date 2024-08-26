@@ -3,15 +3,23 @@ package crypto
 import (
 	"crypto/aes"
 	"crypto/rand"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/pem"
 	"fmt"
+	"math/big"
+	"net"
 	"os"
+	"path/filepath"
+	"sort"
 	"sync"
+	"time"
 
 	"github.com/tjfoc/gmsm/sm2"
 	"github.com/tjfoc/gmsm/sm4"
 	"github.com/tjfoc/gmsm/x509"
+	"github.com/xyzj/gopsu/pathtool"
 )
 
 type SM2 struct {
@@ -252,6 +260,143 @@ func (w *SM2) EncryptTo(s string) CValue {
 	return x
 }
 
+// CreateCert 创建基于sm2算法的数字证书，opt.RootKey无效时，会重新创建私钥和根证书
+func (w *SM2) CreateCert(opt *CertOpt) error {
+	// 处理参数
+	if opt == nil {
+		opt = &CertOpt{
+			DNS: []string{},
+			IP:  []string{},
+		}
+	}
+	if opt.OutPut == "" {
+		opt.OutPut = pathtool.GetExecDir()
+	}
+	if len(opt.DNS) == 0 {
+		opt.DNS = []string{"localhost"}
+	}
+	if len(opt.IP) == 0 {
+		opt.IP = []string{"127.0.0.1"}
+	}
+	ips := make([]net.IP, 0, len(opt.IP))
+	sort.Slice(opt.IP, func(i, j int) bool {
+		return opt.IP[i] < opt.IP[j]
+	})
+	for _, v := range opt.IP {
+		ips = append(ips, net.ParseIP(v))
+	}
+	// 处理根证书
+	var rootDer, txt []byte
+	var err error
+	var rootCsr *x509.Certificate
+	// 检查私钥
+	if opt.RootKey != "" {
+		w.SetPrivateKeyFromFile(opt.RootKey)
+	}
+	if w.priKey == nil {
+		opt.RootCa = ""
+		opt.RootKey = ""
+		w.GenerateKey()
+	}
+	// 创建根证书
+	if opt.RootCa != "" {
+		b, err := os.ReadFile(opt.RootCa)
+		if err == nil {
+			p, _ := pem.Decode(b)
+			rootCsr, err = x509.ParseCertificate(p.Bytes)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	if rootCsr == nil {
+		rootCsr = &x509.Certificate{
+			Version:      3,
+			SerialNumber: big.NewInt(time.Now().Unix()),
+			Subject: pkix.Name{
+				Country:    []string{"CN"},
+				Province:   []string{"Shanghai"},
+				Locality:   []string{"Shanghai"},
+				CommonName: "xyzj",
+			},
+			NotBefore:             time.Now(),
+			NotAfter:              time.Now().AddDate(68, 0, 0),
+			MaxPathLen:            1,
+			BasicConstraintsValid: true,
+			IsCA:                  true,
+			KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageDataEncipherment,
+			SignatureAlgorithm:    x509.SM2WithSM3,
+		}
+	}
+	rootDer, err = x509.CreateCertificate(rootCsr, rootCsr, w.pubKey, w.priKey)
+	if err != nil {
+		return err
+	}
+	// 创建服务器证书
+	certCsr := &x509.Certificate{
+		Version:      3,
+		SerialNumber: big.NewInt(time.Now().Unix()),
+		Subject: pkix.Name{
+			Country:    []string{"CN"},
+			Province:   []string{"Shanghai"},
+			Locality:   []string{"Shanghai"},
+			CommonName: "xyzj",
+		},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().AddDate(68, 0, 0),
+		DNSNames:    opt.DNS,
+		IPAddresses: ips,
+		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageDataEncipherment,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+	}
+	// 创建网站私钥
+	p, err := sm2.GenerateKey(rand.Reader)
+	if err != nil {
+		return err
+	}
+	certDer, err := x509.CreateCertificate(certCsr, rootCsr, &p.PublicKey, w.priKey)
+	// certDer, err := x509.CreateCertificate(rand.Reader, certCsr, rootCsr, w.pubKey, w.priKey)
+	if err != nil {
+		return err
+	}
+	// 保存网站证书
+	txt = pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certDer,
+	})
+	err = os.WriteFile(filepath.Join(opt.OutPut, "cert.sm2.pem"), txt, 0o664)
+	if err != nil {
+		return err
+	}
+	// 保存网站私钥
+	txt, err = x509.WritePrivateKeyToPem(p, nil)
+	if err != nil {
+		return err
+	}
+	txt = pem.EncodeToMemory(&pem.Block{
+		Type:  "SM2 PRIVATE KEY",
+		Bytes: txt,
+	})
+	err = os.WriteFile(filepath.Join(opt.OutPut, "cert-key.sm2.pem"), txt, 0o664)
+	if err != nil {
+		return err
+	}
+	// 保存root私钥
+	if opt.RootKey == "" {
+		// 保存根证书
+		txt = pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: rootDer,
+		})
+		err = os.WriteFile(filepath.Join(opt.OutPut, "root.sm2.pem"), txt, 0o664)
+		if err != nil {
+			return err
+		}
+		w.ToFile("", filepath.Join(opt.OutPut, "root-key.sm2.pem"))
+	}
+	return nil
+}
+
 // NewSM2 创建一个新的sm2算法器
 func NewSM2() *SM2 {
 	return &SM2{
@@ -260,7 +405,6 @@ func NewSM2() *SM2 {
 }
 
 // sm4
-
 type SM4 struct {
 	locker   sync.Mutex
 	workType SM4Type

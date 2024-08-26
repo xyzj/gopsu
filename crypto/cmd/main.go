@@ -10,7 +10,7 @@ import (
 
 var (
 	conf   = flag.String("config", "config.json", "config file for dns and ip")
-	cry    = flag.String("crypto", "ecc256", "crypto type, ecc256, ecc384, rsa2048, rsa4096")
+	cry    = flag.String("crypto", "ecc256", "crypto type, ecc256, ecc384, rsa2048, rsa4096, sm2")
 	sample = flag.Bool("sample", false, "create a sample config file")
 )
 
@@ -34,7 +34,7 @@ func main() {
 			println(err.Error())
 			return
 		}
-		os.WriteFile("config.json", b, 0664)
+		os.WriteFile("config.json", b, 0o664)
 		println("create sample config file done")
 		return
 	}
@@ -42,7 +42,7 @@ func main() {
 	if err != nil {
 		b = []byte("{}")
 	}
-	var cf = &crypto.CertOpt{
+	cf := &crypto.CertOpt{
 		DNS: []string{},
 		IP:  []string{},
 	}
@@ -52,6 +52,9 @@ func main() {
 		return
 	}
 	switch *cry {
+	case "sm2":
+		ec := crypto.NewSM2()
+		err = ec.CreateCert(cf)
 	case "ecc384":
 		ec := crypto.NewECC()
 		err = ec.CreateCert(cf)

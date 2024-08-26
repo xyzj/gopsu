@@ -95,12 +95,16 @@ func ListenAndServeWithOption(opt *ServiceOption) {
 	}
 	if opt.EngineFunc == nil {
 		opt.EngineFunc = func() *gin.Engine {
-			return LiteEngine(opt.LogFile, opt.LogDays, opt.Hosts...)
+			if opt.Engine == nil {
+				return LiteEngine(opt.LogFile, opt.LogDays, opt.Hosts...)
+			} else {
+				return opt.Engine
+			}
 		}
 	}
 	// 路由处理
-	var findRoot = false
-	var findIcon = false
+	findRoot := false
+	findIcon := false
 	h := opt.EngineFunc()
 	for _, v := range h.Routes() {
 		if v.Path == "/" {

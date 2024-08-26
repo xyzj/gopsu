@@ -10,7 +10,7 @@ import (
 	"github.com/xyzj/gopsu/pathtool"
 )
 
-var pidfile = flag.String("pid-file", "", "set the pid file path (from gocmd)")
+// var pidfile = flag.String("pid-file", "", "set the pid file path (from gocmd)")
 
 // DefaultProgram Create a default console program, this program contains commands: `start`, `stop`, `restart`, `run`, `status`, `version`, `help`
 func DefaultProgram(info *Info) *Program {
@@ -65,7 +65,7 @@ func NewProgram(info *Info) *Program {
 		}
 	}
 	// 设置pid文件
-	pinfo.Pfile = *pidfile // os.Getenv(fmt.Sprintf("%s_PID_FILE", strings.ToUpper(pathtool.GetExecNameWithoutExt())))
+	pinfo.Pfile = os.Getenv("pid_file") // os.Getenv(fmt.Sprintf("%s_PID_FILE", strings.ToUpper(pathtool.GetExecNameWithoutExt())))
 	if pinfo.Pfile == "" {
 		pinfo.Pfile = pathtool.JoinPathFromHere(pinfo.name + ".pid")
 	}

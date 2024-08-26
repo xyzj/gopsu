@@ -132,6 +132,7 @@ func start(pinfo *ProcInfo) int {
 	}
 	cmd := exec.Command(pinfo.exec, xargs...)
 	cmd.Dir = pinfo.dir
+	cmd.Env = os.Environ()
 	if err := cmd.Start(); err != nil {
 		println("start " + pinfo.name + " failed, error: " + err.Error())
 		return 1

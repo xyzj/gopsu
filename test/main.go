@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
+	"github.com/xyzj/gopsu"
 	"golang.org/x/crypto/argon2"
 )
 
@@ -31,6 +33,10 @@ var (
 )
 
 func main() {
+	s := "avdf\000\000\000"
+	ss := gopsu.TrimString(s)
+	println(len(s), s, len(ss), ss)
+	os.Exit(0)
 	p := &params{
 		memory:      19 * 1024,
 		iterations:  2,

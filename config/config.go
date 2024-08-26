@@ -167,11 +167,11 @@ func (f *File) GetAll() string {
 
 // FromFile 从文件载入配置
 func (f *File) FromFile(configfile string) error {
-	if configfile == "" {
-		return nil
-	}
 	if configfile != "" {
 		f.filepath = configfile
+	}
+	if f.filepath == "" {
+		return nil
 	}
 	if f.data == nil {
 		f.data = &bytes.Buffer{}

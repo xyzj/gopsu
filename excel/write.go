@@ -33,7 +33,7 @@ type FileData struct {
 func (fd *FileData) GetCell(sheetname string, row, col int) (*xlsx.Cell, error) {
 	sheet, ok := fd.writeFile.Sheet[sheetname]
 	if !ok {
-		return nil, errSheetNotFound((sheetname))
+		return nil, errSheetNotFound(sheetname)
 	}
 	return sheet.Cell(row, col)
 }
