@@ -26,6 +26,8 @@ import (
 	"github.com/xyzj/gopsu/loopfunc"
 )
 
+// go-echats should be v2.3.3
+
 //go:embed echarts.min.js
 var echarts []byte
 
