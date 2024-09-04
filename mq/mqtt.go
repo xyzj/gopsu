@@ -14,28 +14,6 @@ import (
 	"github.com/xyzj/gopsu/loopfunc"
 )
 
-// MqttOpt mqtt 配置
-type MqttOpt struct {
-	// TLSConf 日志
-	Logg logger.Logger
-	// tls配置，默认为 InsecureSkipVerify: true
-	TLSConf *tls.Config
-	// 订阅消息，map[topic]qos
-	Subscribe map[string]byte
-	// 发送超时
-	SendTimeo time.Duration
-	// ClientID 客户端标示，会添加随机字符串尾巴，最大22个字符
-	ClientID string
-	// 服务端ip:port
-	Addr string
-	// 登录用户名
-	Username string
-	// 登录密码
-	Passwd string
-	// 日志前缀，默认 [MQTT]
-	Name string
-}
-
 // MqttClient mqtt客户端
 type MqttClient struct {
 	client mqtt.Client

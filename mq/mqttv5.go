@@ -14,27 +14,61 @@ import (
 
 	"github.com/eclipse/paho.golang/autopaho"
 	"github.com/eclipse/paho.golang/paho"
+	"github.com/xyzj/gopsu/cache"
 	"github.com/xyzj/gopsu/logger"
 )
 
 var (
 	payloadFormat byte   = 1
 	messageExpiry uint32 = 600
+	stNotConnect         = false
 	ctxClose      context.Context
 	funClose      context.CancelFunc
 )
 
 var EmptyMQTTClientV5 = &MqttClientV5{
 	empty: true,
+	st:    &stNotConnect,
+}
+
+type mqttMessage struct {
+	qos   byte
+	body  []byte
+	topic string
+}
+
+// MqttOpt mqtt 配置
+type MqttOpt struct {
+	// TLSConf 日志
+	Logg logger.Logger
+	// tls配置，默认为 InsecureSkipVerify: true
+	TLSConf *tls.Config
+	// 订阅消息，map[topic]qos
+	Subscribe map[string]byte
+	// 发送超时
+	SendTimeo time.Duration
+	// ClientID 客户端标示，会添加随机字符串尾巴，最大22个字符
+	ClientID string
+	// 服务端ip:port
+	Addr string
+	// 登录用户名
+	Username string
+	// 登录密码
+	Passwd string
+	// 日志前缀，默认 [MQTT]
+	Name string
+	// 是否启用断连消息暂存
+	CacheFailed bool
 }
 
 // MqttClientV5 mqtt客户端 5.0
 type MqttClientV5 struct {
-	opt       *MqttOpt
-	client    *autopaho.ConnectionManager
-	st        *bool
-	empty     bool
-	ctxCancel context.CancelFunc
+	cnf         *MqttOpt
+	client      *autopaho.ConnectionManager
+	failedCache *cache.AnyCache[*mqttMessage]
+	st          *bool
+	empty       bool
+	ctxCancel   context.CancelFunc
 }
 
 // Close close the mqtt client
@@ -45,6 +79,8 @@ func (m *MqttClientV5) Close() error {
 	if m.client == nil {
 		return nil
 	}
+	m.failedCache.Clean()
+	m.st = &stNotConnect
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	err := m.client.Disconnect(ctx)
@@ -68,9 +104,6 @@ func (m *MqttClientV5) IsConnectionOpen() bool {
 	if m.empty {
 		return false
 	}
-	if m.st == nil {
-		return false
-	}
 	return *m.st
 }
 
@@ -84,7 +117,17 @@ func (m *MqttClientV5) WriteWithQos(topic string, body []byte, qos byte) error {
 	if m.empty {
 		return nil
 	}
-	if !*m.st || m.client == nil {
+	if !*m.st || m.client == nil { // 未连接状态
+		if m.cnf.CacheFailed {
+			m.failedCache.StoreWithExpire(
+				time.Now().Format("2006-01-02 15:04:05.999999999"),
+				&mqttMessage{
+					topic: topic,
+					body:  body,
+					qos:   qos,
+				},
+				time.Hour)
+		}
 		return fmt.Errorf("not connect to the server")
 	}
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*3)
@@ -103,10 +146,10 @@ func (m *MqttClientV5) WriteWithQos(topic string, body []byte, qos byte) error {
 		},
 	})
 	if err != nil {
-		m.opt.Logg.Debug(m.opt.Name + " DSErr:" + topic + "|" + err.Error())
+		m.cnf.Logg.Debug(m.cnf.Name + " DSErr:" + topic + "|" + err.Error())
 		return err
 	}
-	m.opt.Logg.Debug(m.opt.Name + " DS:" + topic)
+	m.cnf.Logg.Debug(m.cnf.Name + " DS:" + topic)
 	return nil
 }
 
@@ -144,6 +187,7 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 		return EmptyMQTTClientV5, err
 	}
 	st := false
+	failedCache := cache.NewAnyCache[*mqttMessage](time.Hour)
 	conf := autopaho.ClientConfig{
 		ServerUrls:                    []*url.URL{u},
 		KeepAlive:                     55,
@@ -166,6 +210,31 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 				})
 			}
 			opt.Logg.System(opt.Name + " Success connect to " + opt.Addr)
+			// 对失败消息进行补发
+			if opt.CacheFailed {
+				var err error
+				failedCache.ForEach(func(key string, value *mqttMessage) bool {
+					ctx, cancel := context.WithTimeout(context.TODO(), time.Second*3)
+					defer cancel()
+					err = cm.PublishViaQueue(ctx, &autopaho.QueuePublish{
+						Publish: &paho.Publish{
+							QoS:     value.qos,
+							Topic:   value.topic,
+							Payload: value.body,
+							Retain:  false,
+							Properties: &paho.PublishProperties{
+								PayloadFormat: &payloadFormat,
+								MessageExpiry: &messageExpiry,
+								ContentType:   "text/plain",
+							},
+						},
+					})
+					if err != nil {
+						opt.Logg.Error(opt.Name + " ReSend `" + value.topic + "` error:" + err.Error())
+					}
+					return true
+				})
+			}
 		},
 		OnConnectError: func(err error) {
 			st = false
@@ -210,9 +279,10 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 	}
 
 	return &MqttClientV5{
-		client:    cm,
-		st:        &st,
-		opt:       opt,
-		ctxCancel: funClose,
+		client:      cm,
+		st:          &st,
+		cnf:         opt,
+		ctxCancel:   funClose,
+		failedCache: failedCache,
 	}, nil
 }
