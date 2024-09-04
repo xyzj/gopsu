@@ -65,7 +65,7 @@ func NewMQTTClient(opt *MqttOpt, recvCallback func(topic string, body []byte)) (
 		opt.SendTimeo = time.Second * 5
 	}
 	if opt.Name == "" {
-		opt.Name = "[MQTTv3]"
+		opt.Name = "[MQTT3]"
 	}
 	if opt.TLSConf == nil {
 		opt.TLSConf = &tls.Config{InsecureSkipVerify: true}

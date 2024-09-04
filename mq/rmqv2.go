@@ -37,7 +37,7 @@ type RabbitMQOpt struct {
 	QueueDurable       bool        // 队列是否持久化
 	QueueAutoDelete    bool        // 队列在不用时是否删除
 	ExchangeDurable    bool        // 交换机是否持久化
-	ExchangeAutoDelete bool        //交换机在不用时是否删除
+	ExchangeAutoDelete bool        // 交换机在不用时是否删除
 }
 
 func rmqConnect(opt *RabbitMQOpt, isConsumer bool) (*amqp.Connection, *amqp.Channel, error) {
@@ -224,7 +224,7 @@ func NewRMQConsumer(opt *RabbitMQOpt, logg logger.Logger, recvCallback func(topi
 				logg.Error(opt.LogHeader + "E:Possible service error")
 				panic(errors.New(opt.LogHeader + "E:Possible service error," + d.ContentType + "," + strconv.Itoa(int(d.DeliveryTag))))
 			}
-			logg.Debug(opt.LogHeader + "D:" + d.RoutingKey + " | " + FormatMQBody(d.Body))
+			logg.Debug(opt.LogHeader + "R:" + d.RoutingKey + " | " + FormatMQBody(d.Body))
 			rcvTime = time.Now().Unix()
 			func() {
 				defer func() {
@@ -251,6 +251,7 @@ type RMQProducer struct {
 func (r *RMQProducer) Enable() bool {
 	return r.ready
 }
+
 func (r *RMQProducer) Close() {
 	r.sndCancel()
 }
@@ -284,7 +285,7 @@ func NewRMQProducer(opt *RabbitMQOpt, logg logger.Logger) *RMQProducer {
 	if opt.LogHeader == "" {
 		opt.LogHeader = "[RMQ-P] "
 	}
-	var sender = &RMQProducer{
+	sender := &RMQProducer{
 		sendData: make(chan *rmqSendData, 1000),
 	}
 	sender.ctxClose, sender.sndCancel = context.WithCancel(context.TODO())
@@ -331,7 +332,7 @@ func NewRMQProducer(opt *RabbitMQOpt, logg logger.Logger) *RMQProducer {
 					conn.Close()
 					panic(err)
 				}
-				logg.Debug(opt.LogHeader + "D:" + d.topic + " | " + FormatMQBody(d.body))
+				logg.Debug(opt.LogHeader + "S:" + d.topic + " | " + FormatMQBody(d.body))
 			}
 		}
 	}, opt.LogHeader, logg.DefaultWriter())

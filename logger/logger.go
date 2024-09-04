@@ -133,27 +133,27 @@ func (l *StdLogger) writeLog(msg string, level LogLevel) {
 
 // Debug writelog with level 10
 func (l *StdLogger) Debug(msg string) {
-	l.writeLog(msg, LogDebug)
+	l.writeLog("[10] "+msg, LogDebug)
 }
 
 // Info writelog with level 20
 func (l *StdLogger) Info(msg string) {
-	l.writeLog(msg, LogInfo)
+	l.writeLog("[20] "+msg, LogInfo)
 }
 
 // Warning writelog with level 30
 func (l *StdLogger) Warning(msg string) {
-	l.writeLog(msg, LogWarning)
+	l.writeLog("[30] "+msg, LogWarning)
 }
 
 // Error writelog with level 40
 func (l *StdLogger) Error(msg string) {
-	l.writeLog(msg, LogError)
+	l.writeLog("[40] "+msg, LogError)
 }
 
 // System writelog with level 90
 func (l *StdLogger) System(msg string) {
-	l.writeLog(msg, LogSystem)
+	l.writeLog("[90] "+msg, LogSystem)
 }
 
 // // DebugFormat writelog with level 10

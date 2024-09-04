@@ -59,6 +59,8 @@ type MqttOpt struct {
 	Name string
 	// 是否启用断连消息暂存
 	CacheFailed bool
+	// 最大缓存消息数量，默认10000
+	MaxFailedCache int
 }
 
 // MqttClientV5 mqtt客户端 5.0
@@ -79,7 +81,7 @@ func (m *MqttClientV5) Close() error {
 	if m.client == nil {
 		return nil
 	}
-	m.failedCache.Clean()
+	m.failedCache.Close()
 	m.st = &stNotConnect
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
@@ -119,14 +121,16 @@ func (m *MqttClientV5) WriteWithQos(topic string, body []byte, qos byte) error {
 	}
 	if !*m.st || m.client == nil { // 未连接状态
 		if m.cnf.CacheFailed {
-			m.failedCache.StoreWithExpire(
-				time.Now().Format("2006-01-02 15:04:05.999999999"),
-				&mqttMessage{
-					topic: topic,
-					body:  body,
-					qos:   qos,
-				},
-				time.Hour)
+			if m.failedCache.Len() < m.cnf.MaxFailedCache {
+				m.failedCache.StoreWithExpire(
+					time.Now().Format("2006-01-02 15:04:05.999999999"),
+					&mqttMessage{
+						topic: topic,
+						body:  body,
+						qos:   qos,
+					},
+					time.Hour)
+			}
 		}
 		return fmt.Errorf("not connect to the server")
 	}
@@ -146,10 +150,10 @@ func (m *MqttClientV5) WriteWithQos(topic string, body []byte, qos byte) error {
 		},
 	})
 	if err != nil {
-		m.cnf.Logg.Debug(m.cnf.Name + " DSErr:" + topic + "|" + err.Error())
+		m.cnf.Logg.Debug(m.cnf.Name + " Err:" + topic + "|" + err.Error())
 		return err
 	}
-	m.cnf.Logg.Debug(m.cnf.Name + " DS:" + topic)
+	m.cnf.Logg.Debug(m.cnf.Name + " S:" + topic)
 	return nil
 }
 
@@ -173,6 +177,9 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 	}
 	if opt.Logg == nil {
 		opt.Logg = &logger.NilLogger{}
+	}
+	if opt.MaxFailedCache == 0 {
+		opt.MaxFailedCache = 10000
 	}
 	if !strings.Contains(opt.Addr, "://") {
 		switch {
@@ -258,7 +265,7 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 			},
 			OnPublishReceived: []func(paho.PublishReceived) (bool, error){
 				func(pr paho.PublishReceived) (bool, error) {
-					opt.Logg.Debug(opt.Name + " DR:" + pr.Packet.Topic)
+					opt.Logg.Debug(opt.Name + " R:" + pr.Packet.Topic)
 					recvCallback(pr.Packet.Topic, pr.Packet.Payload)
 					return true, nil
 				},
