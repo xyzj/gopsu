@@ -1,9 +1,11 @@
 package mapfx
 
 import (
+	"fmt"
 	"reflect"
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/xyzj/gopsu/json"
 )
 
@@ -166,6 +168,22 @@ func (u *UniqueSlice[T]) Slice() []T {
 	x := make([]T, 0, len(u.data))
 	x = append(x, u.data...)
 	return x
+}
+
+func (u *UniqueSlice[T]) ForEach(f func(value T) bool) (err error) {
+	x := u.Slice()
+	defer func() {
+		if ex := recover(); ex != nil {
+			err = errors.WithStack(ex.(error))
+			println(fmt.Sprintf("map foreach error :%+v", errors.WithStack(err)))
+		}
+	}()
+	for _, v := range x {
+		if !f(v) {
+			break
+		}
+	}
+	return err
 }
 
 func (u *UniqueSlice[T]) Has(item T) bool {

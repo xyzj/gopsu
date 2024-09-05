@@ -1,6 +1,9 @@
 package mapfx
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 type aaa struct {
 	Name   string
@@ -16,10 +19,28 @@ func TestStruct(t *testing.T) {
 		Status: false,
 	})
 
+	a.Store("test3", &aaa{
+		Name:   "sdkfhakfd",
+		Count:  3,
+		Status: false,
+	})
+
+	a.Store("tes45", &aaa{
+		Name:   "sdkfhakfd",
+		Count:  3,
+		Status: false,
+	})
+
 	aa, _ := a.LoadForUpdate("test1")
 	aa.Count = 7
 	aa.Status = true
 
-	bb, _ := a.Load("test1")
-	println(bb.Count, bb.Status)
+	err := a.ForEach(func(key string, value *aaa) bool {
+		println(key)
+		if key == "test3" {
+			// panic(fmt.Errorf("panicd"))
+		}
+		return true
+	})
+	println(fmt.Sprintf("++%+v", err))
 }

@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+
+	"github.com/pkg/errors"
 )
 
 // 使用示例：
@@ -174,11 +176,12 @@ func (m *SliceMap[T]) Clone() map[string][]T {
 }
 
 // ForEach 遍历map的key和value
-func (m *SliceMap[T]) ForEach(f func(key string, value []T) bool) {
+func (m *SliceMap[T]) ForEach(f func(key string, value []T) bool) (err error) {
 	x := m.Clone()
 	defer func() {
-		if err := recover(); err != nil {
-			println(fmt.Sprintf("%+v", err))
+		if ex := recover(); ex != nil {
+			err = errors.WithStack(ex.(error))
+			println(fmt.Sprintf("map foreach error :%+v", errors.WithStack(err)))
 		}
 	}()
 	for k, v := range x {
@@ -186,6 +189,7 @@ func (m *SliceMap[T]) ForEach(f func(key string, value []T) bool) {
 			break
 		}
 	}
+	return err
 }
 
 // Keys 返回所有Key

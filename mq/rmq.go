@@ -120,7 +120,6 @@ func (sessn *Session) handleReconnect() {
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
-				println(sessn.sessnType + " crash" + errors.WithStack(err.(error)).Error())
 				sessn.logger.Error(errors.WithStack(err.(error)).Error())
 			}
 		}()
@@ -157,7 +156,7 @@ func (sessn *Session) connect() bool {
 	if sessn.IsReady() {
 		return true
 	}
-	var exAutoDel = true
+	exAutoDel := true
 
 CONN:
 	// sessn.logger.Warning("Attempting to connect to " + sessn.addr)
@@ -285,7 +284,7 @@ func (sessn *Session) BindKey(k ...string) error {
 	}
 	if sessn.IsReady() {
 		var err error
-		var s = make([]string, 0)
+		s := make([]string, 0)
 		for _, v := range k {
 			if gopsu.TrimString(v) == "" {
 				continue
@@ -320,7 +319,7 @@ func (sessn *Session) UnBindKey(k ...string) error {
 	}
 	if sessn.IsReady() {
 		var err error
-		var s = make([]string, 0)
+		s := make([]string, 0)
 		for _, v := range k {
 			if gopsu.TrimString(v) == "" {
 				continue

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/xyzj/gopsu/json"
 )
 
@@ -121,11 +122,12 @@ func (m *BaseMap[T]) Clone() map[string]T {
 }
 
 // ForEach 遍历map的key和value
-func (m *BaseMap[T]) ForEach(f func(key string, value T) bool) {
+func (m *BaseMap[T]) ForEach(f func(key string, value T) bool) (err error) {
 	x := m.Clone()
 	defer func() {
-		if err := recover(); err != nil {
-			println(fmt.Sprintf("%+v", err))
+		if ex := recover(); ex != nil {
+			err = errors.WithStack(ex.(error))
+			println(fmt.Sprintf("map foreach error :%+v", errors.WithStack(err)))
 		}
 	}()
 	for k, v := range x {
@@ -133,6 +135,7 @@ func (m *BaseMap[T]) ForEach(f func(key string, value T) bool) {
 			break
 		}
 	}
+	return err
 }
 
 // ToJSON 返回json字符串
@@ -170,5 +173,5 @@ func (m *BaseMap[T]) ToFile(f string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(f, b, 0664)
+	return os.WriteFile(f, b, 0o664)
 }

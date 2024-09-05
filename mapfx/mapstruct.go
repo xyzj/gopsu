@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/pkg/errors"
 )
 
 // 使用示例：
@@ -141,11 +143,12 @@ func (m *StructMap[KEY, VALUE]) Clone() map[KEY]*VALUE {
 // ForEach 遍历map的key和value
 //
 //	遍历前会进行深拷贝，可安全编辑
-func (m *StructMap[KEY, VALUE]) ForEach(f func(key KEY, value *VALUE) bool) {
+func (m *StructMap[KEY, VALUE]) ForEach(f func(key KEY, value *VALUE) bool) (err error) {
 	x := m.Clone()
 	defer func() {
-		if err := recover(); err != nil {
-			println(fmt.Sprintf("%+v", err))
+		if ex := recover(); ex != nil {
+			err = errors.WithStack(ex.(error))
+			println(fmt.Sprintf("map foreach error :%+v", errors.WithStack(err)))
 		}
 	}()
 	for k, v := range x {
@@ -153,24 +156,26 @@ func (m *StructMap[KEY, VALUE]) ForEach(f func(key KEY, value *VALUE) bool) {
 			break
 		}
 	}
+	return err
 }
 
 // ForEachWithRLocker 遍历map的key和value
 //
 //	使用rlocker进行便利，遍历过程中不应该进行读写
-func (m *StructMap[KEY, VALUE]) ForEachWithRLocker(f func(key KEY, value *VALUE) bool) {
+func (m *StructMap[KEY, VALUE]) ForEachWithRLocker(f func(key KEY, value *VALUE) bool) (err error) {
 	m.locker.RLock()
 	defer func() {
-		if err := recover(); err != nil {
-			println(fmt.Sprintf("%+v", err))
+		if ex := recover(); ex != nil {
+			err = errors.WithStack(ex.(error))
+			println(fmt.Sprintf("map foreach error :%+v", errors.WithStack(err)))
 		}
-		m.locker.RUnlock()
 	}()
 	for k, v := range m.data {
 		if !f(k, v) {
 			break
 		}
 	}
+	return err
 }
 
 // Keys 返回所有Key
