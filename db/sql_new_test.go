@@ -77,6 +77,61 @@ var cn *Conn
 // 	}
 // }
 
+func TestDup(t *testing.T) {
+	opt := &Opt{
+		Server:     "192.168.50.83:13306",
+		User:       "root",
+		Passwd:     "lp1234xy",
+		DBNames:    []string{"v5db_facmanager_test"},
+		DriverType: DriveMySQL,
+		Logger:     logger.NewConsoleLogger(),
+		QueryCache: cache.NewAnyCache[*QueryData](time.Minute * 30),
+	}
+	a, err := New(opt)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	s := `insert into asset_info (aid,sys,name,gid,pid,phyid,imei,sim,loc,pole_code,region,road,geo,st,dev_attr,dev_type,lc,imgs,gids,dt_create,barcode,iccid,dev_id,grid,line_id,region_id,road_id,grid_id,sout,dt_setup,imsi,contractor,contractor_id,ip,dt_update) values
+	 (?,?,?,?,?,?,?,?,?,?,?,?,st_geomfromtext(?),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+	  ON DUPLICATE KEY UPDATE
+			sys=values(sys),
+			name=values(name),
+			gid=values(gid),
+			pid=values(pid),
+			phyid=values(phyid),
+			imei=values(imei),
+			sim=values(sim),
+			loc=values(loc),
+			pole_code=values(pole_code),
+			region=values(region),
+			road=values(road),
+			geo=values(geo),
+			st=values(st),
+			dev_attr=values(dev_attr),
+			dev_type=values(dev_type),
+			lc=values(lc),
+			imgs=values(imgs),
+			gids=values(gids),
+			dt_create=values(dt_create),
+			barcode=values(barcode),
+			iccid=values(iccid),
+			dev_id=values(dev_id),
+			grid=values(grid),
+			line_id=values(line_id),
+			region_id=values(region_id),
+			road_id=values(road_id),
+			grid_id=values(grid_id),
+			sout=values(sout),
+			dt_setup=values(dt_setup),
+			imsi=values(imsi),
+			contractor=values(contractor),
+			contractor_id=values(contractor_id),
+			ip=values(ip),
+			dt_update=values(dt_update);`
+	println(a.MariadbDuplicate2Mysql(s))
+}
+
 func TestQueryA(t *testing.T) {
 	opt := &Opt{
 		Server:     "192.168.50.83:13306",

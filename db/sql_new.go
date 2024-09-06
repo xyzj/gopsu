@@ -390,3 +390,26 @@ func newResult() *QueryData {
 		Rows:    []*QueryDataRow{},
 	}
 }
+
+const duplicateKey = "ON DUPLICATE KEY UPDATE"
+
+var dupReplacer = strings.NewReplacer(")", "",
+	"=values(", "=autoalias.",
+	"=VALUES(", "=autoalias.",
+	"=Values(", "=autoalias.")
+
+// MariadbDuplicate2Mysql 将mariadb的insert on duplicate语句修改为mysql的样式
+// 注意：`ON DUPLICATE KEY UPDATE` 需要全大写，用于识别
+func (d *Conn) MariadbDuplicate2Mysql(strsql string) string {
+	if d.DBType() == "mariadb" {
+		return strsql
+	}
+	if !strings.Contains(strsql, duplicateKey) { // 不包含就返回原始语句
+		return strsql
+	}
+	ss := strings.Split(strsql, duplicateKey)
+	if strings.Contains(strings.ToLower(ss[1]), "=values(") { // 包含mariadb语句特征
+		return ss[0] + " as autoalias " + duplicateKey + " " + dupReplacer.Replace(ss[1])
+	}
+	return strsql
+}
