@@ -9,6 +9,8 @@ import (
 	"testing"
 )
 
+var sss = `{"token": "604213a4-9e4e-11ee-8e42-0242ac110004", "ts": 1711704865}`
+
 func RSAGenKey(bits int) error {
 	/*
 		生成私钥
@@ -57,27 +59,28 @@ func RSAGenKey(bits int) error {
 
 func TestRSA(t *testing.T) {
 	// RSAGenKey(4096)
-	// sss := `{"token": "604213a4-9e4e-11ee-8e42-0242ac110004", "ts": 1711704865}`
 	c := NewRSA()
+	var err error
 	// c.GenerateKey(RSA2048)
 	// c.ToFile("rsa2048pub.pem", "rsa2048pri.pem")
 	// c.GenerateKey(RSA4096)
-	// c.ToFile("rsa4096pub.pem", "rsa4096pri.pem")
+	// err := c.ToFile("rsa4096pub.pem", "rsa4096pri.pem")
 	// err := c.SetPublicKeyFromFile("rsa2048pub.pem")
 	// if err != nil {
 	// 	t.Fatal("set public key error " + err.Error())
 	// 	return
 	// }
-	err := c.SetPrivateKeyFromFile("rsa2048pri.pem")
+	err = c.SetPrivateKeyFromFile("rsa4096pri.pem")
 	if err != nil {
 		t.Fatal("set private key error " + err.Error())
 		return
 	}
-	// v, err := c.Encode([]byte(sss))
-	// if err != nil {
-	// 	t.Fatal("encode error " + err.Error())
-	// }
-	xs, err := c.DecodeBase64("lGbUVDR8qQkJDriA8yptt0IeU9IREIF5z1hKCi6bVPd94G69Ocv/wCt31IgrIyCJ5LsjogniBcawC+0eCmoe7STvytMYrV3tAnKGqd+JPGb9Jd2vqt+e7hdKm+qy6P4TJB4Fh/nCXkPU6wydSXQz0/HOaAyCgt0lw3ltOuFntjPjmfgK4b8JAWUjZdpemet2C/FoT+rCo1nKmr1f6NPsbzjfgeRMvoEfjEmHX4lNSEkYlCBWG/EKQTI65vHFNmxWwBcDhhfa2xiPw3wPp7sewyjg4e4v7JPdB0AAibOiga8WJ7w9D36BNdL5gPUNegqJ/Nwx9WLYVICRB3OPvX3trg==")
+	v, err := c.Encode([]byte(sss))
+	if err != nil {
+		t.Fatal("encode error " + err.Error())
+	}
+	println("encode: " + v.Base64String())
+	xs, err := c.DecodeBase64(v.Base64String())
 	if err != nil {
 		t.Fatal("decode error " + err.Error())
 		return

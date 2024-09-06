@@ -60,16 +60,19 @@ func (w *SM2) GenerateKey() (CValue, CValue, error) {
 
 // ToFile 创建ecc密钥到文件
 func (w *SM2) ToFile(pubfile, prifile string) error {
+	if prifile != "" {
+		txt, _ := x509.WritePrivateKeyToPem(w.priKey, nil)
+		err := os.WriteFile(prifile, txt, 0o644)
+		if err != nil {
+			return err
+		}
+	}
 	if pubfile != "" {
 		txt, _ := x509.WritePublicKeyToPem(w.pubKey)
 		err := os.WriteFile(pubfile, txt, 0o644)
 		if err != nil {
 			return err
 		}
-	}
-	if prifile != "" {
-		txt, _ := x509.WritePrivateKeyToPem(w.priKey, nil)
-		return os.WriteFile(prifile, txt, 0o644)
 	}
 	return nil
 }
@@ -107,10 +110,10 @@ func (w *SM2) SetPrivateKeyFromFile(keyPath string) error {
 	if err != nil {
 		return err
 	}
-	w.priKey, err = x509.ReadPrivateKeyFromPem(b, nil)
-	return err
-	// block, _ := pem.Decode(b)
-	// return w.SetPrivateKey(base64.StdEncoding.EncodeToString(block.Bytes))
+	// w.priKey, err = x509.ReadPrivateKeyFromPem(b, nil)
+	// return err
+	block, _ := pem.Decode(b)
+	return w.SetPrivateKey(base64.StdEncoding.EncodeToString(block.Bytes))
 }
 
 // SetPrivateKey 设置base64编码的私钥

@@ -47,7 +47,8 @@ func TestSM2(t *testing.T) {
 	// xb := base64.StdEncoding.EncodeToString(bb)
 	sss := "1267312shfskdfadfaf"
 	c := NewSM2()
-	// c.GenerateKey()
+	c.GenerateKey()
+	c.ToFile("sm2pub.pem", "sm2pri.pem")
 	err := c.SetPublicKeyFromFile("sm2pub.pem")
 	if err != nil {
 		t.Fatal(err)

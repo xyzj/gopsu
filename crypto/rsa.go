@@ -72,21 +72,27 @@ func (w *RSA) GenerateKey(bits RSABits) (CValue, CValue, error) {
 
 // ToFile 创建rsa密钥到文件
 func (w *RSA) ToFile(pubfile, prifile string) error {
-	if pubfile != "" {
-		block := &pem.Block{
-			Type:  "PUBLIC KEY",
-			Bytes: w.pubBytes.Bytes(),
-		}
-		txt := pem.EncodeToMemory(block)
-		return os.WriteFile(pubfile, txt, 0o644)
-	}
 	if prifile != "" {
 		block := &pem.Block{
 			Type:  "RSA PRIVATE KEY",
 			Bytes: w.priBytes.Bytes(),
 		}
 		txt := pem.EncodeToMemory(block)
-		return os.WriteFile(prifile, txt, 0o644)
+		err := os.WriteFile(prifile, txt, 0o644)
+		if err != nil {
+			return err
+		}
+	}
+	if pubfile != "" {
+		block := &pem.Block{
+			Type:  "PUBLIC KEY",
+			Bytes: w.pubBytes.Bytes(),
+		}
+		txt := pem.EncodeToMemory(block)
+		err := os.WriteFile(pubfile, txt, 0o644)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

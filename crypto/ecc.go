@@ -79,6 +79,17 @@ func (w *ECC) GenerateKey(ec ECShortName) (CValue, CValue, error) {
 
 // ToFile 创建ecc密钥到文件
 func (w *ECC) ToFile(pubfile, prifile string) error {
+	if prifile != "" {
+		block := &pem.Block{
+			Type:  "EC PRIVATE KEY",
+			Bytes: w.priBytes.Bytes(),
+		}
+		txt := pem.EncodeToMemory(block)
+		err := os.WriteFile(prifile, txt, 0o644)
+		if err != nil {
+			return err
+		}
+	}
 	if pubfile != "" {
 		block := &pem.Block{
 			Type:  "PUBLIC KEY",
@@ -89,14 +100,6 @@ func (w *ECC) ToFile(pubfile, prifile string) error {
 		if err != nil {
 			return err
 		}
-	}
-	if prifile != "" {
-		block := &pem.Block{
-			Type:  "EC PRIVATE KEY",
-			Bytes: w.priBytes.Bytes(),
-		}
-		txt := pem.EncodeToMemory(block)
-		return os.WriteFile(prifile, txt, 0o644)
 	}
 	return nil
 }
