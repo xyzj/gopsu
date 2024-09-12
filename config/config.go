@@ -33,6 +33,9 @@ type Item struct {
 
 // String 把配置项格式化成字符串
 func (i *Item) String() string {
+	if i.Comment == "" {
+		return "\n" + i.Key + "=" + i.Value.String() + "\n"
+	}
 	ss := strings.Split(i.Comment, "\n")
 	xcom := ""
 	for _, v := range ss {
@@ -106,7 +109,7 @@ func (f *File) GetItem(key string) *Value {
 	if v, ok := f.items.Load(key); ok {
 		return v.Value
 	}
-	return &Value{}
+	return EmptyValue
 }
 
 // ForEach 遍历所有值

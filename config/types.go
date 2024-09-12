@@ -19,7 +19,7 @@ const (
 )
 
 // EmptyValue an empty value
-var EmptyValue = &Value{}
+var EmptyValue = &Value{t: tstr}
 
 // NewValue return a value
 func NewValue(s string) *Value {
