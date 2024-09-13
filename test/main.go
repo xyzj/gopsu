@@ -4,13 +4,15 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
-	"os"
+	"math"
+	"reflect"
+	"strconv"
 	"strings"
 
-	"github.com/xyzj/gopsu"
+	"github.com/tidwall/sjson"
 	"golang.org/x/crypto/argon2"
 )
 
@@ -32,38 +34,37 @@ var (
 	strplain = "affine"
 )
 
+func TruncFloat(f float64, n int) float64 {
+	// 默认乘1
+	d := float64(1)
+	if n > 0 {
+		// 10 的 n 次方
+		d = math.Pow10(n)
+	}
+	// 截断 n 位小数:  math.trunc作用就是返回浮点数的整数部分
+	f2 := math.Trunc(f*d) / d
+	// 舍弃后面的0值: -1 参数表示保持原小数位数，千万要注意，如果你指定了位数就会四舍五入了
+	fs := strconv.FormatFloat(f2, 'f', -1, 64)
+	// 转换成float64
+	f3, _ := strconv.ParseFloat(fs, 32)
+	return f3
+}
+
+type aaa struct {
+	AAA float64
+}
+
 func main() {
-	s := "avdf\000\000\000"
-	ss := gopsu.TrimString(s)
-	println(len(s), s, len(ss), ss)
-	os.Exit(0)
-	p := &params{
-		memory:      19 * 1024,
-		iterations:  2,
-		parallelism: 1,
-		saltLength:  16,
-		keyLength:   32,
+	a := float64(23.45623423445435345)
+	b := fmt.Sprintf("%.3f", a)
+	c, _ := strconv.ParseFloat(b, 64)
+	s, _ := sjson.Set("", "aaa", c)
+	ss := &aaa{
+		AAA: math.Trunc(a*math.Pow10(1)+0.5) / math.Pow10(1),
 	}
-
-	encodedHash, err := generateFromPassword("moffice", p)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	println(encodedHash)
-	match, err := comparePasswordAndHash(strplain, encodedHash)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	fmt.Printf("Match: %v\n", match)
-	_, b1, b2, err := decodeHash(encodedHash)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	println(string(b1), string(b2))
+	println(reflect.TypeOf(1e5).String())
+	bb, _ := json.Marshal(ss)
+	println(a, b, c, s, string(bb), fmt.Sprintf("%.6f", 1e5))
 }
 
 func generateFromPassword(password string, p *params) (encodedHash string, err error) {

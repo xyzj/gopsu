@@ -1,6 +1,7 @@
 package config
 
 import (
+	"math"
 	"strconv"
 	"strings"
 
@@ -160,7 +161,7 @@ func (v *Value) String() string {
 	case tuint64:
 		v.nstr = strconv.FormatUint(v.nuint64, 10)
 	case tfloat64:
-		v.nstr = strconv.FormatFloat(v.nfloat64, 'f', -1, 64)
+		v.nstr = strconv.FormatFloat(v.nfloat64, 'g', -1, 64)
 	case tbool:
 		v.nstr = strconv.FormatBool(v.nbool)
 	}
@@ -260,18 +261,20 @@ func (v *Value) TryUint64() uint64 {
 }
 
 // TryFloat32 reutrn float32
-func (v *Value) TryFloat32() float32 {
-	if v.t == tfloat64 {
-		return float32(v.nfloat64)
-	}
-	return float32(v.TryFloat64())
+// dec: 设置小数位数，仅第一个值有效
+func (v *Value) TryFloat32(dec ...int) float32 {
+	return float32(v.TryFloat64(dec...))
 }
 
-// TryFloat64 reutrn fl
-func (v *Value) TryFloat64() float64 {
+// TryFloat64 reutrn float64
+// dec: 设置小数位数，仅第一个值有效
+func (v *Value) TryFloat64(dec ...int) float64 {
 	switch v.t {
 	case tfloat64:
-		return v.nfloat64
+		if len(dec) == 0 {
+			return v.nfloat64
+		}
+		return math.Trunc(v.nfloat64*math.Pow10(dec[0])+0.5) / math.Pow10(dec[0])
 	case tuint64:
 		return float64(v.nuint64)
 	case tint64:

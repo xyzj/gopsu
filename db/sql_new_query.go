@@ -331,6 +331,7 @@ func (d *Conn) queryDataChan(ctx context.Context, done context.CancelFunc, sqldb
 				row.VCells[k] = config.EmptyValue
 				continue
 			}
+			// row.VCells[k] = config.NewValue(fmt.Sprintf("%v", v))
 			if b, ok := v.(int64); ok {
 				row.VCells[k] = config.NewInt64Value(b)
 			} else if b, ok := v.(float32); ok {

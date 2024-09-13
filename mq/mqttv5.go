@@ -15,6 +15,7 @@ import (
 	"github.com/eclipse/paho.golang/autopaho"
 	"github.com/eclipse/paho.golang/paho"
 	"github.com/xyzj/gopsu/cache"
+	"github.com/xyzj/gopsu/json"
 	"github.com/xyzj/gopsu/logger"
 )
 
@@ -153,7 +154,7 @@ func (m *MqttClientV5) WriteWithQos(topic string, body []byte, qos byte) error {
 		m.cnf.Logg.Debug(m.cnf.Name + " Err:" + topic + "|" + err.Error())
 		return err
 	}
-	m.cnf.Logg.Debug(m.cnf.Name + " S:" + topic)
+	m.cnf.Logg.Debug(m.cnf.Name + " S:" + topic + "|" + json.String(body))
 	return nil
 }
 

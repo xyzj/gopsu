@@ -123,10 +123,11 @@ func (l *StdLogger) writeLog(msg string, level LogLevel) {
 	if level >= l.logLevel && l.out != nil {
 		l.out.Write(toBytes(msg))
 	}
-	if !strings.HasSuffix(msg, "\n") {
-		msg += "\n"
-	}
+	// 写控制台
 	if _, ok := l.clevel[level]; ok && l.cout != nil {
+		if !strings.HasSuffix(msg, "\n") {
+			msg += "\n"
+		}
 		l.cout.Write(toBytes(msg))
 	}
 }
