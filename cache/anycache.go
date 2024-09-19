@@ -24,18 +24,32 @@ type AnyCache[T any] struct {
 	closeChan    chan bool
 }
 
-// NewAnyCache 初始化一个新的缓存
+// NewAnyCacheWithExpireFunc 初始化一个新的缓存,在缓存过期时，会执行expireFunc函数
 //
 //	 这个新缓存会创建一个线程检查内容是否过期，因此，当不再使用该缓存时，应该调用Close()方法关闭缓存
 //		默认每分钟清理一次过期缓存
-func NewAnyCache[VALUE any](expire time.Duration) *AnyCache[VALUE] {
-	x := &AnyCache[VALUE]{
+func NewAnyCacheWithExpireFunc[T any](expire time.Duration, expireFunc func(map[string]T)) *AnyCache[T] {
+	x := &AnyCache[T]{
 		cacheExpire:  expire,
-		cache:        mapfx.NewStructMap[string, cData[VALUE]](),
+		cache:        mapfx.NewStructMap[string, cData[T]](),
 		cacheCleanup: time.NewTicker(time.Second * 60),
 		closeChan:    make(chan bool, 1),
 	}
 	x.closed.Store(false)
+	fExpire := func(keys ...string) {
+		if expireFunc == nil {
+			return
+		}
+		defer func() { recover() }()
+		vv := make(map[string]T)
+		vs, ok := x.cache.LoadMore(keys...)
+		if ok {
+			for k, v := range vs {
+				vv[k] = v.data
+			}
+			go expireFunc(vv)
+		}
+	}
 	go loopfunc.LoopFunc(func(params ...interface{}) {
 		for {
 			select {
@@ -49,11 +63,20 @@ func NewAnyCache[VALUE any](expire time.Duration) *AnyCache[VALUE] {
 						keys = append(keys, k)
 					}
 				}
+				fExpire(keys...)
 				x.cache.DeleteMore(keys...)
 			}
 		}
 	}, "any cache", logger.NewConsoleWriter())
 	return x
+}
+
+// NewAnyCache 初始化一个新的缓存
+//
+//	 这个新缓存会创建一个线程检查内容是否过期，因此，当不再使用该缓存时，应该调用Close()方法关闭缓存
+//		默认每分钟清理一次过期缓存
+func NewAnyCache[T any](expire time.Duration) *AnyCache[T] {
+	return NewAnyCacheWithExpireFunc[T](expire, nil)
 }
 
 // SetCleanUp 设置清理周期，不低于1秒

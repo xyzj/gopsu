@@ -88,6 +88,23 @@ func (m *StructMap[KEY, VALUE]) Load(key KEY) (*VALUE, bool) {
 	return nil, false
 }
 
+// LoadMore 获取多个值
+//
+//	获取的值可以安全编辑
+func (m *StructMap[KEY, VALUE]) LoadMore(keys ...KEY) (map[KEY]*VALUE, bool) {
+	m.locker.RLock()
+	defer m.locker.RUnlock()
+	vs := make(map[KEY]*VALUE)
+	for _, key := range keys {
+		v, ok := m.data[key]
+		if ok {
+			z := *v
+			vs[key] = &z
+		}
+	}
+	return vs, len(vs) > 0
+}
+
 // LoadForUpdate 浅拷贝一个值
 //
 //	可用于需要直接修改map内的值的场景，会引起map内值的变化
@@ -169,6 +186,7 @@ func (m *StructMap[KEY, VALUE]) ForEachWithRLocker(f func(key KEY, value *VALUE)
 			err = errors.WithStack(ex.(error))
 			println(fmt.Sprintf("map foreach error :%+v", errors.WithStack(err)))
 		}
+		m.locker.RUnlock()
 	}()
 	for k, v := range m.data {
 		if !f(k, v) {
