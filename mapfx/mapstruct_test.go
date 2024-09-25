@@ -6,41 +6,47 @@ import (
 )
 
 type aaa struct {
-	Name   string
-	Count  int
-	Status bool
+	name   string
+	count  int
+	status bool
 }
 
 func TestStruct(t *testing.T) {
 	a := NewStructMap[string, aaa]()
 	a.Store("test1", &aaa{
-		Name:   "sdkfhakfd",
-		Count:  3,
-		Status: false,
+		name:   "sdkfhakfd",
+		count:  3,
+		status: false,
 	})
 
 	a.Store("test3", &aaa{
-		Name:   "sdkfhakfd",
-		Count:  3,
-		Status: false,
+		name:   "sdkfhakfd",
+		count:  3,
+		status: false,
 	})
 
 	a.Store("tes45", &aaa{
-		Name:   "sdkfhakfd",
-		Count:  3,
-		Status: false,
+		name:   "sdkfhakfd",
+		count:  3,
+		status: false,
 	})
 
 	aa, _ := a.LoadForUpdate("test1")
-	aa.Count = 7
-	aa.Status = true
+	aa.count = 7
+	aa.status = true
 
 	err := a.ForEach(func(key string, value *aaa) bool {
-		println(key)
-		if key == "test3" {
-			// panic(fmt.Errorf("panicd"))
-		}
+		println(key, fmt.Sprintf("%+v", value))
+
 		return true
 	})
 	println(fmt.Sprintf("++%+v", err))
+	c := aaa{
+		name:   "d232",
+		count:  32,
+		status: true,
+	}
+	d := *new(aaa)
+	copy([]aaa{d}, []aaa{c})
+	println(fmt.Sprintf("%+v", d), &d, &c)
 }

@@ -154,6 +154,7 @@ func (m *StructMap[KEY, VALUE]) Clone() map[KEY]*VALUE {
 		z := *v
 		x[k] = &z
 	}
+
 	return x
 }
 

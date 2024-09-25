@@ -29,7 +29,16 @@ type FileData struct {
 	writeSheet *xlsx.Sheet
 }
 
-// GetCell 获取单元格，可进行合等操作
+// GetSheet 获取Sheet,可编辑
+func (fd *FileData) GetSheet(sheetname string) (*xlsx.Sheet, error) {
+	sheet, ok := fd.writeFile.Sheet[sheetname]
+	if !ok {
+		return nil, errSheetNotFound(sheetname)
+	}
+	return sheet, nil
+}
+
+// GetCell 获取单元格，可进行赋值，合并等操作
 func (fd *FileData) GetCell(sheetname string, row, col int) (*xlsx.Cell, error) {
 	sheet, ok := fd.writeFile.Sheet[sheetname]
 	if !ok {

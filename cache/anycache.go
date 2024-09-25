@@ -36,20 +36,6 @@ func NewAnyCacheWithExpireFunc[T any](expire time.Duration, expireFunc func(map[
 		closeChan:    make(chan bool, 1),
 	}
 	x.closed.Store(false)
-	fExpire := func(keys ...string) {
-		if expireFunc == nil {
-			return
-		}
-		defer func() { recover() }()
-		vv := make(map[string]T)
-		vs, ok := x.cache.LoadMore(keys...)
-		if ok {
-			for k, v := range vs {
-				vv[k] = v.data
-			}
-			go expireFunc(vv)
-		}
-	}
 	go loopfunc.LoopFunc(func(params ...interface{}) {
 		for {
 			select {
@@ -58,13 +44,21 @@ func NewAnyCacheWithExpireFunc[T any](expire time.Duration, expireFunc func(map[
 			case <-x.cacheCleanup.C:
 				tnow := time.Now()
 				keys := make([]string, 0, x.cache.Len())
+				ex := make(map[string]T)
 				for k, v := range x.cache.Clone() {
 					if tnow.After(v.expire) {
 						keys = append(keys, k)
+						ex[k] = v.data
 					}
 				}
-				fExpire(keys...)
-				x.cache.DeleteMore(keys...)
+				if len(keys) > 0 {
+					x.cache.DeleteMore(keys...)
+					if expireFunc != nil {
+						loopfunc.GoFunc(func(params ...interface{}) {
+							expireFunc(ex)
+						}, "expire func", logger.NewConsoleWriter())
+					}
+				}
 			}
 		}
 	}, "any cache", logger.NewConsoleWriter())
