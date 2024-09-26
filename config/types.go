@@ -274,7 +274,8 @@ func (v *Value) TryFloat64(dec ...int) float64 {
 		if len(dec) == 0 {
 			return v.nfloat64
 		}
-		return math.Trunc(v.nfloat64*math.Pow10(dec[0])+0.5) / math.Pow10(dec[0])
+		x := math.Pow10(dec[0])
+		return math.Trunc(v.nfloat64*x+0.5) / x
 	case tuint64:
 		return float64(v.nuint64)
 	case tint64:

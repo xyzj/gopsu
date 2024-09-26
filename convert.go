@@ -36,7 +36,7 @@ func Float64ToByte(float float64) []byte {
 func FormatFloat64(f float64, p int) float64 {
 	// println(fmt.Sprintf("%.10f", f))
 	x := math.Pow10(p)
-	return math.Floor(f*x+0.5) / x
+	return math.Trunc(f*x+0.5) / x
 }
 
 // String2Bytes convert hex-string to []byte
