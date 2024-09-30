@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/xyzj/gopsu/crypto"
 	"github.com/xyzj/gopsu/loopfunc"
@@ -44,12 +45,8 @@ type OptLog struct {
 	MaxSize int64
 	// CompressFile 是否压缩旧日志文件，AutoRoll==true时有效
 	CompressFile bool
-	// SyncToConsole 同步输出到控制台
-	// SyncToConsole bool
 	// DelayWrite 延迟写入，每秒检查写入缓存，并写入文件，非实时写入
 	DelayWrite bool
-	// 需要输出到控制台的level
-	ConsoleLevels []LogLevel
 	// 日志等级
 	FileLevel LogLevel
 }
@@ -135,7 +132,7 @@ type Writer struct {
 
 // Write 异步写入日志，返回固定为 0, nil
 func (w *Writer) Write(p []byte) (n int, err error) {
-	xp := crypto.Bytes(time.Now().Format(ShortTimeFormat))
+	xp := toBytes(time.Now().Format(ShortTimeFormat))
 	xp = append(xp, p...)
 	if !bytes.HasSuffix(xp, lineEnd) {
 		xp = append(xp, lineEnd...)
@@ -216,7 +213,7 @@ func (w *Writer) newFile() {
 	var err error
 	w.fno, err = os.OpenFile(w.pathNow, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o664)
 	if err != nil {
-		os.WriteFile("logerr.log", crypto.Bytes("log file open error: "+err.Error()), 0o664)
+		os.WriteFile("logerr.log", toBytes("log file open error: "+err.Error()), 0o664)
 		w.withFile = false
 		return
 	}
@@ -373,4 +370,13 @@ func zipFile(d, s string, delold bool) error {
 		}(filepath.Join(d, s))
 	}
 	return nil
+}
+
+func toBytes(s string) []byte {
+	return *(*[]byte)(unsafe.Pointer(
+		&struct {
+			string
+			cap int
+		}{string: s, cap: len(s)},
+	))
 }

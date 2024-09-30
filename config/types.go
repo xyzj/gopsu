@@ -388,7 +388,7 @@ func (rs VString) TryFloat32() float32 {
 	return gopsu.String2Float32(string(rs))
 }
 
-// TryFloat64 reutrn fl
+// TryFloat64 reutrn float64
 func (rs VString) TryFloat64() float64 {
 	return gopsu.String2Float64(string(rs))
 }
