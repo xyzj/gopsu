@@ -196,7 +196,7 @@ CONN:
 			}
 		case DriveMySQL:
 			sqlcfg := &mydsn.Config{
-				Collation:            "utf8_general_ci",
+				Collation:            "utf8mb4_general_ci",
 				Loc:                  time.Local,
 				MaxAllowedPacket:     0, // 64*1024*1024
 				AllowNativePasswords: true,

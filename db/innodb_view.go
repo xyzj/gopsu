@@ -119,7 +119,7 @@ func (d *Conn) MergeTable(dbname, tableName string, maxSubTables, maxTableSize, 
 		return nil
 	}
 	// 创建新子表
-	subTableLatest := tableName + "_" + time.Now().Format("060102150405")
+	subTableLatest := tableName + "_" + time.Now().Format("200601021504")
 	strsql = "create table " + subTableLatest + " like " + subTablelist[0]
 	_, _, err = d.ExecByDB(dbidx, strsql)
 	if err != nil {
@@ -191,12 +191,12 @@ TODO:
 	ans, err = d.QueryByDB(dbidx, "show create table "+tableName+";", 1)
 	if err == nil && ans.Total > 0 {
 		strMrgTail = ans.Rows[0].Cells[1]
-		idx = strings.LastIndex(strMrgTail, "ENGINE=")                                   // 找到最后一个括号
-		strMrgTail = " " + strMrgTail[idx:]                                              // 去掉头部
-		strMrgTail = strings.Replace(strMrgTail, "CHARSET=utf8 ", "CHARSET=utf8mb4 ", 1) // 修改默认字符编码
+		idx = strings.LastIndex(strMrgTail, "ENGINE=")                                              // 找到最后一个括号
+		strMrgTail = " " + strMrgTail[idx:]                                                         // 去掉头部
+		strMrgTail = strings.Replace(strMrgTail, "CHARSET=utf8 ", "CHARSET=utf8mb4_general_ci ", 1) // 修改默认字符编码
 	} else {
 		// 读取总表错误，可能之前修改过程中断，或被手动修改，尝试重建尾部
-		strMrgTail = " ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=LAST UNION=(" + strings.Join(subTablelist[:maxSubTables], ",") + ");"
+		strMrgTail = " ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci INSERT_METHOD=FIRST UNION=(" + strings.Join(subTablelist[:maxSubTables], ",") + ");"
 	}
 	// 先删除主表
 	_, _, err = d.ExecByDB(dbidx, "DROP TABLE IF EXISTS "+tableName+";")
