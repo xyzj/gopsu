@@ -83,7 +83,7 @@ func (d *Conn) QueryJSON(s string, rowsCount int, params ...interface{}) (string
 	if err != nil {
 		return "", err
 	}
-	return x.JSON(), nil
+	return x.JSON()
 }
 
 // QueryOne 执行查询语句，返回首行结果的json字符串，`{row：[...]}`，该方法不缓存结果
@@ -144,5 +144,6 @@ func (d *Conn) QueryCachePB2(cacheTag string, startRow, rowsCount int) *QueryDat
 //
 // Deprecated: use QueryCache()
 func (d *Conn) QueryCacheJSON(cacheTag string, startRow, rowsCount int) string {
-	return d.QueryCache(cacheTag, startRow, rowsCount).JSON()
+	x, _ := d.QueryCache(cacheTag, startRow, rowsCount).JSON()
+	return x
 }

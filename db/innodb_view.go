@@ -59,7 +59,7 @@ func (d *Conn) UnionView(dbname, tableName string, maxSubTables, maxTableSize, m
 		return err
 	}
 	// 修改视图，加入新子表或以及判断删除旧子表
-	strsql = fmt.Sprintf(`CREATE OR REPLACE ALGORITHM = MERGE VIEW %s_view AS
+	strsql = fmt.Sprintf(`CREATE OR REPLACE ALGORITHM = MERGE SQL SECURITY INVOKER VIEW %s_view AS
 	select * from %s `, tableName, tableName)
 	for _, s := range subTablelist {
 		strsql += " union select * from " + s

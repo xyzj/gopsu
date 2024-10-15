@@ -106,9 +106,9 @@ type QueryData struct {
 	Total    int             `json:"total,omitempty"`
 }
 
-func (d *QueryData) JSON() string {
-	s, _ := json.MarshalToString(d)
-	return s
+func (d *QueryData) JSON() (string, error) {
+	return json.MarshalToString(d)
+	// return s
 }
 
 type dbs struct {
