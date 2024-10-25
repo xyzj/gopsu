@@ -288,7 +288,7 @@ func (d *Conn) TablesAreNew() bool {
 }
 
 // GetDBIdx 连接多个数据库的时候，设置默认的数据库名称
-func (d *Conn) GetDBIdx(dbname string) (*sql.DB, error) {
+func (d *Conn) SQLDBByName(dbname string) (*sql.DB, error) {
 	for _, v := range d.dbs {
 		if v.name == dbname {
 			return v.sqldb, nil
@@ -354,6 +354,16 @@ func (d *Conn) IsReady() bool {
 		return false
 	}
 	return true
+}
+
+// GetDBIdx 连接多个数据库的时候，设置默认的数据库名称
+func (d *Conn) GetIdx(dbname string) int {
+	for k, v := range d.dbs {
+		if v.name == dbname {
+			return k
+		}
+	}
+	return 1
 }
 
 // GetName 获取数据库名字
