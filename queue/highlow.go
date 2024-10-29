@@ -20,7 +20,7 @@ func NewHighLowQueue[VALUE any](maxQueueSize int32) *HighLowQueue[VALUE] {
 	}
 }
 
-// HighLowQueue 一个基于channel的高低优先级队列，先进先出
+// HighLowQueue 一个基于channel的高低优先级队列，先进先出，队列为空时阻塞
 type HighLowQueue[VALUE any] struct {
 	high   chan VALUE
 	low    chan VALUE
@@ -53,6 +53,21 @@ func (q *HighLowQueue[VALUE]) Close() {
 	q.closed.Store(true)
 	close(q.high)
 	close(q.low)
+}
+
+// Closed checks if the high-low queue is closed.
+//
+// The Closed function returns true if the queue is closed (i.e., no more items can be added to the queue),
+// and false otherwise. It does not block and returns the current state of the queue.
+//
+// The Closed function does not return any error.
+//
+// Return:
+//   - bool: A boolean indicating whether the queue is closed.
+//   - true: The queue is closed.
+//   - false: The queue is open.
+func (q *HighLowQueue[VALUE]) Closed() bool {
+	return q.closed.Load()
 }
 
 // Len returns the total number of items currently in the high-low queue.
@@ -136,6 +151,9 @@ func (q *HighLowQueue[VALUE]) PutFront(f VALUE) error {
 //   - true: The retrieval was successful and an item was returned.
 //   - false: The retrieval failed because the queue is closed or empty.
 func (q *HighLowQueue[VALUE]) Get() (VALUE, bool) {
+	if q.closed.Load() {
+		return *new(VALUE), false
+	}
 	if q.lh.Load() > 0 {
 		q.out, q.ok = <-q.high
 		q.lh.Add(-1)
