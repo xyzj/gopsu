@@ -16,6 +16,7 @@ type PriorityQueue[VALUE any] struct {
 	locker sync.RWMutex
 	data   []*queueItem[VALUE]
 	item   *queueItem[VALUE]
+	max    int
 	fifo   bool
 }
 
@@ -28,10 +29,11 @@ type PriorityQueue[VALUE any] struct {
 //	If false, items with higher priority values will be dequeued first.
 //
 // Returns a pointer to a new PriorityQueue instance.
-func NewPriorityQueue[VALUE any](fifo bool) *PriorityQueue[VALUE] {
+func NewPriorityQueue[VALUE any](maxQueueSize int, fifo bool) *PriorityQueue[VALUE] {
 	return &PriorityQueue[VALUE]{
 		locker: sync.RWMutex{},
-		data:   make([]*queueItem[VALUE], 0),
+		data:   make([]*queueItem[VALUE], 0, maxQueueSize),
+		max:    maxQueueSize,
 		fifo:   fifo,
 	}
 }
@@ -68,14 +70,18 @@ func (p *PriorityQueue[VALUE]) Get() (VALUE, bool) {
 // Parameters:
 // - data: The value to be added to the PriorityQueue.
 // - priority: The priority of the item. Lower values indicate higher priority.
-func (p *PriorityQueue[VALUE]) Put(data VALUE, priority byte) {
+func (p *PriorityQueue[VALUE]) Put(data VALUE, priority byte) error {
 	p.locker.Lock()
 	defer p.locker.Unlock()
+	if len(p.data) >= p.max {
+		return ErrFull
+	}
 	p.data = append(p.data, &queueItem[VALUE]{
 		priority: fmt.Sprintf("%03d_%d", priority, time.Now().UnixNano()),
 		data:     data,
 	})
 	p.sort()
+	return nil
 }
 
 // Len returns the number of items currently in the PriorityQueue.

@@ -1,7 +1,6 @@
 package queue
 
 import (
-	"fmt"
 	"sync/atomic"
 )
 
@@ -85,10 +84,10 @@ func (q *HighLowQueue[VALUE]) Empty() bool {
 // - An error if the queue is closed or if the maximum queue size is reached, nil otherwise.
 func (q *HighLowQueue[VALUE]) put(high bool, v VALUE) error {
 	if q.closed.Load() {
-		return fmt.Errorf("queue closed")
+		return ErrClosed
 	}
 	if q.lh.Load()+q.ll.Load() >= q.max {
-		return fmt.Errorf("too many data in queue")
+		return ErrFull
 	}
 	if high {
 		q.high <- v
