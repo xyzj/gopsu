@@ -64,8 +64,8 @@ func NewMQTTClient(opt *MqttOpt, recvCallback func(topic string, body []byte)) (
 	if opt.SendTimeo == 0 {
 		opt.SendTimeo = time.Second * 5
 	}
-	if opt.Name == "" {
-		opt.Name = "[MQTT3]"
+	if opt.LogHeader == "" {
+		opt.LogHeader = "[MQTT3]"
 	}
 	if opt.TLSConf == nil {
 		opt.TLSConf = &tls.Config{InsecureSkipVerify: true}
@@ -95,16 +95,16 @@ func NewMQTTClient(opt *MqttOpt, recvCallback func(topic string, body []byte)) (
 	xopt.SetWriteTimeout(opt.SendTimeo) // 发送3秒超时
 	xopt.SetConnectTimeout(time.Second * 10)
 	xopt.SetConnectionLostHandler(func(client mqtt.Client, err error) {
-		opt.Logg.Error(opt.Name + " connection lost, " + err.Error())
+		opt.Logg.Error(opt.LogHeader + " connection lost, " + err.Error())
 		doneSub = false
 	})
 	xopt.SetOnConnectHandler(func(client mqtt.Client) {
-		opt.Logg.System(opt.Name + " Success connect to " + opt.Addr)
+		opt.Logg.System(opt.LogHeader + " Success connect to " + opt.Addr)
 	})
 	client := mqtt.NewClient(xopt)
 	go loopfunc.LoopFunc(func(params ...interface{}) {
 		if token := client.Connect(); token.Wait() && token.Error() != nil {
-			opt.Logg.Error(opt.Name + " " + token.Error().Error())
+			opt.Logg.Error(opt.LogHeader + " " + token.Error().Error())
 			panic(token.Error())
 		}
 		for {
@@ -112,16 +112,16 @@ func NewMQTTClient(opt *MqttOpt, recvCallback func(topic string, body []byte)) (
 				client.SubscribeMultiple(opt.Subscribe, func(client mqtt.Client, msg mqtt.Message) {
 					defer func() {
 						if err := recover(); err != nil {
-							opt.Logg.Error(opt.Name + fmt.Sprintf(" %+v", errors.WithStack(err.(error))))
+							opt.Logg.Error(opt.LogHeader + fmt.Sprintf(" %+v", errors.WithStack(err.(error))))
 						}
 					}()
-					opt.Logg.Debug(opt.Name + " DR:" + msg.Topic() + "; " + json.String(msg.Payload()))
+					opt.Logg.Debug(opt.LogHeader + " DR:" + msg.Topic() + "; " + json.String(msg.Payload()))
 					recvCallback(msg.Topic(), msg.Payload())
 				})
 				doneSub = true
 			}
 			time.Sleep(time.Second * 20)
 		}
-	}, opt.Name, opt.Logg.DefaultWriter())
+	}, opt.LogHeader, opt.Logg.DefaultWriter())
 	return &MqttClient{client: client}, nil
 }

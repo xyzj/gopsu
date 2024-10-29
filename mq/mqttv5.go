@@ -57,7 +57,7 @@ type MqttOpt struct {
 	// 登录密码
 	Passwd string
 	// 日志前缀，默认 [MQTT]
-	Name string
+	LogHeader string
 	// 是否启用断连消息暂存
 	CacheFailed bool
 	// 最大缓存消息数量，默认10000
@@ -151,10 +151,10 @@ func (m *MqttClientV5) WriteWithQos(topic string, body []byte, qos byte) error {
 		},
 	})
 	if err != nil {
-		m.cnf.Logg.Debug(m.cnf.Name + " Err:" + topic + "|" + err.Error())
+		m.cnf.Logg.Debug(m.cnf.LogHeader + " Err:" + topic + "|" + err.Error())
 		return err
 	}
-	m.cnf.Logg.Debug(m.cnf.Name + " S:" + topic + "|" + json.String(body))
+	m.cnf.Logg.Debug(m.cnf.LogHeader + " S:" + topic + "|" + json.String(body))
 	return nil
 }
 
@@ -166,8 +166,8 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 	if opt.SendTimeo == 0 {
 		opt.SendTimeo = time.Second * 5
 	}
-	if opt.Name == "" {
-		opt.Name = "[MQTT]"
+	if opt.LogHeader == "" {
+		opt.LogHeader = "[MQTT]"
 	}
 	if opt.TLSConf == nil {
 		opt.TLSConf = &tls.Config{InsecureSkipVerify: true}
@@ -217,7 +217,7 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 					Subscriptions: x,
 				})
 			}
-			opt.Logg.System(opt.Name + " Success connect to " + opt.Addr)
+			opt.Logg.System(opt.LogHeader + " Success connect to " + opt.Addr)
 			// 对失败消息进行补发
 			if opt.CacheFailed {
 				var err error
@@ -238,7 +238,7 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 						},
 					})
 					if err != nil {
-						opt.Logg.Error(opt.Name + " ReSend `" + value.topic + "` error:" + err.Error())
+						opt.Logg.Error(opt.LogHeader + " ReSend `" + value.topic + "` error:" + err.Error())
 					}
 					return true
 				})
@@ -246,7 +246,7 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 		},
 		OnConnectError: func(err error) {
 			st = false
-			opt.Logg.Error(opt.Name + " connect error: " + err.Error())
+			opt.Logg.Error(opt.LogHeader + " connect error: " + err.Error())
 		},
 		ConnectUsername: opt.Username,
 		ConnectPassword: []byte(opt.Passwd),
@@ -258,15 +258,15 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 					d.Packet().Properties.AssignedClientID += time.Now().Format("_2006-01-02_15:04:05.000000") // "_" + gopsu.GetRandomString(19, true)
 					return
 				}
-				opt.Logg.Error(opt.Name + " server may be down " + strconv.Itoa(int(d.ReasonCode)))
+				opt.Logg.Error(opt.LogHeader + " server may be down " + strconv.Itoa(int(d.ReasonCode)))
 			},
 			OnClientError: func(err error) {
 				st = false
-				opt.Logg.Error(opt.Name + " client error: " + err.Error())
+				opt.Logg.Error(opt.LogHeader + " client error: " + err.Error())
 			},
 			OnPublishReceived: []func(paho.PublishReceived) (bool, error){
 				func(pr paho.PublishReceived) (bool, error) {
-					opt.Logg.Debug(opt.Name + " R:" + pr.Packet.Topic)
+					opt.Logg.Debug(opt.LogHeader + " R:" + pr.Packet.Topic)
 					recvCallback(pr.Packet.Topic, pr.Packet.Payload)
 					return true, nil
 				},
@@ -276,7 +276,7 @@ func NewMQTTClientV5(opt *MqttOpt, recvCallback func(topic string, body []byte))
 	ctxClose, funClose = context.WithCancel(context.TODO())
 	cm, err := autopaho.NewConnection(ctxClose, conf)
 	if err != nil {
-		opt.Logg.Error(opt.Name + " new connection error: " + err.Error())
+		opt.Logg.Error(opt.LogHeader + " new connection error: " + err.Error())
 		return EmptyMQTTClientV5, err
 	}
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*3)
