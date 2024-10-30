@@ -105,11 +105,11 @@ func (q *HighLowQueue[VALUE]) put(high bool, v VALUE) error {
 		return ErrFull
 	}
 	if high {
-		q.high <- v
 		q.lh.Add(1)
+		q.high <- v
 	} else {
-		q.low <- v
 		q.ll.Add(1)
+		q.low <- v
 	}
 	return nil
 }

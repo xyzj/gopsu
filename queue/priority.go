@@ -146,11 +146,11 @@ func (q *PriorityQueue[VALUE]) PutWithPriority(data VALUE, priority byte) error 
 	}
 	q.locker.Lock()
 	defer q.locker.Unlock()
+	q.l.Add(1)
 	q.data = append(q.data, &queueItem[VALUE]{
 		priority: fmt.Sprintf("%03d_%d", priority, time.Now().UnixNano()),
 		data:     data,
 	})
-	q.l.Add(1)
 	q.sort()
 	return nil
 }
